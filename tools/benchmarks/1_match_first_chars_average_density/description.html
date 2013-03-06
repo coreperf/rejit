@@ -1,0 +1,16 @@
+<p>
+<b>Regexp:</b> <code>abcdefg$</code>
+<br />
+Same as before, except that the text to match is composed of random (equally
+probable) characters in the range [0-z].
+<br />
+Here both engines suffer a performance drop from the higher density of potential
+matches.
+The higher density of potential matches forces the engines to leave their
+optimized loop more often. (For example re2 exits memchr() when it finds the
+leading character 'a').
+<br />
+Rejit uses custom code with tighter checks that allows to exit the optimized
+loop less often. So performance does not degrade as much. There is still room
+for improvement.
+</p>

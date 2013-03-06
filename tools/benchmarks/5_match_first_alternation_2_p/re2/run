@@ -1,0 +1,43 @@
+#!/usr/bin/python
+
+# Copyright (C) 2013 Alexandre Rames <alexandre@uop.re>
+
+# rejit is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+from os.path import join, dirname, abspath, realpath
+import sys
+import subprocess
+import math
+import time
+import gc
+
+scriptpath = dirname(realpath(__file__))
+dir_tools = join(scriptpath, '../../../')
+sys.path.insert(0, dir_tools)
+import utils
+from utils import *
+dir_re2_resources = join(dir_benchmarks_engines, 're2')
+sys.path.insert(0, dir_re2_resources)
+import re2_utils
+from re2_utils import *
+
+if __name__ == "__main__":
+  regexp = '(abcd---#|abcd___#)'
+  args = [regexp]
+  results = run(args)
+  for line in results:
+    for e in line:
+      print e,
+    print ''

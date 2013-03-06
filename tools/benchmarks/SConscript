@@ -1,0 +1,64 @@
+import os
+import sys
+import subprocess
+
+from os.path import join
+from subprocess import PIPE
+
+# Import rejit utils.
+dir_root = os.path.realpath('.')
+while 'SConstruct' not in os.listdir(dir_root):
+  dir_root = os.path.realpath(join(dir_root, '..'))
+sys.path.insert(0, join(dir_root, 'tools'))
+import utils
+
+# These are exported from SConstruct and further passed down to SConscript
+# files.
+Import('env librejit libpath')
+
+
+# Check third party requirements.
+print "Checking for javascript flot... ",
+flot_git = 'git://github.com/flot/flot.git'
+flot_dir = join(utils.dir_html_resources, 'flot')
+if not os.path.exists(flot_dir) or not os.path.isdir(flot_dir):
+  print "not found."
+  ret = subprocess.check_call(['git', 'clone', flot_git, flot_dir])
+  if ret != 0:
+    print 'Failed to clone flot. Aborting build.'
+    sys.exit(1)
+else:
+  print "ok."
+
+print "Checking for re2... ",
+re2_hg = 'https://re2.googlecode.com/hg'
+re2_dir = join(utils.dir_benchmarks_engines, 're2/hg.re2')
+if not os.path.exists(re2_dir) or not os.path.isdir(re2_dir):
+  print "not found."
+  print "Cloning re2."
+  p = subprocess.Popen(['hg', 'clone', re2_hg, re2_dir], stdout=PIPE)
+  for line in p.stdout.readlines():
+    print line,
+  ret = p.wait()
+  if ret != 0:
+    print 'Failed to clone re2. Aborting build.'
+    sys.exit(1)
+  print "Building re2. This may take some time."
+  p = subprocess.Popen(['make', '-C', re2_dir, '-j5'], stdout=PIPE)
+  for line in p.stdout.readlines():
+    print line,
+  p.wait()
+  if ret != 0:
+    print 'Failed to build re2. Aborting build.'
+    sys.exit(1)
+else:
+  print "ok."
+
+# Find SConscript files in the benchmarks directory, except the current one.
+# Limit the recursion to avoid SConscript files from third party repositories.
+# TODO(rames): Relocat third party repositories.
+p = subprocess.Popen(["find", ".", "-maxdepth", "4", "-name", "SConscript"], stdout=subprocess.PIPE)
+sconscript_files = [f for f in p.communicate()[0].split() if f not in ['./SConscript', 'SConscript']]
+
+# Build all SConscript files found.
+SConscript(sconscript_files, exports='env librejit libpath')

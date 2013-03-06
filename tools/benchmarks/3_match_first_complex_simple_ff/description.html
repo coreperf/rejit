@@ -1,0 +1,15 @@
+<p>
+<b>Regexp:</b> <code>([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)$</code>
+<br />
+This illustrate the "fast forward" mechanism used in rejit.
+<br />
+With this mechanism, the matching performance of a regexp will be similar to the
+matching performance of its dominating element chosen by the fast forward
+mechanism. This holds as long as the complexity of the regular expression does
+not overpower the fast forward performances, which can happen when matching a
+complex regexp in a text with a high density of (potential) matches.
+<br /><br />
+This means that for low matches density texts, the performance profile of a
+regular expression will be similar to the performance profile of its ffelement.
+(Exceptions for still unhandled cases like <code>.*</code>.)
+</p>

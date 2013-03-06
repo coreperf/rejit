@@ -1,0 +1,50 @@
+# Copyright (C) 2013 Alexandre Rames <alexandre@uop.re>
+
+# rejit is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+
+# Import the environment to check for the os.
+Import('env')
+# We don't reuse the rejit environment to build third party engines.
+local_env = Environment()
+
+# Grab the compiler from the environment if it is available.
+local_env["CC"] = os.getenv("CC") or local_env["CC"]
+local_env["CXX"] = os.getenv("CXX") or local_env["CXX"]
+
+if local_env['CCFLAGS']:
+  local_env['CCFLAGS'] += ' ' + '-O3'
+else:
+  local_env['CCFLAGS'] = '-O3'
+
+
+dir_sconscript = Dir('.').srcnode().path 
+path_engine = os.path.join(dir_sconscript, 'engine')
+
+libs = ['re2', 'pthread']
+if 'os' in env and env['os'] == 'macos':
+  test_env = Environment()
+  conf = Configure(test_env)
+  if not conf.CheckLib('argp'):
+    print 'Did not find libargp.'
+    print 'Please install the OSX version available at https://github.com/fizx/libbow-osx/tree/master/argp'
+    print 'This is the only extra step on OSX, and should be very easy to install.'
+    Exit(1)
+  test_env = conf.Finish()
+  libs += ['argp']
+local_env.Program('engine', ['engine.cc'],
+    LIBS=libs, LIBPATH='hg.re2/obj/', CPPPATH='hg.re2/')
+
+BUILD_TARGETS.append(path_engine)

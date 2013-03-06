@@ -1,0 +1,11 @@
+<p>
+<b>Regexp:</b> <code>[aAzZ0-9](#|$)</code>
+<br />
+Performance when searching for a bracket expression.
+<br />
+The sub-regexp '(#|$)' is a trick to make rejit's fast forward mechanisms chose
+the bracket expression as its ffelement.
+<br />
+Rejt generates awful code for bracket expressions, making them really slow.
+Thre is a lot of work for those, including SIMD support.
+</p>

@@ -1,0 +1,1 @@
+-std=c++11 -Wall -pedantic -Werror -Isrc/ -Iinclude/ -DREJIT_TARGET_ARCH_X64 -g -DDEBUG

@@ -1,0 +1,294 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!--
+Copyright (C) 2013 Alexandre Rames <alexandre@uop.re>
+rejit is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Rejit</title>
+    <script language="javascript" type="text/javascript" src="resources/flot/jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="resources/flot/jquery.flot.js"></script>
+    <script language="javascript" type="text/javascript" src="resources/flot/jquery.flot.time.js"></script>
+  </head>
+  <body>
+    <a name="top_page"></a>
+    <h1>rejit</h1>
+    alexandre@uop.re
+    <br />
+    March 2013
+
+    <a name="table_of_content"></a></li>
+    <ul type="none">
+      <li><a href="#Introduction">Introduction</a></li>
+      <li><a href="#Description">Description</a></li>
+      <ul type="none">
+        <li><a href="#Matching_mechanism">Matching mechanism</a></li>
+        <li><a href="#Fast_forward_mechanism">Fast forward mechanism</a></li>
+        <li><a href="#Supported_not_supported_or_slow">Supported? / Not supported or slow?</a></li>
+        <li><a href="#What_is_next">What is next?</a></li>
+      </ul>
+      <li><a href="#Sources">Sources</a></li>
+      <li><a href="#Benchmarks">Benchmarks</a></li>
+    </ul>
+
+
+    <a name="Introduction"></a> <h2>Introduction</h2>
+    <p>
+    Rejit is a (prototype of a) non-backtracking, fast forwarding, just-in-time,
+    SIMD-able compiler for regular expressions.
+    It currently only supports x86-64, and (part of) the extended regular
+    expression (ERE) syntax.
+    <br />
+    It is available under the GPLv3 licence. For other licences contact me.
+    <br /><br />
+    I started working on it around October after I had read
+    <a href="http://swtch.com/~rsc/regexp/">Russ Cox's articles</a>.
+    I was missing <a href="https://code.google.com/p/v8/">v8</a> a bit,
+    and I wanted to gain some experience with x86 assembly.
+    I knew v8's regular expression engine was <a href="http://benchmarksgame.alioth.debian.org/u64/benchmark.php?test=regexdna&lang=all">fast</a>,
+    but I never really had the time to work on it. I also remembered it was
+    backtracking, and after reading Russ Cox's articles I wanted to try
+    implementing a non-backtracking JIT regexp engine.
+    <br /><br />
+    I have been working on rejit on my free time, mostly after work.
+    The C++ code is quite ugly (in most places), and the
+    assembly code generated equally bad or worse.
+    <br />
+    The current implementation is a prototype. Though it should behave
+    relatively well, there are many known and unknown bugs.
+    </p>
+
+
+    <p>
+    <a name="Description"></a> <h2>Description</h2>
+    This is a short description of rejit mechanisms.
+    <br />
+
+    There is a <b>lot</b> more to talk about concerning the current status,
+    future work and optimisations, and other ideas to improve the engine.
+    <br />
+    I'll try to write more if I get some time.
+    <br /><br />
+    Rejit generates native code to match regular expressions.
+    There are two parts to the generated code mechanisms: fast forwarding, and
+    matching.
+    <br /><br />
+    <a name="Matching_mechanism"></a> <h3>Matching mechanism</h3>
+    <b>'Matching'</b> is the mechanism used to verify if a regular expression matches
+    a sequence of characters.
+    <br />
+    Full matches (testing if a regular expression matches a whole string)
+    only use this mechanism.
+    <br />
+    The code generated for this mechanism executes a (non-backtracking) NFA
+    simulation. This is still highly unoptimized, yielding poor performances for full
+    regular expression matching or 'slow' paths for other type of matches.
+    <br /><br />
+    </p>
+    <p>
+    <a name="Fast_forward_mechanism"></a> <h3>Fast forward mechanism</h3>
+    <b>'Fast forwarding'</b> is a mechanism used when searching for occurrences
+    of a regular expression in a text. It is not used for full matches.
+    <br />
+    A simple way to search for the first occurrence of a regular expression in a
+    text is to execute an automaton simulation while setting the entry state of
+    the automaton at every character of the text searched. (Sorry I'll explain
+    that better later. You may re-read this
+    <a href="http://swtch.com/~rsc/regexp/regexp1.html">article</a>.)
+    However this can be painfully slow if the first sub regular expressions are
+    complex.
+    <br />
+    Consider for example the regular expression:
+    <pre>([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)</pre>
+    The automaton representing this regexp must be complex and slow to simulate.
+    <br />
+    Instead rejit analyses the regular expression and choses a dominating
+    sub-regexp as its 'fast forward element' (ffelement)).
+    <br />
+    <pre>Pseudo-definition:   'a' is a dominating sub regexp of 'b'   iff   ('b' matches => 'a' matches)</pre>
+    In our case <code>abcdefgh</code> is a dominating sub-regexp.
+    As is <code>(at|the|[e-nd]as well)</code>.
+    <br />
+    Here rejit would chose <code>'abcdefgh'</code> as an ffelement, and generate
+    an optimized SIMD loop searching for it (currently only SSE4.2). Upon
+    match, execution exits the fast forward loop and continues into the
+    'matching' non-backtracking code, which searches backward and forward for
+    the boundaries of the complete match.
+    <br /><br />
+    This can provide a huge performance advantage, as can be seen in the benchmarks
+    below. However the current implementation is still very simple and in some
+    cases will not chose the fastest dominating sub-regexp: rejit choses the
+    fastest 'single' sub-regexp if available (from concatenation of characters
+    to bracket expression), or else a dominating alternation with the fewest
+    sub-regexps.
+    </p>
+    <p>
+    <a name="Supported_not_supported_or_slow"></a> <h3>Supported? / Not supported?</h3>
+    <ul>
+      <li>Rejit supports the ERE syntax, but lacks full support for bracket
+      expressions (eg. '[:digit:]'). Full support for ERE is on the TODO list.
+      Partial BRE support is implemented but not exposed. Adding support for
+      other syntaxes should be straight forward as the parser is very simple.
+      </li>
+      <li>rejit does not support wide character types. That will need some more
+      work.</li>
+      <li>Common special characters like '\d' are not supported yet. Very easy
+      for most.</li>
+      <li>Case insensitive search. A bit of work.</li>
+      <li>Submatches and backreferences. I have an idea on how to
+      implement submatches and *relatively* efficient backreferences. Will
+      require some work.</li>
+      <li>more...</li>
+    </ul>
+    The benchmarks section below also gives details about what is still slow in
+    rejit.
+    </p>
+    <p>
+    <a name="What_is_next"></a> <h3>What is next?</h3>
+    I'll first take a break. The next step will be testing, cleaning, and
+    debugging.
+    <br />
+    After that full compliance with the specification, the items listed
+    above, more optimization work, implementation of other ideas, etc.
+    Maybe also ports to other architectures.
+    <br />
+    I would ideally like to have more time to work on rejit. If you think you
+    can help please contact me.
+    </p>
+
+    <a name="Sources"></a> <h2>Sources</h2>
+    <p>
+    <b>Sources:</b><br />
+    <li>
+    <a href="http://swtch.com/~rsc/regexp/">Russ Cox's articles</a>.
+    I purposedly didn't read other articles than these. Of course now I'll start having a
+    look around.
+    </li>
+    <li>
+    A reading of Russ Cox's <a href="http://code.google.com/p/re2/">RE2</a>'s
+    parser helped me start on mine.
+    </li>
+    <li>
+    <a href="http://code.google.com/p/v8/">Google v8</a>.
+    <br />
+    I worked on v8 for a while. Rejit uses the v8 x64 assembler and part of the
+    code related to jitted code handling.
+    <br />
+    The structure of rejit's code is influenced by my experience with v8
+    and the constraints set by the assembler. However the algorithm part is
+    independent.
+    </li>
+    </p>
+
+    <a name="Benchmarks"></a> <h1>Benchmarks</h1>
+    <p>
+    Benchmarks presented here all deal with looking for matches of a regular
+    expression in a text.
+    They try to match the regexp in a text where we ensure there is no match.
+    Performance is reported in bytes per second (size of the
+    text matched divided by the time to match it).
+    That indicates at what speed the engine is able to process the text to look
+    for a match.
+    This is representative of use cases where the density of matches in the text
+    searched is low. (Example use case: grepping through files for a regexp.)
+
+    <br /><br />
+    I spent most time working on the engine rather than the benchmarks, so there
+    is a lot to improve. A few notes:
+    <li>Runs for text of different sizes and engines are independent and use
+    different randomly generated texts. The number of iterations is also kept
+    relatively small to keep the benchmarks quick to run.</li>
+    <li>'best' performance graphs don't take the compilation time into account.
+    'worst' performance graphs show performance for 1 run and 1 compilation
+    (averaged). 'amortised' performance graphs show performance for 1
+    compilation and 100 runs</li>
+    <li>Benchmarks showing performance of full regexp matching are not
+    presented. As explained above, rejit's related mechanisms are completely
+    unoptimized and the performance on those will likely be poor compared to
+    other engines (except maybe on backtracking regexps).</li>
+    <li>Rejit is a prototype implementation, has not been optimized, and there are
+    many unimplemented SIMD paths. Hence there are many situations in which
+    rejit will perform badly (especially compared to SIMD paths).
+    </li>
+    <br /><br />
+    Finally before we go to the benchmarks, here are a few things where rejit is
+    still very bad at. (Eventually they should become as fast as the rest).
+    <li>Full matches.</li>
+    <li>The handling of <code>.*</code> is bad. Example slow regexp: <code>.*$</code> .</li>
+    <li>Regexp for which the fast forward mechanism choses a bracket expression
+    as its ffelement.
+    Example slow regexp: <code>(sub|regexp)[0-9az@](other|stuff?)</code></li>
+    </p>
+
+    <script language="javascript" type="text/javascript">
+      var kiB = 1024;
+      var MiB = kiB * kiB;
+      var GiB = MiB * kiB;
+
+      function suffixF(val, suffix) {
+        if (val > GiB)
+          return (val / GiB).toFixed(1) + " G" + suffix;
+        if (val > MiB)
+          return (val / MiB).toFixed(0) + " M" + suffix;
+        else if (val > kiB)
+          return (val / kiB).toFixed(0) + " k" + suffix;
+        else
+          return (val / 1.0).toFixed(0) + " " + suffix;
+      }
+
+      function byteF(val) { return suffixF(val, "iB"); }
+      function byteSF(val) { return suffixF(val, "iB/s"); }
+
+      function yFormatter(val, axis) {
+        return byteSF(val);
+      }
+
+      var plot_options_parallel = {
+        series: {
+          lines: { show: true },
+          points: { show: true, radius: 2}
+        },
+        legend: {
+          position: "nw"
+        },
+        grid: { hoverable: true, clickable: true },
+        xaxis: {
+          ticks: [[8,"8 B"], [16,"16 B"], [64,"64 B"], [256,"256 B"], [kiB,"1 kiB"], [4*kiB,"4 kiB"], [16*kiB,"16 kiB"], [64*kiB,"64 kiB"], [256*kiB,"256 kiB"], [1*MiB,"1 MiB"], [4*MiB,"4 MiB"], [16*MiB,"16 MiB"]],
+          transform: function (v) { return Math.log(v); },
+          inverseTransform: function (v) { return Math.exp(v); }
+        },
+        yaxis: {
+          tickFormatter: yFormatter
+        }
+      };
+
+      var plot_options_speed_time = {
+        series: {
+          lines: { show: true },
+          points: { show: true, radius: 2}
+        },
+        legend: {
+          position: "nw"
+        },
+        grid: { hoverable: true, clickable: true },
+        xaxis: {
+          mode: "time"
+        },
+        yaxis: {
+          tickFormatter: yFormatter
+        }
+      };
+    </script>
+
