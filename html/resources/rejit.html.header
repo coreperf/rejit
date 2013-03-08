@@ -67,7 +67,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     assembly code generated equally bad or worse.
     <br />
     The current implementation is a prototype. Though it should behave
-    relatively well, there are many known and unknown bugs.
+    relatively well, there are known and certainly unknown bugs.
     </p>
 
 

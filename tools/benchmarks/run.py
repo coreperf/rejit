@@ -68,7 +68,6 @@ def run_benchs():
   runs = p_runs.communicate()[0].split()
 
   for run in runs:
-    time.sleep(1)
     print "Running " + run
     p = subprocess.Popen([run], stdout=subprocess.PIPE)
     p.wait()
@@ -170,7 +169,8 @@ def plot_results():
       # Performance points have numerical indexes.
       first_perf_index = 0
       labels_all = data.next()
-      labels_all.remove('')
+      if '' in labels_all:
+        labels_all.remove('')
       while not is_number(labels_all[first_perf_index]):
         first_perf_index += 1
 

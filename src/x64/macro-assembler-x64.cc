@@ -40,7 +40,7 @@ void MacroAssembler::Move(Register dst, uint64_t value) {
 }
 
 
-//      const int64_t c = *reinterpret_cast<const int64_t*>(next_chars); 
+//      const int64_t c = *reinterpret_cast<const int64_t*>(next_chars);
 //      __ Move(fixed_chars, c);
 //      if (n_chars == 2) {
 //        __ movb(fixed_chars, Immediate(next_chars[0]));
@@ -48,23 +48,23 @@ void MacroAssembler::Move(Register dst, uint64_t value) {
 //        __ movw(fixed_chars, Immediate(*reinterpret_cast<const int16_t*>(next_chars)))
 //      } else if (n_chars <= sizeof(uint32_t) + 1) {
 //        int32_t c =
-//          *reinterpret_cast<const int32_t*>(next_chars) & FirstCharsMask(n_chars); 
+//          *reinterpret_cast<const int32_t*>(next_chars) & FirstCharsMask(n_chars);
 //        __ movl(fixed_chars, Immediate(c))
 //
 //      } else if (n_chars <= sizeof(uint64_t)) + 1 {
 //        int64_t c =
-//          *reinterpret_cast<const int64_t*>(next_chars) & FirstCharsMask(n_chars); 
+//          *reinterpret_cast<const int64_t*>(next_chars) & FirstCharsMask(n_chars);
 //        __ Move(fixed_chars, Immediate(c))
 //
 //      } else {
-//        int64_t c = *reinterpret_cast<const int64_t*>(next_chars); 
+//        int64_t c = *reinterpret_cast<const int64_t*>(next_chars);
 //        __ Move(fixed_chars, Immediate(c))
 //      }
 
 // TODO: this does not have to zero the rest of the register.
 void MacroAssembler::MoveCharsFrom(Register dst, unsigned n, const char *location) {
   if (n == 0) return;
-  int64_t chars = *reinterpret_cast<const int64_t*>(location); 
+  int64_t chars = *reinterpret_cast<const int64_t*>(location);
   Move(dst, chars & FirstCharsMask(n));
 }
 
@@ -297,6 +297,16 @@ void MacroAssembler::CallCpp(Address address) {
 }
 
 
+void MacroAssembler::AdvanceToEOS() {
+  Label loop;
+  subq(string_pointer, Immediate(kCharSize));
+  bind(&loop);
+  addq(string_pointer, Immediate(kCharSize));
+  cmpb(current_char, Immediate(0));
+  j(not_zero, &loop);
+}
+
+
 // Debug helpers -----------------------------------------------------
 
 static void LocalPrint(const char* message) {
@@ -330,7 +340,7 @@ void MacroAssembler::debug_msg(const char *message) {
 void MacroAssembler::debug_msg(Condition cond, const char *message) {
   Label skip;
   if (cond != always) {
-    j(NegateCondition(cond), &skip); 
+    j(NegateCondition(cond), &skip);
   }
   debug_msg(message);
   bind(&skip);
@@ -346,7 +356,7 @@ void MacroAssembler::stop(const char *message) {
 void MacroAssembler::stop(Condition cond, const char *message) {
   Label skip;
   if (cond != always) {
-    j(NegateCondition(cond), &skip); 
+    j(NegateCondition(cond), &skip);
   }
   stop(message);
   bind(&skip);

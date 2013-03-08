@@ -304,7 +304,7 @@ static void InitCoverageLog();
 
 Assembler::Assembler(void* buffer, int buffer_size)
     : AssemblerBase(),
-      emit_debug_code_(true),  // TODO(rames): Introduce FLAGS.
+      emit_debug_code_(FLAG_emit_debug_code),
       predictable_code_size_(false) {
   if (buffer == NULL) {
     // Do our own buffer management.

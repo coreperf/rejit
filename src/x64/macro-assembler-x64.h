@@ -79,6 +79,8 @@ class MacroAssembler : public MacroAssemblerBase {
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, size_t n_chars);
 
+  void AdvanceToEOS();
+
   // Debug helpers ---------------------------------------------------
 
   // All debug helpers must preserve registers and flags.
