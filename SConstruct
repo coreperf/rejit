@@ -149,7 +149,6 @@ build_dir_tests    = join(build_dir_tools, 'tests')
 build_dir_sample   = PrepareBuildDir('sample')
 
 env['LIBPATH'] += ':' + build_dir
-print env['LIBPATH']
 
 # For now it is easy to locate the sources. In the future we may require a
 # system similar to the build options.
@@ -177,6 +176,6 @@ Default(basic, t_test)
 benchmark = join(build_dir, 'benchmark')
 Program(benchmark, join(build_dir_tools, 'benchmarks/benchmark.c'))
 Alias('benchmark', benchmark)
-if benchmark or 'benchmark' in COMMAND_LINE_TARGETS:
+if benchmark in COMMAND_LINE_TARGETS or 'benchmark' in COMMAND_LINE_TARGETS:
   help_messages = utils.help_messages
   SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
