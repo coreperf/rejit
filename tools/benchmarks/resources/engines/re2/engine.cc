@@ -113,7 +113,16 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 }
 
 static char args_doc[] = "regexp";
-static char doc[] = "Benchmark rejit regular expression engine.";
+static char doc[] =
+"Benchmark re2 regular expression engine.\n"
+"--- NOTE ---------------------------------\n"
+"This utility benchmarks the speed to find the *FIRST* match of the provided "
+"regular expression. For coherent results ensure that your regexp does NOT "
+"match.\n"
+"Why so? Because this is currently what is needed for the automated bencharks, "
+"which this utility is designed for.\n"
+"Improving this tool to benchmark MatchAll is on my TODO list."
+"\n------------------------------------------\n" ;
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
