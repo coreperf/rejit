@@ -14,7 +14,7 @@ import utils
 
 # These are exported from SConstruct and further passed down to SConscript
 # files.
-Import('env librejit libpath')
+Import('env librejit help_messages')
 
 
 # Check third party requirements.
@@ -61,4 +61,4 @@ p = subprocess.Popen(["find", ".", "-maxdepth", "4", "-name", "SConscript"], std
 sconscript_files = [f for f in p.communicate()[0].split() if f not in ['./SConscript', 'SConscript']]
 
 # Build all SConscript files found.
-SConscript(sconscript_files, exports='env librejit libpath')
+SConscript(sconscript_files, exports='env librejit help_messages')

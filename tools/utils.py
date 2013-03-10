@@ -76,3 +76,22 @@ default_n_iterations = '100'
 # From 8B to 16MiB.
 default_run_lengths = map(lambda x: str(1 << x), range(3, 25))
 
+
+# Help messages ----------------------------------------------------------------
+
+help_argp = \
+'''
+Could not find libargp.
+Please install libargp; this is the only extra step on OSX.
+You can install it via homebrew or macports, or manually install it from
+https://github.com/fizx/libbow-osx/tree/master/argp.
+If you install it outside of the standard lib and include path, please compile
+rejit as follow:
+  $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<path to libargp.a>
+  $ export CCFLAGS=$CCFLAGS:-I<path to argp.h>
+  $ scons benchmark
+'''
+
+help_messages = {
+    'argp': help_argp
+    }

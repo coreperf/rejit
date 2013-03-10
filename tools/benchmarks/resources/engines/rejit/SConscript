@@ -15,23 +15,28 @@
 
 import os
 
-Import('env librejit libpath')
+Import('env librejit help_messages')
+
+test_env = Environment()
+# Grab compilation environment variables.
+test_env['CC'] = os.getenv('CC') or test_env['CC']
+test_env['CXX'] = os.getenv('CXX') or test_env['CXX']
+test_env['CCFLAGS'] = os.getenv('CCFLAGS') or test_env['CCFLAGS']
+
+test_env['LIBPATH'] = env['LIBPATH'] + ':hg.re2/obj/:'
 
 dir_sconscript = Dir('.').srcnode().path 
 path_engine = os.path.join(dir_sconscript, 'engine')
 
 libs = [librejit]
 if 'os' in env and env['os'] == 'macos':
-  test_env = Environment()
   conf = Configure(test_env)
   if not conf.CheckLib('argp'):
-    print 'Did not find libargp.'
-    print 'Please install the OSX version available at https://github.com/fizx/libbow-osx/tree/master/argp'
-    print 'This is the only extra step on OSX, and should be very easy to install.'
+    print help_messages['argp']
     Exit(1)
   test_env = conf.Finish()
   libs += ['argp']
 env.Program('engine', ['engine.cc'],
-    LIBS=libs, LIBPATH=libpath, CPPPATH='include')
+    LIBS=libs, CPPPATH='include')
 
 BUILD_TARGETS.append(path_engine)

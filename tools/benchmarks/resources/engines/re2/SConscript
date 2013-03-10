@@ -16,13 +16,16 @@
 import os
 
 # Import the environment to check for the os.
-Import('env')
+Import('env help_messages')
 # We don't reuse the rejit environment to build third party engines.
 local_env = Environment()
 
-# Grab the compiler from the environment if it is available.
-local_env["CC"] = os.getenv("CC") or local_env["CC"]
-local_env["CXX"] = os.getenv("CXX") or local_env["CXX"]
+# Grab compilation environment variables.
+local_env['CC'] = os.getenv('CC') or local_env['CC']
+local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
+local_env['CCFLAGS'] = os.getenv('CCFLAGS') or local_env['CCFLAGS']
+
+local_env['LIBPATH'] = env['LIBPATH'] + ':hg.re2/obj/:'
 
 if local_env['CCFLAGS']:
   local_env['CCFLAGS'] += ' ' + '-O3'
@@ -35,16 +38,13 @@ path_engine = os.path.join(dir_sconscript, 'engine')
 
 libs = ['re2', 'pthread']
 if 'os' in env and env['os'] == 'macos':
-  test_env = Environment()
-  conf = Configure(test_env)
+  conf = Configure(local_env)
   if not conf.CheckLib('argp'):
-    print 'Did not find libargp.'
-    print 'Please install the OSX version available at https://github.com/fizx/libbow-osx/tree/master/argp'
-    print 'This is the only extra step on OSX, and should be very easy to install.'
+    print help_messages['argp']
     Exit(1)
-  test_env = conf.Finish()
+  local_env = conf.Finish()
   libs += ['argp']
 local_env.Program('engine', ['engine.cc'],
-    LIBS=libs, LIBPATH='hg.re2/obj/', CPPPATH='hg.re2/')
+    LIBS=libs, CPPPATH='hg.re2/')
 
 BUILD_TARGETS.append(path_engine)

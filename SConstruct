@@ -91,16 +91,18 @@ vars.AddVariables(
 
 env = Environment(variables = vars)
 
-# Grab the compiler from the environment if it is available.
-env["CC"] = os.getenv("CC") or env["CC"]
-env["CXX"] = os.getenv("CXX") or env["CXX"]
+# Grab compilation environment variables.
+env['CC'] = os.getenv('CC') or env['CC']
+env['CXX'] = os.getenv('CXX') or env['CXX']
+env['CCFLAGS'] = os.getenv('CCFLAGS') or env['CCFLAGS']
+env['LIBPATH'] = os.getenv('LD_LIBRARY_PATH') or env['LIBPATH'] if 'LIBPATH' in env else ''
 
 Help(vars.GenerateHelpText(env))
 
 # Abort build if any command line option is invalid.
 unknown_build_options = vars.UnknownVariables()
 if unknown_build_options:
-  print "Unknown build options:",  unknown_build_options.keys()
+  print 'Unknown build options:',  unknown_build_options.keys()
   Exit(1)
 
 # This allows colors to be displayed when using with clang.
@@ -133,7 +135,7 @@ for key in keys:
 # Sources and build targets ----------------------------------------------------
 # Sources are in src/. Build in build/ to avoid spoiling the src/ directory with
 # built objects.
-build_dir = utils.build_dir(env['mode'])
+build_dir = os.path.realpath(utils.build_dir(env['mode']))
 def PrepareBuildDir(location):
   location_build_dir = join(build_dir, location)
   VariantDir(location_build_dir, location)
@@ -145,6 +147,9 @@ build_dir_src_arch = join(PrepareBuildDir('src'), env['arch'])
 build_dir_tools    = PrepareBuildDir('tools')
 build_dir_tests    = join(build_dir_tools, 'tests')
 build_dir_sample   = PrepareBuildDir('sample')
+
+env['LIBPATH'] += ':' + build_dir
+print env['LIBPATH']
 
 # For now it is easy to locate the sources. In the future we may require a
 # system similar to the build options.
@@ -158,10 +163,10 @@ sources = [Glob(join(build_dir_src, '*.cc')),
 librejit = 'rejit'
 env.StaticLibrary(join(build_dir, 'rejit'), sources)
 basic = env.Program(join(build_dir, 'basic'), join(build_dir_sample, 'basic.cc'),
-    LIBS=[librejit],  LIBPATH=build_dir, CPPPATH='include')
+    LIBS=[librejit], CPPPATH='include')
 env.Alias('basic', basic)
 t_test = env.Program(join(build_dir, 'test-rejit'), join(build_dir_tests, 'test.cc'),
-    LIBS=[librejit],  LIBPATH=build_dir, CPPPATH='include')
+    LIBS=[librejit], CPPPATH='include')
 Default(basic, t_test)
 
 # Building benchmarks involve checking out and compiling third-party engines.
@@ -172,6 +177,6 @@ Default(basic, t_test)
 benchmark = join(build_dir, 'benchmark')
 Program(benchmark, join(build_dir_tools, 'benchmarks/benchmark.c'))
 Alias('benchmark', benchmark)
-libpath = join(os.getcwd(), build_dir)
 if benchmark or 'benchmark' in COMMAND_LINE_TARGETS:
-  SConscript('tools/benchmarks/SConscript', exports='env librejit libpath')
+  help_messages = utils.help_messages
+  SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
