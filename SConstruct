@@ -95,7 +95,10 @@ env = Environment(variables = vars)
 env['CC'] = os.getenv('CC') or env['CC']
 env['CXX'] = os.getenv('CXX') or env['CXX']
 env['CCFLAGS'] = os.getenv('CCFLAGS') or env['CCFLAGS']
-env['LIBPATH'] = os.getenv('LD_LIBRARY_PATH') or env['LIBPATH'] if 'LIBPATH' in env else ''
+if os.getenv('LD_LIBRARY_PATH'):
+  env['LIBPATH'] = os.getenv('LD_LIBRARY_PATH')
+elif 'LIBPATH' not in env:
+  env['LIBPATH'] = ''
 
 Help(vars.GenerateHelpText(env))
 

@@ -64,7 +64,7 @@ which you can use for example with
 .
 Speed is reported in bytes per second.
 
-*WARNING*:
+**WARNING**:
 These utilities are designed for the automated benchmarks, and not
 currently very adapted to manual benchmarking.  Please read
 ```$ tools/benchmarks/resources/engines/rejit/engine --help``` carefully!
