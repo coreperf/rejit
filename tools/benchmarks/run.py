@@ -59,7 +59,7 @@ def benchmark_engine_data_path(benchmark, engine):
 
 # Build benchmarks in release mode ---------------------------------------------
 print "\nBuilding benchmarks..."
-subprocess.call(["scons", "-C", dir_rejit, join(utils.build_dir('release'), 'benchmark'), "benchtest=on"])
+subprocess.call(["scons", "-C", dir_rejit, 'benchmark', "benchtest=on"])
 
 # Run the benchmarks -----------------------------------------------------------
 def run_benchs():
