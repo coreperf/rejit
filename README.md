@@ -1,9 +1,9 @@
 rejit regular expression (JIT) compiler by Alexandre Rames <alexandre@uop.re>.<br />
 This a proof of concept implementation. It is not ready for production.
 
-## Quickstart
+## Quickstart - Benchmarks and documentation
 
-Run the benchmarks and open the results.
+Run the benchmarks and open the results along with some documentation.
 ```
 $ ./tools/benchmarks/run.py
 $ <browser> ./html/rejit.html
