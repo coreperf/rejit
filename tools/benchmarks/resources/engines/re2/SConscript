@@ -15,6 +15,8 @@
 
 import os
 
+dir_re2 = os.path.realpath('.')
+
 # Import the environment to check for the os.
 Import('env help_messages')
 # We don't reuse the rejit environment to build third party engines.
@@ -25,7 +27,7 @@ local_env['CC'] = os.getenv('CC') or local_env['CC']
 local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
 local_env['CCFLAGS'] = os.getenv('CCFLAGS') or local_env['CCFLAGS']
 
-local_env['LIBPATH'] = env['LIBPATH'] + ':hg.re2/obj/:'
+local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(dir_re2, 'hg.re2/obj/') + ':'
 
 if local_env['CCFLAGS']:
   local_env['CCFLAGS'] += ' ' + '-O3'
