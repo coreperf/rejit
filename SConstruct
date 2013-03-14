@@ -62,12 +62,15 @@ options = {
 
 # DefaultVariable have a default value that depends on elements not known when
 # variables are first evaluated.
-def mod_flags_handler(env):
+def modifiable_flags_handler(env):
   env['modifiable_flags'] = 'on' if 'mode' in env and env['mode'] == 'debug' else 'off'
+def benchtest_handler(env):
+  env['benchtest'] = 'on' if 'mode' in env and env['mode'] == 'debug' else 'off'
 
 vars_default_handlers = {
-    # variable_name   : ['default val', 'handler'  ]
-    'modifiable_flags': ['mode==debug', mod_flags_handler]
+    # variable_name    : [ 'default val', 'handler'                ]
+    'modifiable_flags' : [ 'mode==debug', modifiable_flags_handler ],
+    'benchtest'        : [ 'mode==debug', benchtest_handler        ]
     }
 
 def DefaultVariable(name, help, allowed):
@@ -83,7 +86,7 @@ vars.AddVariables(
     # For now only the x64 architecture is a valid target.
     EnumVariable('arch', 'Target architecture', utils.GuessArchitecture(), allowed_values=utils.build_options_archs),
     EnumVariable('os', 'Target os', utils.GuessOS(), allowed_values=utils.build_options_oses),
-    EnumVariable('benchtest', 'Compile for benchmarks or tests.', 'on', allowed_values=('on', 'off')),
+    DefaultVariable('benchtest', 'Compile for benchmarks or tests.', ['on', 'off']),
     DefaultVariable('modifiable_flags', 'Allow modifying flags at runtime.', ['on', 'off']),
     )
 

@@ -28,6 +28,9 @@
 #include <sys/stat.h>
 
 #include "rejit.h"
+#include "checks.h"
+#include "flags.h"
+
 #include "../utils.h"
 
 using namespace rejit;
@@ -46,13 +49,25 @@ const char *argp_program_bug_address = "<alexandre@uop.re>";
 
 /* This structure is used by main to communicate with parse_opt. */
 struct arguments {
-  char       *args[1];  // The regexp.
-  char       *file;
-  size_t     size;
-  unsigned   iterations;
-  char       low_char;
-  char       high_char;
+  char      *args[1];  // The regexp.
+  char      *file;
+  size_t    size;
+  unsigned  iterations;
+  char      low_char;
+  char      high_char;
+  // Rejit flags.
+  int  rejit_flags;
 };
+
+// Start the enum from the latest argp key used.
+enum rejit_flags_option_keys {
+  last_argp_key = ARGP_KEY_FINI,
+#define ENUM_KEYS(flag_name, r, d) flag_name##_key,
+  REJIT_FLAGS_LIST(ENUM_KEYS)
+#undef ENUM_KEYS
+  first_rejit_flag_key = last_argp_key + 1
+};
+#define REJIT_FLAG_OFFSET(flag_name) (flag_name##_key - first_rejit_flag_key)
 
 /*
    OPTIONS.  Field 1 in ARGP.
@@ -65,6 +80,11 @@ static struct argp_option options[] =
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
   {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
   {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
+  // Convenient access to rejit flags.
+#define FLAG_OPTION(flag_name, r, d) \
+  {#flag_name , flag_name##_key , FLAG_##flag_name ? "1" : "0"   , OPTION_ARG_OPTIONAL , "0 to disable, 1 to enable."},
+  REJIT_FLAGS_LIST(FLAG_OPTION)
+#undef FLAG_OPTION
   {0}
 };
 
@@ -98,6 +118,20 @@ parse_opt(int key, char *arg, struct argp_state *state) {
     case 'h':
       arguments->high_char = arg[0];
       break;
+
+#define FLAG_CASE(flag_name, r, d)                                             \
+    case flag_name##_key: {                                                    \
+      if (arg) {                                                               \
+        unsigned v;                                                            \
+        v = argtoi(arg);                                                       \
+        assert(v == 0 || v == 1);                                              \
+        arguments->rejit_flags |= v << REJIT_FLAG_OFFSET(flag_name);           \
+      }                                                                        \
+      break;                                                                   \
+    }
+    REJIT_FLAGS_LIST(FLAG_CASE)
+#undef FLAG_CASE
+
     case ARGP_KEY_ARG:
       if (state->arg_num >= 1) {
         argp_usage(state);
@@ -138,13 +172,25 @@ int main(int argc, char *argv[]) {
 
   // Arguments parsing -------------------------------------
   struct arguments arguments;
+  // Set default values.
   arguments.file       = NULL;
   arguments.size       = 1024;
   arguments.iterations = 1000;
   arguments.low_char   = 'a';
   arguments.high_char  = 'z';
+#define SET_FLAG_DEFAULT(flag_name, r, d)                                      \
+  arguments.rejit_flags |= FLAG_##flag_name << REJIT_FLAG_OFFSET(flag_name);
+  arguments.rejit_flags = 0;
+  REJIT_FLAGS_LIST(SET_FLAG_DEFAULT)
+#undef SET_FLAG_DEFAULT
 
   argp_parse(&argp, argc, argv, 0, 0, &arguments);
+  // Set rejit flags according to the arguments.
+#define SET_REJIT_FLAG(flag_name, r, d)                                        \
+  SET_FLAG(flag_name,                                                          \
+           arguments.rejit_flags & (1 << REJIT_FLAG_OFFSET(flag_name)));
+REJIT_FLAGS_LIST(SET_REJIT_FLAG)
+#undef SET_REJIT_FLAG
 
   char *regexp = arguments.args[0];
 

@@ -179,7 +179,7 @@ void NB_Codegen::Generate(RegexpInfo* rinfo,
   vector<Regexp*>::const_iterator it;
   vector<Regexp*>* gen_list = rinfo->gen_list();
 
-  if (FLAG_trace_re_list) {
+  if (FLAG_print_re_list) {
     cout << "Regexp list ----------" << endl;
     for (it = gen_list->begin(); it < gen_list->end(); it++) {
       cout << **it << endl;
@@ -296,7 +296,7 @@ bool NB_Codegen::GenerateFastForward(RegexpInfo* rinfo,
   FF_finder fff(rinfo->regexp(), fflist);
   bool ff_success = fff.Visit(rinfo->regexp());
 
-  if (FLAG_trace_ff_finder) {
+  if (FLAG_print_ff_elements) {
     Indent(cout) << "fast forward regexps {" << endl;
     { IndentScope indent;
       if (ff_success) {

@@ -14,28 +14,10 @@
 
 #include "flags.h"
 
-#if defined(DEBUG) || defined(ALLOCATION_FLAG_MODIFICATION)
-#define FLAG(name, release_def, debug_def) bool FLAG_##name = debug_def;
+#if defined(DEBUG) || defined(MOD_FLAGS)
+#define DEFINE_FLAG(name, r, debug_def) bool FLAG_##name = debug_def;
 #else
-#define FLAG(name, release_def, debug_def)
+#define DEFINE_FLAG(name, r, d)
 #endif
-
-#ifdef BENCHTEST
-bool FLAG_benchtest = true;
-#else
-bool FLAG_benchtest = false;
-#endif
-
-FLAG( emit_debug_code       ,false ,true  )
-
-FLAG( use_fast_forward      ,true  ,true  )
-FLAG( trace_ff_finder       ,false ,false )
-FLAG( force_ff_pre_scan     ,false ,false )
-
-FLAG( trace_repetitions     ,false ,false )
-FLAG( trace_re_tree         ,false ,false )
-FLAG( trace_re_list         ,false ,false )
-FLAG( trace_matches         ,false ,false )
-FLAG( print_state_ring_info ,false ,false )
-
-#undef FLAG
+REJIT_FLAGS_LIST(DEFINE_FLAG)
+#undef DEFINE_FLAG

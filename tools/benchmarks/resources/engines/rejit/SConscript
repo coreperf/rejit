@@ -16,6 +16,7 @@
 import os
 
 Import('env librejit help_messages')
+env['CCFLAGS'] += ' -DBENCHTEST -DMOD_FLAGS'
 
 test_env = Environment()
 # Grab compilation environment variables.

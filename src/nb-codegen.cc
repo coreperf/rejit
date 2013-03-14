@@ -20,7 +20,7 @@ namespace rejit {
 namespace internal {
 
 
-// TODO(rames): This is inefficient. Maybe use another storage than vector.
+// TODO(rames): This is inefficient. Also maybe use another storage than vector.
 void RegisterMatch(vector<Match>* matches, Match new_match) {
   const char* new_begin = new_match.begin;
   const char* new_end = new_match.end;
@@ -40,11 +40,13 @@ void RegisterMatch(vector<Match>* matches, Match new_match) {
 
   matches->push_back(new_match);
 
-  if (FLAG_trace_matches) {
-    cout << "Current matches:" << endl;
-    for (it = matches->begin(); it < matches->end(); it++) {
-      cout << "\t" << (*it).begin << ", " << (*it).end << endl;
+  if (FLAG_trace_match_all) {
+    printf("Found match: (start %p - end %p) ", new_match.begin, new_match.end);
+    const char* c = new_match.begin;
+    while (c < new_match.end) {
+      printf("%c", *c++);
     }
+    printf("\n");
   }
 }
 
@@ -443,7 +445,7 @@ VirtualMemory* NB_Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   Regexp* root = rinfo->regexp();
   NB_RegexpIndexer indexer(rinfo);
   indexer.Index(root);
-  if (FLAG_trace_re_tree) {
+  if (FLAG_print_re_tree) {
     cout << "Regexp tree ----------" << endl;
     cout << *root << endl;
     cout << "---------- End of regexp tree" << endl;

@@ -15,13 +15,41 @@
 #ifndef REJIT_FLAGS_H_
 #define REJIT_FLAGS_H_
 
-// TODO(rames): Optimize flags for release mode.
-#ifdef MOD_FLAGS
-#define FLAG(name, release_def, debug_def) extern bool FLAG_##name;
+// This is a centralised definition of the flags used by rejit.
+// This allows to easily use macros to operate on all the flags at once.
+// Note that defined macros are required to take 3 arguments, but can ignore
+// some of them (oftent the debug and release mode default values).
+// See for example the DECLARE_FLAG macro.
+#define REJIT_FLAGS_LIST(M)                                                    \
+/* flag_name             , release , debug mode default value */               \
+/* Emit extra code for debugging purposes. */                                  \
+M( emit_debug_code       , false   , true  )                                   \
+/* DEPRECATED */                                                               \
+M( force_ff_pre_scan     , false   , false )                                   \
+/* Show the ff elements chosen by the fast forward mechanism. */               \
+M( print_ff_elements     , false   , false )                                   \
+/* Print the list of regexps that the codegen will generate code for. */       \
+M( print_re_list         , false   , false )                                   \
+/* Print the regexp tree after parsing. */                                     \
+M( print_re_tree         , false   , false )                                   \
+/* Print info about the state ring. */                                         \
+M( print_state_ring_info , false   , false )                                   \
+/* For kMatchAll, print every match when registered. */                        \
+M( trace_match_all       , false   , false )                                   \
+/* Trace repetitions handling at parse time. */                                \
+M( trace_repetitions     , false   , false )                                   \
+/* Use the fast forward mechanism. */                                          \
+M( use_fast_forward      , true    , true  )
+
+// Declare all the flags.
+#if defined(DEBUG) || defined(MOD_FLAGS)
+#define DECLARE_FLAG(name, r, d) extern bool FLAG_##name;
 #else
-#define FLAG(name, release_def, debug_def) \
+#define DECLARE_FLAG(name, release_def, x) \
   static const bool FLAG_##name = release_def;
 #endif
+REJIT_FLAGS_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
 
 #ifdef MOD_FLAGS
 #define SET_FLAG(name, val) FLAG_##name = val
@@ -33,22 +61,10 @@
 // If set to false, searching for matches with a NULL match results will
 // bailout early. If set to true, code will actually search for
 // matches but simply not update the (NULL) match results.
-extern bool FLAG_benchtest;
-
-// Emit extra code for debugging purposes.
-FLAG( emit_debug_code       ,false ,true  )
-
-FLAG( use_fast_forward      ,true  ,true  )
-FLAG( trace_ff_finder       ,false ,false )
-// Disabled for poor performances.
-FLAG( force_ff_pre_scan     ,false ,false )
-
-FLAG( trace_repetitions     ,false ,false )
-FLAG( trace_re_tree         ,false ,false )
-FLAG( trace_re_list         ,false ,false )
-FLAG( trace_matches         ,false ,true )
-FLAG( print_state_ring_info ,false ,false )
-
-#undef FLAG
+#ifdef BENCHTEST
+#define FLAG_benchtest true
+#else
+#define FLAG_benchtest false
+#endif
 
 #endif  // REJIT_FLAGS_H_

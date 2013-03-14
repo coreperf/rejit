@@ -91,9 +91,9 @@ static bool Test(MatchType match_type, unsigned expected,
     cout << "string:\n" << string << endl;
     cout << "expected: " << expected << "  found: " << res << endl;
     SET_FLAG(trace_repetitions, true);
-    SET_FLAG(trace_re_tree, true);
-    SET_FLAG(trace_re_list, true);
-    SET_FLAG(trace_ff_finder, true);
+    SET_FLAG(print_re_tree, true);
+    SET_FLAG(print_re_list, true);
+    SET_FLAG(print_ff_elements, true);
     SET_FLAG(print_state_ring_info, true);
     Regej re(regexp);
     vector<Match> matches;
@@ -117,9 +117,9 @@ static bool Test(MatchType match_type, unsigned expected,
         UNREACHABLE();
     }
     SET_FLAG(trace_repetitions, false);
-    SET_FLAG(trace_re_tree, false);
-    SET_FLAG(trace_re_list, false);
-    SET_FLAG(trace_ff_finder, false);
+    SET_FLAG(print_re_tree, false);
+    SET_FLAG(print_re_list, false);
+    SET_FLAG(print_ff_elements, false);
     SET_FLAG(print_state_ring_info, false);
     cout << "------------------------------------------------------------------------------------\n\n" << endl;
   }
@@ -147,9 +147,9 @@ void RejitTest() {
   std::cout << "RejitTest" << std::endl;
 
   SET_FLAG(print_state_ring_info, true);
-  SET_FLAG(trace_re_tree, true);
-  SET_FLAG(trace_re_list, true);
-  SET_FLAG(trace_ff_finder, true);
+  SET_FLAG(print_re_tree, true);
+  SET_FLAG(print_re_list, true);
+  SET_FLAG(print_ff_elements, true);
 
   if (false)
     TEST(kMatchAll, 2, "x", "_x__xx__");
@@ -275,9 +275,9 @@ static bool TestFirst(unsigned expected,
     cout << "found    start:end: " << found_start << ":" << found_end << endl;
     cout << "expected start:end: " << expected_start << ":" << expected_end << endl;
     SET_FLAG(trace_repetitions, true);
-    SET_FLAG(trace_re_tree, true);
-    SET_FLAG(trace_re_list, true);
-    SET_FLAG(trace_ff_finder, true);
+    SET_FLAG(print_re_tree, true);
+    SET_FLAG(print_re_list, true);
+    SET_FLAG(print_ff_elements, true);
     SET_FLAG(print_state_ring_info, true);
 
     Regej re(regexp);
@@ -285,9 +285,9 @@ static bool TestFirst(unsigned expected,
     res = re.MatchFirst(string, &match);
 
     SET_FLAG(trace_repetitions, false);
-    SET_FLAG(trace_re_tree, false);
-    SET_FLAG(trace_re_list, false);
-    SET_FLAG(trace_ff_finder, false);
+    SET_FLAG(print_re_tree, false);
+    SET_FLAG(print_re_list, false);
+    SET_FLAG(print_ff_elements, false);
     SET_FLAG(print_state_ring_info, false);
     cout << "------------------------------------------------------------------------------------\n\n" << endl;
   }
