@@ -13,6 +13,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import platform
+import sys
 import os
 from os.path import join
 import subprocess
@@ -69,6 +70,10 @@ def current_git_commit():
   p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
   p3.wait()
   return p3.communicate()[0].rstrip(' \n\t')
+
+def Error(message):
+  print message
+  sys.exit(1)
 
 
 # Benchmarks helpers -----------------------------------------------------------
