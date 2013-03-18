@@ -108,72 +108,6 @@ class FF_finder : public RegexpVisitor<bool> {
 };
 
 
-class NB_FastForwardGen_iter {
- public:
-  NB_FastForwardGen_iter(MacroAssembler* masm,
-                    vector<Regexp*>* list,
-                    bool ff_pre_scan) :
-    masm_(masm), ff_pre_scan_(ff_pre_scan) {
-      // We don't want to mess up the original list.
-      regexp_list_ = *list;
-      // Order the regexp list by entry state and type.
-      sort(regexp_list_.begin(), regexp_list_.end(), cmp_entry_state_type);
-
-      potential_match_ = NULL;
-    }
-
-  void VisitEntryState(int entry_state);
-  void VisitState(int entry_state);
-
-#define DECLARE_SINGLE_REGEXP_VISITORS(RegexpType) \
-  void VisitSingle##RegexpType(RegexpType* r);
-  LIST_PHYSICAL_REGEXP_TYPES(DECLARE_SINGLE_REGEXP_VISITORS)
-#undef DECLARE_REGEXP_VISITORS
-
-  void VisitSingle(Regexp* regexp) {
-    switch (regexp->type()) {
-#define TYPE_CASE(RegexpType)                                             \
-      case k##RegexpType:                                                 \
-        VisitSingle##RegexpType(reinterpret_cast<RegexpType*>(regexp));   \
-        break;
-      LIST_PHYSICAL_REGEXP_TYPES(TYPE_CASE)
-#undef TYPE_CASE
-      default:
-        UNREACHABLE();
-    }
-  }
-
-#define DECLARE_REGEXP_VISITORS(RegexpType) \
-  void Visit##RegexpType(RegexpType* r);
-  LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
-#undef DECLARE_REGEXP_VISITORS
-
-  void Visit(Regexp* regexp) {
-    switch (regexp->type()) {
-#define TYPE_CASE(RegexpType)                                       \
-      case k##RegexpType:                                           \
-        Visit##RegexpType(reinterpret_cast<RegexpType*>(regexp));   \
-        break;
-      LIST_PHYSICAL_REGEXP_TYPES(TYPE_CASE)
-#undef TYPE_CASE
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  bool ff_pre_scan() const { return false && ff_pre_scan_; }
-
- private:
-  MacroAssembler* masm_;
-  bool ff_pre_scan_;
-  // The regexp list, ordered by entry state and type.
-  vector<Regexp*> regexp_list_;
-  Label* potential_match_;
-
-  DISALLOW_COPY_AND_ASSIGN(NB_FastForwardGen_iter);
-};
-
-
 class NB_Codegen : public RegexpVisitor<void> {
  public:
   NB_Codegen();
@@ -188,8 +122,6 @@ class NB_Codegen : public RegexpVisitor<void> {
   void Generate(RegexpInfo* rinfo, MatchType match_type);
 
   bool GenerateFastForward(RegexpInfo* rinfo, MatchType match_type);
-  // Deprecated version of the fast forward generator.
-  void GenerateFastForward_iter(RegexpInfo* rinfo, MatchType match_type);
 
   void HandleControlRegexps(RegexpInfo* rinfo);
 
