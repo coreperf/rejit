@@ -637,16 +637,6 @@ void NB_Codegen::GenerateMatchDirection(Direction direction,
 }
 
 
-void NB_Codegen::VisitAlternation(Alternation* regexp) {
-  UNREACHABLE();
-}
-
-
-void NB_Codegen::VisitConcatenation(Concatenation* regexp) {
-  UNREACHABLE();
-}
-
-
 void NB_Codegen::VisitEpsilon(Epsilon* epsilon) {
   DirectionSetOutputFromEntry(0, epsilon);
 }
@@ -819,11 +809,6 @@ void NB_Codegen::VisitBracket(Bracket* bracket) {
   if (direction() == kBackward) {
     __ addq(string_pointer, Immediate(kCharSize));
   }
-}
-
-
-void NB_Codegen::VisitRepetition(Repetition* repetition) {
-  UNREACHABLE();
 }
 
 

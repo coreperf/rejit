@@ -15,8 +15,6 @@
 #include "regexp.h"
 #include <string.h>
 
-// TODO(rames): Better indexing?
-
 namespace rejit {
 namespace internal {
 
@@ -32,30 +30,6 @@ case k##RegexpType: stream << #RegexpType; break;
   }
   stream << ") {" << entry_state_ << ", " << output_state_ << "}";
   return stream;
-}
-
-
-Regexp* Regexp::DeepCopy() {
-  Regexp* newre = new Regexp(type_);
-  return newre;
-}
-
-
-void Regexp::SetEntryState(int entry_state) {
-  entry_state_ = entry_state;
-}
-
-
-void Regexp::SetOutputState(int output_state) {
-  output_state_ = output_state;
-}
-
-
-// TODO Check why this doesn't work and has to be overloaded.
-// ie. re-study virtual classes.
-Regexp* RegexpWithOneSub::DeepCopy() {
-  Regexp* newre = new RegexpWithOneSub(type_, sub_regexp_->DeepCopy());
-  return newre;
 }
 
 
@@ -77,20 +51,7 @@ Regexp* Concatenation::DeepCopy() {
 
 
 void Concatenation::Append(Regexp* regexp) {
-  // TODO: This optimization is a bug.
-  //if (!regexp->IsConcatenation()) {
     sub_regexps()->push_back(regexp);
-  //} else {
-  //  // TODO(rames): don't leak.
-  //
-  //  Concatenation* prev = regexp->AsConcatenation();
-  //  vector<Regexp*>::const_iterator it;
-  //  for (it = prev->sub_regexps()->begin();
-  //       it < prev->sub_regexps()->end();
-  //       it++) {
-  //    Append(*it);
-  //  }
-  //}
 }
 
 
@@ -232,18 +193,6 @@ void Alternation::SetOutputState(int output_state) {
 }
 
 
-//ostream& Asterisk::OutputToIOStream(ostream& stream) const {  // NOLINT
-//  Indent(stream) << "Asterisk (*) [ {"
-//                 << entry_state_ << ", " << output_state_ << "}\n";
-//  {
-//    IndentScope is;
-//    stream << *sub_regexp_ << endl;
-//  }
-//  Indent(stream) << "]";
-//  return stream;
-//}
-
-
 ostream& Repetition::OutputToIOStream(ostream& stream) const {  // NOLINT
   if (max_rep_ == kMaxUInt) {
     Indent(stream) << "Repetition"
@@ -260,18 +209,6 @@ ostream& Repetition::OutputToIOStream(ostream& stream) const {  // NOLINT
   }
   Indent(stream) << "]";
   return stream;
-}
-
-
-void Repetition::SetEntryState(int entry_state) {
-  entry_state_ = entry_state;
-  //sub_regexp_->SetEntryState(entry_state);
-}
-
-
-void Repetition::SetOutputState(int output_state) {
-  output_state_ = output_state;
-  //sub_regexp_->SetOutputState(output_state);
 }
 
 
@@ -295,40 +232,6 @@ RegexpInfo::~RegexpInfo() {
 
 // Regexp utils ----------------------------------------------------------------
 
-Regexp* single_re_at_entry(const vector<Regexp*>* list, int entry) {
-  Regexp* re = NULL;
-  vector<Regexp*>::const_iterator it;
-  for (it = list->begin(); it < list->end(); it++) {
-    if ((*it)->entry_state() == entry) {
-      if (!re) {
-        re = (*it);
-      } else {
-        return NULL;
-      }
-    }
-  }
-  return re;
-}
-
-
-bool cmp_entry_state_type(Regexp* r1, Regexp* r2) {
-  if (r1->entry_state() == r2->entry_state())
-    return r1->type() <= r2->type();
-  return r1->entry_state() < r2->entry_state();
-}
-
-
-//static Regexp* reduce(Regexp* re) {
-//  while (re->IsConcatenation() || re->IsAlternation()) {
-//    RegexpWithSubs* rws = reinterpret_cast<RegexpWithSubs*>(re);
-//    if (rws->sub_regexps()->size() == 1) {
-//      re = rws->sub_regexps()->at(0);
-//    }
-//  }
-//  return re;
-//}
-
-
 // A positive return value means that r1 is better than r2 for fast forwarding.
 int ff_phy_cmp(Regexp* r1, Regexp* r2) {
   ASSERT(r1->IsPhysical() && r2->IsPhysical());
@@ -339,29 +242,6 @@ int ff_phy_cmp(Regexp* r1, Regexp* r2) {
 
   return r2->type() - r1->type();
 }
-
-
-//bool ff_cmp(Regexp* r1, Regexp* r2) {
-//  r1 = reduce(r1);
-//  r2 = reduce(r2);
-//
-//  if (r1->IsPhysical() && r2->IsPhysical());
-//
-//  if (r1->type() != r2->type()) {
-//    return r1->type() < r2->type();
-//
-//  } else if (r1->IsMultipleChar()) {
-//    return r1->AsMultipleChar()->chars_length() >
-//      r2->AsMultipleChar()->chars_length();
-//
-//  } else if (r1->IsAlternation()) {
-//    return r1->AsAlternation()->sub_regexps()->size() < 
-//      r2->AsAlternation()->sub_regexps()->size();
-//
-//  } else {
-//    return false;
-//  }
-//}
 
 
 } }  // namespace rejit::internal

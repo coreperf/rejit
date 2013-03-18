@@ -23,7 +23,7 @@ namespace internal {
 void RegisterMatch(vector<Match>* matches, Match new_match);
 
 
-class NB_RegexpIndexer : public RegexpVisitor<void> {
+class NB_RegexpIndexer : public RealRegexpVisitor<void> {
  public:
   explicit NB_RegexpIndexer(RegexpInfo* rinfo,
                             int entry_state = 0,
@@ -54,7 +54,7 @@ class NB_RegexpIndexer : public RegexpVisitor<void> {
 
 
 
-class NB_RegexpLister : public RegexpVisitor<void> {
+class NB_RegexpLister : public RealRegexpVisitor<void> {
  public:
   explicit NB_RegexpLister(RegexpInfo* rinfo, vector<Regexp*>* physical_regexp_list) :
     rinfo_(rinfo),
@@ -87,7 +87,7 @@ class NB_RegexpLister : public RegexpVisitor<void> {
 };
 
 
-class FF_finder : public RegexpVisitor<bool> {
+class FF_finder : public RealRegexpVisitor<bool> {
  public:
   FF_finder(Regexp* root, vector<Regexp*>* regexp_list) :
     root_(root), regexp_list_(regexp_list) {}
@@ -108,7 +108,7 @@ class FF_finder : public RegexpVisitor<bool> {
 };
 
 
-class NB_Codegen : public RegexpVisitor<void> {
+class NB_Codegen : public PhysicalRegexpVisitor<void> {
  public:
   NB_Codegen();
 
@@ -147,7 +147,7 @@ class NB_Codegen : public RegexpVisitor<void> {
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual void Visit##RegexpType(RegexpType* r);
-  LIST_REAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
+  LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
 #undef DECLARE_REGEXP_VISITORS
 
   void Advance(unsigned n_chars = 1);

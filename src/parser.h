@@ -20,14 +20,14 @@
 namespace rejit {
 namespace internal {
 
+// TODO: The indexer and ff_finder should be merged into the parser.
 
 // Regular expression parser.
 class Parser {
  public:
   Parser() {}
 
-  // The syntaxes available for parsing.
-  // TODO(rames): Support more syntaxes?
+  // TODO: Full support for ERE. Expose BRE support. More syntaxes
   enum Syntax {
     BRE,
     ERE
@@ -57,7 +57,7 @@ class Parser {
   // Do/Push functions -----------------------------------------------
   // 'Push' functions' main purpose is to push something on the stack.
   // 'Do' functions execute more complex operations.
-  // TODO(rames): Give more details for each function.
+  // TODO: Give more details for each function.
   void PushChar(const char* char_address);
   void PushPeriod();
   void PushAlternateBar();

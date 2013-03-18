@@ -21,32 +21,45 @@
 namespace rejit {
 namespace internal {
 
-// Physical regular expression types directly match characters.
+// Matching regular expression directly match characters.
 // Order matters. See aliases below.
-// TODO(rames): re-classify regexps.
-#define LIST_PHYSICAL_REGEXP_TYPES(M)                                          \
+#define LIST_MATCHING_REGEXP_TYPES(M)                                          \
   M(MultipleChar)                                                              \
   M(Period)                                                                    \
-  M(Bracket)                                                                   \
+  M(Bracket)
+// Control regexps check for conditions and may have side effects, but don't
+// match characters from the text.
+#define LIST_CONTROL_REGEXP_TYPES(M)                                           \
   M(StartOfLine)                                                               \
   M(EndOfLine)                                                                 \
   M(Epsilon)
 
-#define LIST_ABSTRACT_REGEXP_TYPES(M)                                          \
+// The codegen generates code for physical regexps.
+#define LIST_PHYSICAL_REGEXP_TYPES(M)                                          \
+  LIST_MATCHING_REGEXP_TYPES(M)                                                \
+  LIST_CONTROL_REGEXP_TYPES(M)
+
+#define LIST_FLOW_REGEXP_TYPES(M)                                              \
   M(Concatenation)                                                             \
   M(Repetition)                                                                \
   M(Alternation)
-// Real regular expression types, ie. types that can appear in a regular
-// expression tree, after parsing has finished and succeded.
+
+// Real regular expression can appear in a regular expression tree, after
+// parsing has finished and succeded.
 // There is a sub class of Regexp for each of these.
 #define LIST_REAL_REGEXP_TYPES(M)                                              \
   LIST_PHYSICAL_REGEXP_TYPES(M)                                                \
-  LIST_ABSTRACT_REGEXP_TYPES(M)
+  LIST_FLOW_REGEXP_TYPES(M)
+
 // Virtual regular expression types. They are only used at parsing time.
 // No matching classes exist for these.
 #define LIST_VIRTUAL_REGEXP_TYPES(M)                                           \
   M(LeftParenthesis)                                                           \
   M(AlternateBar)
+
+// The enumeration order of the regexp types matters.
+// Regexp types listed first are 'faster' to match. The fast forward mechanisms
+// rely on this order.
 // Left parenthesis and alternate bar must be defined last, as
 // Regexp::IsMarker depends on it.
 #define LIST_REGEXP_TYPES(M)                                                   \
@@ -54,7 +67,6 @@ namespace internal {
   LIST_VIRTUAL_REGEXP_TYPES(M)
 
 
-// Enumerate types tokens.
 #define ENUM_REGEXP_TYPES(RegexpType) k##RegexpType,
   enum RegexpType {
     LIST_REGEXP_TYPES(ENUM_REGEXP_TYPES)
@@ -76,27 +88,41 @@ LIST_REAL_REGEXP_TYPES(FORWARD_DECLARE)
 
 // Limit the maximum length of a regexp to limit the maximum size of the state
 // ring.
-// TODO(rames): This should probably be computed at runtime to match some
-// architectural limit related to the caches.
+// TODO: This should probably be computed to match some architectural
+// limit related to the caches.
+// TODO: This could be modifiable via a flag.
 static const unsigned kMaxNodeLength = 64;
 
 
 // Regexps ---------------------------------------------------------------------
 
-// This is the base class for Regexps.
+// The base class for Regexps.
 // The parser builds a tree of Regexps, that is then passed to a code generator
-// to generate a some code matching the respresented regular expression.
+// to generate some code matching the respresented regular expression.
 class Regexp {
  public:
   explicit Regexp(RegexpType type) :
     type_(type), entry_state_(-1), output_state_(-1) {}
   virtual ~Regexp() {}
-  virtual Regexp* DeepCopy();
+  // TODO: This is necessary because of the way we handle repetitions. See the
+  // Repetition class.
+  inline virtual Regexp* DeepCopy() {
+    Regexp* newre = new Regexp(type_);
+    return newre;
+  }
 
 #define DECLARE_IS_REGEXP_HELPERS(RegexpType)                                  \
   bool Is##RegexpType() { return type_ == k##RegexpType; }
   LIST_REGEXP_TYPES(DECLARE_IS_REGEXP_HELPERS)
 #undef DECLARE_IS_REGEXP_HELPERS
+
+#define DECLARE_CAST(RegexpType)                                               \
+  inline RegexpType* As##RegexpType() {                                        \
+    ASSERT(Is##RegexpType());                                                  \
+    return reinterpret_cast<RegexpType*>(this);                                \
+  }
+  LIST_REAL_REGEXP_TYPES(DECLARE_CAST)
+#undef DECLARE_CAST
 
   inline bool IsControlRegexp() {
     return kFirstControlRegexp <= type() && type() <= kLastControlRegexp;
@@ -106,25 +132,17 @@ class Regexp {
     return type() <= kLastPhysicalRegexp;
   }
 
-#define DECLARE_CAST(RegexpType)                                               \
-  RegexpType* As##RegexpType() {                                               \
-    ASSERT(Is##RegexpType());                                                  \
-    return reinterpret_cast<RegexpType*>(this);                                \
-  }
-  LIST_REAL_REGEXP_TYPES(DECLARE_CAST)
-#undef DECLARE_CAST
-
   // Left parenthesis and vertical bar are markers for the parser.
   inline bool IsMarker() const { return type_ >= kFirstMarker; }
 
   // The maximum number of characters matched by this regexp.
   // This is used to determine how many times must be allocated for the state
   // ring.
-  // TODO(rames): Should we distinguish the match length when known for certain.
+  // TODO: Introduce min, and known match lengths?
   virtual unsigned MatchLength() const { return 0; }
 
-  virtual void SetEntryState(int entry_state);
-  virtual void SetOutputState(int output_state);
+  inline virtual void SetEntryState(int entry) { entry_state_ = entry; }
+  inline virtual void SetOutputState(int output) { output_state_ = output; }
 
   // Debug helpers.
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
@@ -151,7 +169,7 @@ inline ostream& operator<<(ostream& stream, const Regexp& regexp) {
 }
 
 
-// TODO(rames): Implementation of MC assumes that the regexp stays available for
+// TODO: Implementation of MC assumes that the regexp stays available for
 // the lifetime of the generated functions.
 class MultipleChar : public Regexp {
  public:
@@ -188,6 +206,8 @@ class MultipleChar : public Regexp {
 };
 
 
+// TODO: The code generated for simple 'period' regexps could be grouped into
+// one 'check for period' and state transition operations.
 class Period : public Regexp {
  public:
   Period() : Regexp(kPeriod) {}
@@ -237,15 +257,14 @@ class Bracket : public Regexp {
 };
 
 
-// Control regexp don't match characters (match length of 0). They check for
-// conditions or have side effects.
+// Control regexp don't match characters from the input. They check for
+// conditions or/and have side effects.
 class ControlRegexp : public Regexp {
  protected:
   explicit ControlRegexp(RegexpType type) : Regexp(type) {}
 
   // Control regexp never match physical characters.
   virtual unsigned MatchLength() const { return 0; }
-  
 };
 
 
@@ -271,6 +290,9 @@ class EndOfLine : public ControlRegexp {
 
 class Epsilon : public ControlRegexp {
  public:
+  // Epsilon transitions are created when handling repetitions, and cannot
+  // appear in the regexp tree. So they are never indexed, but instead always
+  // created with known entry and output states.
   explicit Epsilon(int entry, int output)
     : ControlRegexp(kEpsilon) {
       entry_state_ = entry;
@@ -281,8 +303,6 @@ class Epsilon : public ControlRegexp {
   DISALLOW_COPY_AND_ASSIGN(Epsilon);
 };
 
-
-// Convenience base classes for regular expressions with sub regular expressions.
 
 class RegexpWithSubs : public Regexp {
  public:
@@ -345,7 +365,7 @@ class RegexpWithOneSub : public Regexp {
   explicit RegexpWithOneSub(RegexpType regexp_type, Regexp* sub_regexp)
     : Regexp(regexp_type), sub_regexp_(sub_regexp) {}
   virtual ~RegexpWithOneSub() { sub_regexp_->~Regexp(); }
-  virtual Regexp* DeepCopy();
+  virtual Regexp* DeepCopy() = 0;
 
   // Accessors.
   Regexp* sub_regexp() { return sub_regexp_; }
@@ -358,8 +378,9 @@ class RegexpWithOneSub : public Regexp {
 };
 
 
-// TODO(rames): The current handling of repetitions is really poor. See code
-// generation.
+// TODO: The current handling of repetitions is really poor. See code
+// generation. It should refactored to avoid copying the sub-regexps and
+// generating multiple times the associated matching code.
 class Repetition : public RegexpWithOneSub {
  public:
   Repetition(Regexp* sub_regexp, uint32_t min_rep, uint32_t max_rep)
@@ -367,14 +388,10 @@ class Repetition : public RegexpWithOneSub {
       min_rep_(min_rep),
       max_rep_(max_rep) {}
   virtual Regexp* DeepCopy();
-  // TODO(rames): We are leaking regexps allocated at code generation time.
 
   virtual unsigned MatchLength() const { return sub_regexp_->MatchLength(); }
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
-
-  virtual void SetEntryState(int entry_state);
-  virtual void SetOutputState(int output_state);
 
   bool IsLimited() const { return max_rep() != kMaxUInt; }
 
@@ -394,20 +411,16 @@ class Repetition : public RegexpWithOneSub {
 
 // Regexp visitors -------------------------------------------------------------
 
-// TODO(rames): This is a quick implementation based on the types of the
-// regexps. Should I use a visitor pattern based on virtual methods instead?
-// Investigate.
-
-template <class ret_type> class RegexpVisitor {
+template <class ret_type> class RealRegexpVisitor {
  public:
-  RegexpVisitor() {}
-  virtual ~RegexpVisitor() {}
+  RealRegexpVisitor() {}
+  virtual ~RealRegexpVisitor() {}
 
   ret_type Visit(Regexp* regexp) {
     switch (regexp->type()) {
-#define TYPE_CASE(RegexpType)                                       \
-      case k##RegexpType:                                           \
-        return Visit##RegexpType(reinterpret_cast<RegexpType*>(regexp));   \
+#define TYPE_CASE(RegexpType)                                                  \
+      case k##RegexpType:                                                      \
+        return Visit##RegexpType(reinterpret_cast<RegexpType*>(regexp));       \
         break;
       LIST_REAL_REGEXP_TYPES(TYPE_CASE)
 #undef TYPE_CASE
@@ -423,36 +436,30 @@ template <class ret_type> class RegexpVisitor {
 #undef DECLARE_REGEXP_VISITORS
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(RegexpVisitor);
+  DISALLOW_COPY_AND_ASSIGN(RealRegexpVisitor);
 };
 
-
-// A visitor for physical regular expressions only.
-class PhysicalRegexpVisitor {
+template <class ret_type> class PhysicalRegexpVisitor {
  public:
   PhysicalRegexpVisitor() {}
   virtual ~PhysicalRegexpVisitor() {}
 
-  void Visit(Regexp* regexp) {
+  ret_type Visit(Regexp* regexp) {
     switch (regexp->type()) {
-#define TYPE_CASE(RegexpType)                                       \
-      case k##RegexpType:                                           \
-        Visit##RegexpType(reinterpret_cast<RegexpType*>(regexp));   \
+#define TYPE_CASE(RegexpType)                                                  \
+      case k##RegexpType:                                                      \
+        return Visit##RegexpType(reinterpret_cast<RegexpType*>(regexp));       \
         break;
       LIST_PHYSICAL_REGEXP_TYPES(TYPE_CASE)
 #undef TYPE_CASE
       default:
         UNREACHABLE();
+        return static_cast<ret_type>(0);
     }
   }
 
-#define DECLARE_UNREACHABLE_VISITORS(RegexpType) \
-  void Visit##RegexpType(RegexpType* r) { UNREACHABLE(); }
-  LIST_ABSTRACT_REGEXP_TYPES(DECLARE_UNREACHABLE_VISITORS)
-#undef DECLARE_REGEXP_VISITORS
-
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
-  virtual void Visit##RegexpType(RegexpType* r) = 0;
+  virtual ret_type Visit##RegexpType(RegexpType* r) = 0;
   LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
 #undef DECLARE_REGEXP_VISITORS
 
@@ -519,33 +526,25 @@ class RegexpInfo {
   // not present in the regexp tree (which root is regexp_).
   vector<Regexp*> extra_allocated_;
 
-  // TODO(rames): set to private
- public:
+ private:
   // The compiled functions.
   MatchFullFunc match_full_;
   MatchAnywhereFunc match_anywhere_;
   MatchFirstFunc match_first_;
   MatchAllFunc match_all_;
   // Their associated virtual memory.
-  // TODO(rames): Clean that.
   VirtualMemory* vmem_match_full_;
   VirtualMemory* vmem_match_anywhere_;
   VirtualMemory* vmem_match_first_;
   VirtualMemory* vmem_match_all_;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(RegexpInfo);
+
+  friend class Regej;
 };
 
 
 // Regexp utils ----------------------------------------------------------------
-
-// If there is a single regexp with the given entry state return it.
-// Else return NULL.
-Regexp* single_re_at_entry(const vector<Regexp*>* list, int entry);
-
-// Order by entry state and type.
-bool cmp_entry_state_type(Regexp* r1, Regexp* r2);
 
 // Preferred order for fast forward selection.
 int ff_phy_cmp(Regexp* r1, Regexp* r2);

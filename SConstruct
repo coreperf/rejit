@@ -37,25 +37,26 @@ See below for further options.
 # environment as appropriate.
 options = {
     'all' : { # Unconditionally processed.
-      'CCFLAGS' : '-std=c++11 -Wall -pedantic -Werror -Isrc/ -Iinclude/'
+      'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic', '-Werror'],
+      'CPPPATH' : ['src/', 'include/']
       },
 #   'build_option:value' : {
 #     'environment_key' : 'values to append'
 #     },
     'mode:debug' : {
-      'CCFLAGS' : '-g -DDEBUG'
+      'CCFLAGS' : ['-g', '-DDEBUG']
       },
     'mode:release' : {
-      'CCFLAGS' : '-O3'
+      'CCFLAGS' : ['-O3']
       },
     'arch:x64' : {
-      'CCFLAGS' : '-DREJIT_TARGET_ARCH_X64'
+      'CCFLAGS' : ['-DREJIT_TARGET_ARCH_X64']
       },
     'modifiable_flags:on' : {
-      'CCFLAGS' : '-DMOD_FLAGS'
+      'CCFLAGS' : ['-DMOD_FLAGS']
       },
     'benchtest:on' : {
-      'CCFLAGS' : '-DBENCHTEST'
+      'CCFLAGS' : ['-DBENCHTEST']
       },
     }
 
@@ -118,8 +119,8 @@ env['ENV']['TERM'] = os.environ['TERM']
 # 'all' is unconditionally processed.
 if 'all' in options:
   for var in options['all']:
-    if env[var]:
-      env[var] += ' ' + options['all'][var]
+    if var in env and env[var]:
+      env[var] += options['all'][var]
     else:
       env[var] = options['all'][var]
 
@@ -135,7 +136,7 @@ for key in keys:
   key_val_couple = key + ':%s' % dict[key]
   if key_val_couple in options:
     for var in options[key_val_couple]:
-      env[var] += ' ' + options[key_val_couple][var]
+      env[var] += options[key_val_couple][var]
 
 
 # Sources and build targets ----------------------------------------------------
@@ -168,10 +169,10 @@ sources = [Glob(join(build_dir_src, '*.cc')),
 librejit = 'rejit'
 env.StaticLibrary(join(build_dir, 'rejit'), sources)
 basic = env.Program(join(build_dir, 'basic'), join(build_dir_sample, 'basic.cc'),
-    LIBS=[librejit], CPPPATH='include')
+    LIBS=[librejit])
 env.Alias('basic', basic)
 t_test = env.Program(join(build_dir, 'test-rejit'), join(build_dir_tests, 'test.cc'),
-    LIBS=[librejit], CPPPATH='include')
+    LIBS=[librejit])
 Default(basic, t_test)
 
 # Building benchmarks involve checking out and compiling third-party engines.
