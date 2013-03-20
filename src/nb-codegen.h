@@ -23,25 +23,36 @@ namespace internal {
 void RegisterMatch(vector<Match>* matches, Match new_match);
 
 
-class NB_RegexpIndexer : public RealRegexpVisitor<void> {
+// A simple regexp visitor, which walks the tree and assigns entry and ouput
+// indexes to the regexps.
+class RegexpIndexer : public RealRegexpVisitor<void> {
  public:
-  explicit NB_RegexpIndexer(RegexpInfo* rinfo,
+  explicit RegexpIndexer(RegexpInfo* rinfo,
                             int entry_state = 0,
                             int last_state = 0)
     : rinfo_(rinfo), entry_state_(entry_state), last_state_(last_state) {}
 
-#define DECLARE_REGEXP_VISITORS(RegexpType) \
-  virtual void Visit##RegexpType(RegexpType* r);
-  LIST_REAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
-#undef DECLARE_REGEXP_VISITORS
-  void VisitRegexp(Regexp* re);
-
-  
   void Index(Regexp* regexp);
   // By default index from 0 and create the output state.
   // If specified force the entry and/or output states.
   void IndexSub(Regexp* regexp, int entry_state = 0, int output_state = -1);
 
+#define DECLARE_REGEXP_VISITORS(RegexpType) \
+  virtual void Visit##RegexpType(RegexpType* r);
+  LIST_FLOW_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
+#undef DECLARE_REGEXP_VISITORS
+
+  inline virtual void VisitRegexp(Regexp* re);
+  inline virtual void VisitMultipleChar(MultipleChar* re) { VisitRegexp(re); }
+  inline virtual void VisitPeriod(Period* re) { VisitRegexp(re); }
+  inline virtual void VisitBracket(Bracket* re) { VisitRegexp(re); }
+  inline virtual void VisitStartOfLine(StartOfLine* re) { VisitRegexp(re); }
+  inline virtual void VisitEndOfLine(EndOfLine* re) { VisitRegexp(re); }
+  // Epsilon transitions are generated explicitly by the RegexpLister and should
+  // not appear before that stage.
+  inline virtual void VisitEpsilon(Epsilon* epsilon) { UNREACHABLE(); }
+
+  
   RegexpInfo* rinfo() const { return rinfo_; }
   int entry_state() const { return entry_state_; }
   int last_state() const { return last_state_; }
@@ -53,29 +64,37 @@ class NB_RegexpIndexer : public RealRegexpVisitor<void> {
 };
 
 
-
-class NB_RegexpLister : public RealRegexpVisitor<void> {
+// Walks the regexp tree and lists regexp for which the Codegen needs to
+// generate code.
+class RegexpLister : public RealRegexpVisitor<void> {
  public:
-  explicit NB_RegexpLister(RegexpInfo* rinfo, vector<Regexp*>* physical_regexp_list) :
+  explicit RegexpLister(RegexpInfo* rinfo,
+                        vector<Regexp*>* physical_regexp_list) :
     rinfo_(rinfo),
     physical_regexp_list_(physical_regexp_list) {}
 
-#define DECLARE_REGEXP_VISITORS(RegexpType) \
-  virtual void Visit##RegexpType(RegexpType* r);
-  LIST_REAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
-#undef DECLARE_REGEXP_VISITORS
-  void VisitRegexp(Regexp* re);
-
-  void List(Regexp* re) {
-    physical_regexp_list_->push_back(re);
-  }
-
+  inline void List(Regexp* re) { physical_regexp_list_->push_back(re); }
   // List a regexp allocated by the lister.
-  // Remember it in the RegexpInfo to correctly delete it later.
-  void ListNew(Regexp* re) {
+  // Register it in the RegexpInfo to correctly delete it later.
+  inline void ListNew(Regexp* re) {
     rinfo_->extra_allocated()->push_back(re);
     List(re);
   }
+
+#define DECLARE_REGEXP_VISITORS(RegexpType) \
+  virtual void Visit##RegexpType(RegexpType* r);
+  LIST_FLOW_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
+#undef DECLARE_REGEXP_VISITORS
+
+  inline virtual void VisitRegexp(Regexp* re) { List(re); }
+  inline virtual void VisitMultipleChar(MultipleChar* re) { VisitRegexp(re); }
+  inline virtual void VisitPeriod(Period* re) { VisitRegexp(re); }
+  inline virtual void VisitBracket(Bracket* re) { VisitRegexp(re); }
+  inline virtual void VisitStartOfLine(StartOfLine* re) { VisitRegexp(re); }
+  inline virtual void VisitEndOfLine(EndOfLine* re) { VisitRegexp(re); }
+  // Epsilon transitions are generated explicitly.
+  inline virtual void VisitEpsilon(Epsilon* epsilon) { UNREACHABLE(); }
+
 
   RegexpInfo* rinfo() const { return rinfo_; }
 
@@ -83,10 +102,11 @@ class NB_RegexpLister : public RealRegexpVisitor<void> {
   RegexpInfo* rinfo_;
   vector<Regexp*>* physical_regexp_list_;
 
-  DISALLOW_COPY_AND_ASSIGN(NB_RegexpLister);
+  DISALLOW_COPY_AND_ASSIGN(RegexpLister);
 };
 
 
+// Walks the regexp tree to find the regexps to use as fast forward elements.
 class FF_finder : public RealRegexpVisitor<bool> {
  public:
   FF_finder(Regexp* root, vector<Regexp*>* regexp_list) :
@@ -94,12 +114,29 @@ class FF_finder : public RealRegexpVisitor<bool> {
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual bool Visit##RegexpType(RegexpType* r);
-  LIST_REAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
+  LIST_FLOW_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
 #undef DECLARE_REGEXP_VISITORS
 
-    int ff_cmp(size_t i1,
-               size_t i2,
-               size_t i3);
+  inline virtual bool VisitRegexp(Regexp* re) {
+    regexp_list_->push_back(re);
+    return true;
+  }
+#define DEFINE_FF_FINDER_SIMPLE_VISITOR(RType)                                 \
+  inline virtual bool Visit##RType(RType* re) { return VisitRegexp(re); }
+  DEFINE_FF_FINDER_SIMPLE_VISITOR(MultipleChar)
+  DEFINE_FF_FINDER_SIMPLE_VISITOR(Period)
+  DEFINE_FF_FINDER_SIMPLE_VISITOR(Bracket)
+  DEFINE_FF_FINDER_SIMPLE_VISITOR(StartOfLine)
+  DEFINE_FF_FINDER_SIMPLE_VISITOR(EndOfLine)
+  // There are no epsilon transitions at this point.
+  inline virtual bool VisitEpsilon(Epsilon* epsilon) {
+    UNREACHABLE();
+    return false;
+  }
+
+  int ff_cmp(size_t i1,
+             size_t i2,
+             size_t i3);
 
  private:
   Regexp* root_;
@@ -108,14 +145,9 @@ class FF_finder : public RealRegexpVisitor<bool> {
 };
 
 
-class NB_Codegen : public PhysicalRegexpVisitor<void> {
+class Codegen : public PhysicalRegexpVisitor<void> {
  public:
-  NB_Codegen();
-
-  enum Direction {
-    kForward,
-    kBackward
-  };
+  Codegen();
 
   VirtualMemory* Compile(RegexpInfo* rinfo, MatchType match_type);
 
@@ -130,6 +162,7 @@ class NB_Codegen : public PhysicalRegexpVisitor<void> {
                   MatchType match_type,
                   Label* limit,
                   Label* match);
+
   void GenerateMatchDirection(Direction direction,
                               RegexpInfo* rinfo,
                               MatchType match_type,
@@ -150,7 +183,9 @@ class NB_Codegen : public PhysicalRegexpVisitor<void> {
   LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
 #undef DECLARE_REGEXP_VISITORS
 
-  void Advance(unsigned n_chars = 1);
+  inline void Advance(unsigned n_chars) {
+    masm_->Advance(n_chars, direction(), string_pointer);
+  }
 
   void TestState(int time, int state_index);
   void SetState(int target_time, int target_index, int current_index);
@@ -215,9 +250,9 @@ class NB_Codegen : public PhysicalRegexpVisitor<void> {
 };
 
 
-class NB_FastForwardGen {
+class FastForwardGen : public PhysicalRegexpVisitor<void> {
  public:
-  NB_FastForwardGen(NB_Codegen* codegen, vector<Regexp*>* list) :
+  FastForwardGen(Codegen* codegen, vector<Regexp*>* list) :
     codegen_(codegen),
     masm_(codegen->masm()),
     regexp_list_(list),
@@ -226,6 +261,11 @@ class NB_FastForwardGen {
   void Generate();
 
   void FoundState(int time, int state);
+
+#define DECLARE_REGEXP_VISITORS(RegexpType) \
+  void Visit##RegexpType(RegexpType* r);
+  LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
+#undef DECLARE_REGEXP_VISITORS
 
 #define DECLARE_SINGLE_REGEXP_VISITORS(RegexpType) \
   void VisitSingle##RegexpType(RegexpType* r);
@@ -245,34 +285,15 @@ class NB_FastForwardGen {
     }
   }
 
-#define DECLARE_REGEXP_VISITORS(RegexpType) \
-  void Visit##RegexpType(RegexpType* r);
-  LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
-#undef DECLARE_REGEXP_VISITORS
-
-  void Visit(Regexp* regexp) {
-    switch (regexp->type()) {
-#define TYPE_CASE(RegexpType)                                       \
-      case k##RegexpType:                                           \
-        Visit##RegexpType(reinterpret_cast<RegexpType*>(regexp));   \
-        break;
-      LIST_PHYSICAL_REGEXP_TYPES(TYPE_CASE)
-#undef TYPE_CASE
-      default:
-        UNREACHABLE();
-    }
-  }
-
  private:
-  NB_Codegen* codegen_;
+  Codegen* codegen_;
   MacroAssembler* masm_;
   vector<Regexp*>* regexp_list_;
   Label* potential_match_;
 
-  DISALLOW_COPY_AND_ASSIGN(NB_FastForwardGen);
+  DISALLOW_COPY_AND_ASSIGN(FastForwardGen);
 };
 
 
-// TODO(rames): Explain.
 } }  // namespace rejit::internal
 

@@ -23,7 +23,7 @@ namespace internal {
 
 #define __ masm_->
 
-NB_Codegen::NB_Codegen()
+Codegen::Codegen()
   : masm_(new MacroAssembler()),
     ring_base_(rax, 0) {}
 
@@ -31,37 +31,37 @@ NB_Codegen::NB_Codegen()
 const int kStackSavedInfo = 8 * kPointerSize;
 
 
-int NB_Codegen::TimeSummaryBaseOffsetFromFrame() {
+int Codegen::TimeSummaryBaseOffsetFromFrame() {
   return -kStackSavedInfo - time_summary_size();
 }
 
 
-Operand NB_Codegen::TimeSummary(int offset) {
+Operand Codegen::TimeSummary(int offset) {
   return Operand(rbp, TimeSummaryBaseOffsetFromFrame() + offset);
 }
 
 
-Operand NB_Codegen::TimeSummaryOperand(int time) {
+Operand Codegen::TimeSummaryOperand(int time) {
   return Operand(rbp, TimeSummaryBaseOffsetFromFrame() + time / kBitsPerByte);
 }
 
 
-Operand NB_Codegen::StateRingBase() {
+Operand Codegen::StateRingBase() {
   return Operand(rbp, StateRingBaseOffsetFromFrame());
 }
 
 
-int NB_Codegen::StateRingBaseOffsetFromFrame() {
+int Codegen::StateRingBaseOffsetFromFrame() {
   return TimeSummaryBaseOffsetFromFrame() - state_ring_size();
 }
 
 
-Operand NB_Codegen::StateOperand(Register offset) {
+Operand Codegen::StateOperand(Register offset) {
   return Operand(rbp, offset, times_1, StateRingBaseOffsetFromFrame());
 }
 
 
-Operand NB_Codegen::StateOperand(int time, int state_index) {
+Operand Codegen::StateOperand(int time, int state_index) {
   return Operand(rbp,
                  ring_index,
                  times_1,
@@ -70,7 +70,7 @@ Operand NB_Codegen::StateOperand(int time, int state_index) {
 }
 
 
-Operand NB_Codegen::StateOperand(int time, Register state_index) {
+Operand Codegen::StateOperand(int time, Register state_index) {
   __ movq(scratch, state_index);
   // TODO(rames): abstract log2 kPointerSize.
   __ shl(scratch, Immediate(3));
@@ -84,7 +84,7 @@ Operand NB_Codegen::StateOperand(int time, Register state_index) {
 }
 
 
-void NB_Codegen::ComputeStateOperandOffset(Register offset, int time, int index) {
+void Codegen::ComputeStateOperandOffset(Register offset, int time, int index) {
   ASSERT(!offset.is(scratch1));
   __ Move(scratch1, 0);
   __ Move(offset,
@@ -99,7 +99,7 @@ void NB_Codegen::ComputeStateOperandOffset(Register offset, int time, int index)
 }
 
 
-Operand NB_Codegen::result_matches() {
+Operand Codegen::result_matches() {
   return Operand(rbp, -2 * kPointerSize);
 }
 
@@ -134,7 +134,7 @@ Operand last_match_end() {
 }
 
 
-void NB_Codegen::FlowTime() {
+void Codegen::FlowTime() {
   int offset = time_summary_size() - kPointerSize;
 
   if (offset - kPointerSize >= 0) {
@@ -157,7 +157,7 @@ void NB_Codegen::FlowTime() {
 }
 
 
-void NB_Codegen::CheckTimeFlow() {
+void Codegen::CheckTimeFlow() {
   __ Move(scratch, 0);
   for (int offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
     __ or_(scratch, TimeSummary(offset));
@@ -165,7 +165,7 @@ void NB_Codegen::CheckTimeFlow() {
 }
 
 
-void NB_Codegen::Generate(RegexpInfo* rinfo,
+void Codegen::Generate(RegexpInfo* rinfo,
                           MatchType match_type) {
   if (!CpuFeatures::initialized()) {
     CpuFeatures::Probe();
@@ -290,7 +290,7 @@ void NB_Codegen::Generate(RegexpInfo* rinfo,
 }
 
 
-bool NB_Codegen::GenerateFastForward(RegexpInfo* rinfo,
+bool Codegen::GenerateFastForward(RegexpInfo* rinfo,
                                      MatchType match_type) {
   vector<Regexp*>* fflist = rinfo->ff_list();
   FF_finder fff(rinfo->regexp(), fflist);
@@ -312,7 +312,7 @@ bool NB_Codegen::GenerateFastForward(RegexpInfo* rinfo,
   }
 
   if (ff_success) {
-    NB_FastForwardGen ffgen(this, rinfo->ff_list());
+    FastForwardGen ffgen(this, rinfo->ff_list());
     __ movq(string_pointer, ff_position());
     __ addq(string_pointer, Immediate(kCharSize));
     // Clear the temporary matches.
@@ -326,7 +326,7 @@ bool NB_Codegen::GenerateFastForward(RegexpInfo* rinfo,
 }
 
 
-void NB_Codegen::HandleControlRegexps(RegexpInfo* rinfo) {
+void Codegen::HandleControlRegexps(RegexpInfo* rinfo) {
   vector<Regexp*>::iterator it;
   for (it = rinfo->gen_list()->begin(); it < rinfo->gen_list()->end(); it++) {
     if ((*it)->IsControlRegexp()) {
@@ -336,7 +336,7 @@ void NB_Codegen::HandleControlRegexps(RegexpInfo* rinfo) {
 }
 
 
-void NB_Codegen::CheckMatch(Direction direction,
+void Codegen::CheckMatch(Direction direction,
                             RegexpInfo* rinfo,
                             MatchType match_type,
                             Label* limit,
@@ -419,7 +419,7 @@ void NB_Codegen::CheckMatch(Direction direction,
 }
 
 
-void NB_Codegen::GenerateMatchDirection(Direction direction,
+void Codegen::GenerateMatchDirection(Direction direction,
                                         RegexpInfo* rinfo,
                                         MatchType match_type,
                                         Label* fast_forward) {
@@ -637,12 +637,12 @@ void NB_Codegen::GenerateMatchDirection(Direction direction,
 }
 
 
-void NB_Codegen::VisitEpsilon(Epsilon* epsilon) {
+void Codegen::VisitEpsilon(Epsilon* epsilon) {
   DirectionSetOutputFromEntry(0, epsilon);
 }
 
 
-void NB_Codegen::VisitStartOfLine(StartOfLine* sol) {
+void Codegen::VisitStartOfLine(StartOfLine* sol) {
   Label skip, match;
   DirectionTestEntryState(0, sol);
   __ j(zero, &skip);
@@ -665,7 +665,7 @@ void NB_Codegen::VisitStartOfLine(StartOfLine* sol) {
 }
 
 
-void NB_Codegen::VisitEndOfLine(EndOfLine* eol) {
+void Codegen::VisitEndOfLine(EndOfLine* eol) {
   Label skip, match;
   DirectionTestEntryState(0, eol);
   __ j(zero, &skip);
@@ -688,7 +688,7 @@ void NB_Codegen::VisitEndOfLine(EndOfLine* eol) {
 }
 
 
-void NB_Codegen::VisitMultipleChar(MultipleChar* mc) {
+void Codegen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   unsigned n_chars = mc->chars_length();
 
@@ -735,7 +735,7 @@ void NB_Codegen::VisitMultipleChar(MultipleChar* mc) {
 }
 
 
-void NB_Codegen::VisitPeriod(Period* period) {
+void Codegen::VisitPeriod(Period* period) {
   // Match all characters exept '\n' and '\r'.
   Label no_match;
 
@@ -762,7 +762,7 @@ void NB_Codegen::VisitPeriod(Period* period) {
 }
 
 
-void NB_Codegen::VisitBracket(Bracket* bracket) {
+void Codegen::VisitBracket(Bracket* bracket) {
   Label out;
 
   if (direction() == kBackward) {
@@ -812,17 +812,8 @@ void NB_Codegen::VisitBracket(Bracket* bracket) {
 }
 
 
-void NB_Codegen::Advance(unsigned n_chars) {
-  if (direction() == kForward) {
-    __ addq(string_pointer, Immediate(kCharSize));
-  } else {
-    __ subq(string_pointer, Immediate(kCharSize));
-  }
-}
-
-
 // TODO(rames): optimize when state_ring_size is a power of 2.
-void NB_Codegen::TestState(int time, int state_index) {
+void Codegen::TestState(int time, int state_index) {
   ASSERT(time >= 0);
   if (time != 0) {
     ComputeStateOperandOffset(scratch2, time, state_index);
@@ -837,7 +828,7 @@ void NB_Codegen::TestState(int time, int state_index) {
 // Set a state. Only update if the current match source is 'older' than the
 // target match source.
 // TODO(rames): Use CMOVcc instad of conditional jump?
-void NB_Codegen::SetState(int target_time,
+void Codegen::SetState(int target_time,
                           int target_index,
                           int source_index) {
   ASSERT(target_time >= 0);
@@ -876,7 +867,7 @@ void NB_Codegen::SetState(int target_time,
 }
 
 
-void NB_Codegen::SetStateForce(int target_time, int target_index) {
+void Codegen::SetStateForce(int target_time, int target_index) {
   ASSERT(target_time >= 0);
 
   if (target_time == 0) {
@@ -891,7 +882,7 @@ void NB_Codegen::SetStateForce(int target_time, int target_index) {
 }
 
 
-void NB_Codegen::SetStateForce(int target_time, Register target_index) {
+void Codegen::SetStateForce(int target_time, Register target_index) {
   ASSERT(target_time >= 0);
 
   if (target_time == 0) {
@@ -906,13 +897,13 @@ void NB_Codegen::SetStateForce(int target_time, Register target_index) {
 }
 
 
-void NB_Codegen::DirectionTestEntryState(int time, Regexp* regexp) {
+void Codegen::DirectionTestEntryState(int time, Regexp* regexp) {
   TestState(0, direction_ == kForward ? regexp->entry_state()
                                       : regexp->output_state());
 }
 
 
-void NB_Codegen::DirectionSetOutputFromEntry(int time, Regexp* regexp) {
+void Codegen::DirectionSetOutputFromEntry(int time, Regexp* regexp) {
   if (direction() == kForward) {
     SetState(time, regexp->output_state(), regexp->entry_state());
   } else {
@@ -921,7 +912,7 @@ void NB_Codegen::DirectionSetOutputFromEntry(int time, Regexp* regexp) {
 }
 
 
-void NB_Codegen::ClearTime(int time) {
+void Codegen::ClearTime(int time) {
   // TODO(rames): Use a loop.
   if (time == 0) {
     for (int offset = 0;
@@ -954,7 +945,7 @@ void NB_Codegen::ClearTime(int time) {
 }
 
 
-void NB_Codegen::ClearAllTimes() {
+void Codegen::ClearAllTimes() {
   // TODO(rames): Use a loop.
   int offset;
   for (offset = 0; offset < state_ring_size(); offset+= kPointerSize) {
@@ -967,7 +958,7 @@ void NB_Codegen::ClearAllTimes() {
 }
 
 
-void NB_Codegen::set_direction(Direction dir) {
+void Codegen::set_direction(Direction dir) {
   direction_ = dir;
   if (direction() == kForward) {
     __ cld();
@@ -977,9 +968,9 @@ void NB_Codegen::set_direction(Direction dir) {
 }
 
 
-// NB_FastForwardGen -----------------------------------------------------------
+// FastForwardGen --------------------------------------------------------------
 
-void NB_FastForwardGen::Generate() {
+void FastForwardGen::Generate() {
   if (regexp_list_->size() == 0) {
     return;
   }
@@ -1141,7 +1132,7 @@ void NB_FastForwardGen::Generate() {
 }
 
 
-void NB_FastForwardGen::FoundState(int time, int state) {
+void FastForwardGen::FoundState(int time, int state) {
   __ movq(ff_found_state(), Immediate(state));
   if (state >= 0) {
     codegen_->SetStateForce(time, state);
@@ -1151,7 +1142,7 @@ void NB_FastForwardGen::FoundState(int time, int state) {
 
 // Single visitors ---------------------------------------------------
 
-void NB_FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
+void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   int n_chars = mc->chars_length();
 
   if (CpuFeatures::IsSupported(SSE4_2)) {
@@ -1250,7 +1241,7 @@ void NB_FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
 
 
 // TODO(rames): slow single visitors are all too similar not to be refactord!
-void NB_FastForwardGen::VisitSinglePeriod(Period* period) {
+void FastForwardGen::VisitSinglePeriod(Period* period) {
   // TODO(rames): we probably never want to have a single ff for a period!!
   // Need to refactor the ff finder mechanisms.
   Label loop, done;
@@ -1274,7 +1265,7 @@ void NB_FastForwardGen::VisitSinglePeriod(Period* period) {
 }
 
 
-void NB_FastForwardGen::VisitSingleBracket(Bracket* bracket) {
+void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
   // TODO(rames): Allow more complex brackets.
 //  if (CpuFeatures::IsSupported(SSE4_2) &&
 //      bracket->single_chars()->size() < 16 &&
@@ -1478,7 +1469,7 @@ void NB_FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 
 
 // TODO: Merge VisitSingleStartOfLine and VisitSingleEndOfLine code.
-void NB_FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
+void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
   if (CpuFeatures::IsSupported(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
@@ -1576,7 +1567,7 @@ void NB_FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
 }
 
 
-void NB_FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
+void FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
   if (CpuFeatures::IsSupported(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
@@ -1664,7 +1655,7 @@ void NB_FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
 }
 
 
-void NB_FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
+void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
   UNREACHABLE();
 }
 
@@ -1673,7 +1664,7 @@ void NB_FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 
 // TODO(rames): Also benchmark cases with a high density of potential matches
 // and see if we should try to check more characters.
-void NB_FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
+void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   __ cmp(mc->chars_length(), current_chars, mc->first_chars());
   __ j(not_equal, &no_match);
@@ -1683,27 +1674,27 @@ void NB_FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
 }
 
 
-void NB_FastForwardGen::VisitPeriod(Period*) {
+void FastForwardGen::VisitPeriod(Period*) {
   UNIMPLEMENTED();
 }
 
 
-void NB_FastForwardGen::VisitBracket(Bracket* bracket) {
+void FastForwardGen::VisitBracket(Bracket* bracket) {
   UNIMPLEMENTED();
 }
 
 
-void NB_FastForwardGen::VisitStartOfLine(StartOfLine*) {
+void FastForwardGen::VisitStartOfLine(StartOfLine*) {
   UNIMPLEMENTED();
 }
 
 
-void NB_FastForwardGen::VisitEndOfLine(EndOfLine*) {
+void FastForwardGen::VisitEndOfLine(EndOfLine*) {
   UNIMPLEMENTED();
 }
 
 
-void NB_FastForwardGen::VisitEpsilon(Epsilon* epsilon) {
+void FastForwardGen::VisitEpsilon(Epsilon* epsilon) {
   UNREACHABLE();
 }
 

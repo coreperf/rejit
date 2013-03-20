@@ -33,35 +33,6 @@ case k##RegexpType: stream << #RegexpType; break;
 }
 
 
-void RegexpWithSubs::DeepCopySubRegexpsFrom(RegexpWithSubs* original) {
-  vector<Regexp*>::const_iterator it;
-  for (it = original->sub_regexps()->begin();
-       it < original->sub_regexps()->end();
-       it++) {
-    this->sub_regexps()->push_back((*it)->DeepCopy());
-  }
-}
-
-
-Regexp* Concatenation::DeepCopy() {
-  Concatenation* newre = new Concatenation();
-  newre->DeepCopySubRegexpsFrom(this);
-  return newre;
-}
-
-
-void Concatenation::Append(Regexp* regexp) {
-    sub_regexps()->push_back(regexp);
-}
-
-
-Regexp* Alternation::DeepCopy() {
-  Alternation* newre = new Alternation();
-  newre->DeepCopySubRegexpsFrom(this);
-  return newre;
-}
-
-
 MultipleChar::MultipleChar(const char* first_char, unsigned count)
   : Regexp(kMultipleChar), chars_(first_char), chars_length_(count) {
   ASSERT(count <= kMaxNodeLength);
@@ -114,13 +85,13 @@ Regexp* Bracket::DeepCopy() {
 }
 
 
-Regexp* StartOfLine::DeepCopy() {
-  return new StartOfLine();
-}
-
-
-Regexp* EndOfLine::DeepCopy() {
-  return new EndOfLine();
+void RegexpWithSubs::DeepCopySubRegexpsFrom(RegexpWithSubs* original) {
+  vector<Regexp*>::const_iterator it;
+  for (it = original->sub_regexps()->begin();
+       it < original->sub_regexps()->end();
+       it++) {
+    this->sub_regexps()->push_back((*it)->DeepCopy());
+  }
 }
 
 
@@ -131,6 +102,13 @@ unsigned RegexpWithSubs::MatchLength() const {
     maximum = max(maximum, (*it)->MatchLength());
   }
   return maximum;
+}
+
+
+Regexp* Concatenation::DeepCopy() {
+  Concatenation* newre = new Concatenation();
+  newre->DeepCopySubRegexpsFrom(this);
+  return newre;
 }
 
 
@@ -157,6 +135,13 @@ void Concatenation::SetEntryState(int entry_state) {
 void Concatenation::SetOutputState(int output_state) {
   output_state_ = output_state;
   sub_regexps_.back()->SetOutputState(output_state);
+}
+
+
+Regexp* Alternation::DeepCopy() {
+  Alternation* newre = new Alternation();
+  newre->DeepCopySubRegexpsFrom(this);
+  return newre;
 }
 
 

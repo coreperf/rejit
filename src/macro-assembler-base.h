@@ -23,5 +23,11 @@ class MacroAssemblerBase : public Assembler {
     : Assembler(buffer, buffer_size) {}
 };
 
+enum Direction {
+  kForward,
+  kBackward
+};
+
+
 } }  // namespace rejit::internal
 

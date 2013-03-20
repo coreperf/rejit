@@ -271,7 +271,7 @@ class ControlRegexp : public Regexp {
 class StartOfLine : public ControlRegexp {
  public:
   StartOfLine() : ControlRegexp(kStartOfLine) {}
-  virtual Regexp* DeepCopy();
+  inline virtual Regexp* DeepCopy() { return new StartOfLine(); }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StartOfLine);
@@ -281,7 +281,9 @@ class StartOfLine : public ControlRegexp {
 class EndOfLine : public ControlRegexp {
  public:
   EndOfLine() : ControlRegexp(kEndOfLine) {}
-  virtual Regexp* DeepCopy();
+  inline Regexp* DeepCopy() { return new EndOfLine(); }
+
+
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EndOfLine);
@@ -335,7 +337,9 @@ class Concatenation : public RegexpWithSubs {
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
 
-  void Append(Regexp*);
+  inline void Append(Regexp* regexp) {
+    sub_regexps()->push_back(regexp);
+  }
 
   virtual void SetEntryState(int entry_state);
   virtual void SetOutputState(int output_state);

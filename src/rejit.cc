@@ -172,7 +172,7 @@ bool Regej::Compile(MatchType match_type) {
   Parser parser;
   parser.ParseERE(rinfo_, regexp_);
 
-  NB_Codegen codegen;
+  Codegen codegen;
   VirtualMemory* vmem = codegen.Compile(rinfo_, match_type);
 
   switch (match_type) {

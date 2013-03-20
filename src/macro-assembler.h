@@ -21,5 +21,4 @@
 #error Unkown target architecture.
 #endif
 
-
 #endif  // MACRO_ASSEMBLER_H_

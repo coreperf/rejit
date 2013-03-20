@@ -297,6 +297,25 @@ void MacroAssembler::CallCpp(Address address) {
 }
 
 
+void MacroAssembler::Advance(unsigned n_chars,
+                             Direction direction,
+                             Register reg) {
+  if (direction == kForward) {
+    if (kCharSize == 1) {
+      incq(string_pointer);
+    } else {
+      addq(string_pointer, Immediate(kCharSize));
+    }
+  } else {
+    if (kCharSize == 1) {
+      decq(string_pointer);
+    } else {
+      subq(string_pointer, Immediate(kCharSize));
+    }
+  }
+}
+
+
 void MacroAssembler::AdvanceToEOS() {
   Label loop;
   subq(string_pointer, Immediate(kCharSize));

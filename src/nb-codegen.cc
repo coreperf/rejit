@@ -20,24 +20,9 @@ namespace rejit {
 namespace internal {
 
 
-// TODO(rames): This is inefficient. Also maybe use another storage than vector.
 void RegisterMatch(vector<Match>* matches, Match new_match) {
-  const char* new_begin = new_match.begin;
-  const char* new_end = new_match.end;
-  USE(new_end);
-  vector<Match>::iterator it;
-
-  for (it = matches->begin(); it < matches->end();) {
-    Match current = *it;
-    if (new_begin <= current.begin) {
-      ASSERT(current.end < new_end);
-      matches->erase(it);
-    } else {
-      ASSERT(current.end <= new_begin);
-      it++;
-    }
-  }
-
+  // The current codegen ensures that the match registered is valid. We can just
+  // push it.
   matches->push_back(new_match);
 
   if (FLAG_trace_match_all) {
@@ -51,16 +36,16 @@ void RegisterMatch(vector<Match>* matches, Match new_match) {
 }
 
 
-// NB_RegexpIndexer ------------------------------------------------------------
+// RegexpIndexer ---------------------------------------------------------------
 
-void NB_RegexpIndexer::Index(Regexp* root) {
+void RegexpIndexer::Index(Regexp* root) {
   IndexSub(root);
   rinfo_->set_entry_state(0);
   rinfo_->set_output_state(this->entry_state());
 }
 
 
-void NB_RegexpIndexer::IndexSub(Regexp* root, int entry, int output) {
+void RegexpIndexer::IndexSub(Regexp* root, int entry, int output) {
   Visit(root);
   root->SetEntryState(entry);
   if (output != -1) {
@@ -72,46 +57,14 @@ void NB_RegexpIndexer::IndexSub(Regexp* root, int entry, int output) {
 
 // TODO(rames): If the definitions stay so small and don't diverge they could be
 // changed to inline functions.
-void NB_RegexpIndexer::VisitRegexp(Regexp* re) {
+void RegexpIndexer::VisitRegexp(Regexp* re) {
   re->SetEntryState(entry_state_);
   re->SetOutputState(++last_state_);
   entry_state_ = re->output_state();
 }
 
 
-void NB_RegexpIndexer::VisitMultipleChar(MultipleChar* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpIndexer::VisitPeriod(Period* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpIndexer::VisitBracket(Bracket* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpIndexer::VisitStartOfLine(StartOfLine* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpIndexer::VisitEndOfLine(EndOfLine* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpIndexer::VisitEpsilon(Epsilon* epsilon) {
-  // Epsilon transitions are generated explicitly by the RegexpLister and should
-  // not appear before that stage.
-  UNREACHABLE();
-}
-
-
-void NB_RegexpIndexer::VisitAlternation(Alternation* alternation) {
+void RegexpIndexer::VisitAlternation(Alternation* alternation) {
   int original_entry = entry_state_;
   vector<Regexp*>::iterator it;
   for (it = alternation->sub_regexps()->begin();
@@ -127,7 +80,7 @@ void NB_RegexpIndexer::VisitAlternation(Alternation* alternation) {
 }
 
 
-void NB_RegexpIndexer::VisitConcatenation(Concatenation* concatenation) {
+void RegexpIndexer::VisitConcatenation(Concatenation* concatenation) {
   int original_entry = entry_state_;
   vector<Regexp*>::iterator it;
   for (it = concatenation->sub_regexps()->begin();
@@ -141,53 +94,15 @@ void NB_RegexpIndexer::VisitConcatenation(Concatenation* concatenation) {
 }
 
 
-void NB_RegexpIndexer::VisitRepetition(Repetition* re) {
-  // The actual work will be done by the RegexpLister
+void RegexpIndexer::VisitRepetition(Repetition* re) {
+  // The actual work will be done by the RegexpLister.
   VisitRegexp(re);
 }
 
 
-// NB_RegexpIndexer ------------------------------------------------------------
+// RegexpIndexer ---------------------------------------------------------------
 
-// TODO(rames): If the definitions stay so small and don't diverge they could be
-// changed to inline functions.
-void NB_RegexpLister::VisitRegexp(Regexp* re) {
-  List(re);
-}
-
-
-void NB_RegexpLister::VisitMultipleChar(MultipleChar* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpLister::VisitPeriod(Period* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpLister::VisitBracket(Bracket* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpLister::VisitStartOfLine(StartOfLine* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpLister::VisitEndOfLine(EndOfLine* re) {
-  VisitRegexp(re);
-}
-
-
-void NB_RegexpLister::VisitEpsilon(Epsilon* epsilon) {
-  // Epsilon transitions are generated explicitly.
-  UNREACHABLE();
-}
-
-
-void NB_RegexpLister::VisitAlternation(Alternation* regexp) {
+void RegexpLister::VisitAlternation(Alternation* regexp) {
   vector<Regexp*>::iterator it;
   for (it = regexp->sub_regexps()->begin();
        it < regexp->sub_regexps()->end();
@@ -197,7 +112,7 @@ void NB_RegexpLister::VisitAlternation(Alternation* regexp) {
 }
 
 
-void NB_RegexpLister::VisitConcatenation(Concatenation* regexp) {
+void RegexpLister::VisitConcatenation(Concatenation* regexp) {
   vector<Regexp*>::iterator it;
   for (it = regexp->sub_regexps()->begin();
        it < regexp->sub_regexps()->end();
@@ -207,12 +122,12 @@ void NB_RegexpLister::VisitConcatenation(Concatenation* regexp) {
 }
 
 
-void NB_RegexpLister::VisitRepetition(Repetition* repetition) {
-  // TODO(rames): HIGH_PRIORITY Better handling of repetitions.
-  // TODO(rames): HIGH_PRIORITY Don't leak the newly allocated regexps.
-  // TODO(rames): Check we don't leak base.
-  // TODO(rames): Fix tracing of repetitions.
-  // TODO(rames): Clean.
+void RegexpLister::VisitRepetition(Repetition* repetition) {
+  // TODO: HIGH_PRIORITY Better handling of repetitions.
+  // TODO: HIGH_PRIORITY Don't leak the newly allocated regexps.
+  // TODO: Check we don't leak base.
+  // TODO: Fix tracing of repetitions.
+  // TODO: Clean.
   // Base may have been referenced by other mechanisms. It must be indexed.
   Regexp* base = repetition->sub_regexp();
   unsigned min_rep = repetition->min_rep();
@@ -223,7 +138,7 @@ void NB_RegexpLister::VisitRepetition(Repetition* repetition) {
   if (!repetition->IsLimited()) {
     if (min_rep == 0) {
       rinfo()->set_last_state(rinfo()->last_state() + 1);
-      NB_RegexpIndexer indexer(rinfo(),
+      RegexpIndexer indexer(rinfo(),
                                rinfo()->last_state(),
                                rinfo()->last_state());
       indexer.IndexSub(base, rinfo()->last_state());
@@ -266,14 +181,15 @@ void NB_RegexpLister::VisitRepetition(Repetition* repetition) {
       created = concat;
 
       // Index the created regexp.
-      NB_RegexpIndexer indexer(rinfo(),
+      RegexpIndexer indexer(rinfo(),
                                repetition->entry_state(),
                                rinfo()->last_state());
       indexer.IndexSub(created, repetition->entry_state());
 
       Visit(created);
 
-      Epsilon* eps_rep= new Epsilon(concat->output_state(), concat->sub_regexps()->back()->entry_state());
+      Epsilon* eps_rep = new Epsilon(
+          concat->output_state(), concat->sub_regexps()->back()->entry_state());
       ListNew(eps_rep);
 
       epsilon = new Epsilon(concat->output_state(), repetition->output_state());
@@ -302,10 +218,11 @@ void NB_RegexpLister::VisitRepetition(Repetition* repetition) {
     }
     created = concat;
     // Index and list the created regexp.
-    NB_RegexpIndexer indexer(rinfo(),
+    RegexpIndexer indexer(rinfo(),
                              repetition->entry_state(),
                              rinfo()->last_state());
-    indexer.IndexSub(created, repetition->entry_state(), repetition->output_state());
+    indexer.IndexSub(created,
+                     repetition->entry_state(), repetition->output_state());
 
     Visit(created);
 
@@ -328,43 +245,6 @@ void NB_RegexpLister::VisitRepetition(Repetition* repetition) {
 }
 
 
-bool FF_finder::VisitMultipleChar(MultipleChar* mc) {
-  regexp_list_->push_back(mc);
-  return true;
-}
-
-
-bool FF_finder::VisitPeriod(Period* period) {
-  regexp_list_->push_back(period);
-  return true;
-}
-
-
-bool FF_finder::VisitBracket(Bracket* bracket) {
-  regexp_list_->push_back(bracket);
-  return true;
-}
-
-
-bool FF_finder::VisitStartOfLine(StartOfLine* sol) {
-  regexp_list_->push_back(sol);
-  return true;
-}
-
-
-bool FF_finder::VisitEndOfLine(EndOfLine* eol) {
-  regexp_list_->push_back(eol);
-  return true;
-}
-
-
-bool FF_finder::VisitEpsilon(Epsilon* eps) {
-  // There are no epsilon transitions at this stage.
-  UNREACHABLE();
-  return false;
-}
-
-
 bool FF_finder::VisitAlternation(Alternation* alt) {
   // TODO(rames): Try to find common substrings to reduce
   bool res = true;
@@ -375,26 +255,6 @@ bool FF_finder::VisitAlternation(Alternation* alt) {
     res &= Visit(*it);
   }
   return res;
-}
-
-
-// A positive return value means that p1:p2 is better than p2:p3 for
-// fast forwarding.
-// TODO(rames): There is a lot of potential optimization from here.
-int FF_finder::ff_cmp(size_t i1,
-                      size_t i2,
-                      size_t i3) {
-  size_t s1 = i2 - i1;
-  size_t s2 = i3 - i2;
-
-  if (s1 == 0) return -1;
-  if (s2 == 0) return  1;
-
-  if (s1 == s2 && s1 == 1) {
-    return ff_phy_cmp(regexp_list_->at(i1), regexp_list_->at(i2));
-  } {
-    return s2 - s1;
-  }
 }
 
 
@@ -420,7 +280,8 @@ bool FF_finder::VisitConcatenation(Concatenation* concat) {
     if (ff_cmp(cur_start, cur_end, regexp_list_->size()) >= 0) {
       regexp_list_->erase(regexp_list_->begin() + cur_end, regexp_list_->end());
     } else {
-      regexp_list_->erase(regexp_list_->begin() + cur_start, regexp_list_->begin() + cur_end);
+      regexp_list_->erase(regexp_list_->begin() + cur_start,
+                          regexp_list_->begin() + cur_end);
     }
     cur_end = regexp_list_->size();
   }
@@ -439,18 +300,38 @@ bool FF_finder::VisitRepetition(Repetition* rep) {
 }
 
 
-// NB_Codegen ------------------------------------------------------------------
+// A positive return value means that p1:p2 is better than p2:p3 for
+// fast forwarding.
+// TODO(rames): There is a lot of potential optimization from here.
+int FF_finder::ff_cmp(size_t i1,
+                      size_t i2,
+                      size_t i3) {
+  size_t s1 = i2 - i1;
+  size_t s2 = i3 - i2;
 
-VirtualMemory* NB_Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
+  if (s1 == 0) return -1;
+  if (s2 == 0) return  1;
+
+  if (s1 == s2 && s1 == 1) {
+    return ff_phy_cmp(regexp_list_->at(i1), regexp_list_->at(i2));
+  } {
+    return s2 - s1;
+  }
+}
+
+
+// Codegen ---------------------------------------------------------------------
+
+VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   Regexp* root = rinfo->regexp();
-  NB_RegexpIndexer indexer(rinfo);
+  RegexpIndexer indexer(rinfo);
   indexer.Index(root);
   if (FLAG_print_re_tree) {
     cout << "Regexp tree ----------" << endl;
     cout << *root << endl;
     cout << "---------- End of regexp tree" << endl;
   }
-  NB_RegexpLister lister(rinfo, rinfo->gen_list());
+  RegexpLister lister(rinfo, rinfo->gen_list());
   lister.Visit(root);
 
   int n_states = rinfo->last_state() + 1;

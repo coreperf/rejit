@@ -16,7 +16,7 @@
 import os
 
 Import('env librejit help_messages')
-env['CCFLAGS'] += ' -DBENCHTEST -DMOD_FLAGS'
+env['CCFLAGS'] += ['-DBENCHTEST', '-DMOD_FLAGS']
 
 test_env = Environment()
 # Grab compilation environment variables.
@@ -38,6 +38,6 @@ if 'os' in env and env['os'] == 'macos':
   test_env = conf.Finish()
   libs += ['argp']
 env.Program('engine', ['engine.cc'],
-    LIBS=libs, CPPPATH='include')
+    LIBS=libs)
 
 BUILD_TARGETS.append(path_engine)

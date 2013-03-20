@@ -79,6 +79,8 @@ class MacroAssembler : public MacroAssemblerBase {
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, size_t n_chars);
 
+  // Advance the register by a number of characters in the given direction.
+  void Advance(unsigned, Direction, Register);
   void AdvanceToEOS();
 
   // Debug helpers ---------------------------------------------------

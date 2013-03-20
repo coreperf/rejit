@@ -29,11 +29,6 @@ local_env['CCFLAGS'] = os.getenv('CCFLAGS') or local_env['CCFLAGS']
 
 local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(dir_re2, 'hg.re2/obj/') + ':'
 
-if local_env['CCFLAGS']:
-  local_env['CCFLAGS'] += ' ' + '-O3'
-else:
-  local_env['CCFLAGS'] = '-O3'
-
 
 dir_sconscript = Dir('.').srcnode().path 
 path_engine = os.path.join(dir_sconscript, 'engine')
