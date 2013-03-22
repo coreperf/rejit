@@ -31,7 +31,7 @@ def run(engine_args):
   engine = os.path.join(dir_benchmarks_engines, 're2/engine')
 
   current_time = str(math.floor(time.time() * 1000))
-  current_commit = current_git_commit()
+  current_commit = current_re2_commit()
   labels      = ['label'     , 'date'       , 'commit']
   m_worst     = ['worst'     , current_time , current_commit]
   m_amortised = ['amortised' , current_time , current_commit]

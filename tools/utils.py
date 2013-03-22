@@ -64,9 +64,16 @@ def is_number(s):
     return False
 
 
-def current_git_commit():
+def current_rejit_commit():
   p1 = subprocess.Popen(['git', 'log', '-n1'], stdout=subprocess.PIPE)
   p2 = subprocess.Popen(["head", '-n1'], stdout=subprocess.PIPE, stdin=p1.stdout)
+  p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
+  p3.wait()
+  return p3.communicate()[0].rstrip(' \n\t')
+
+def current_re2_commit():
+  p1 = subprocess.Popen(['hg', 'head'], cwd=join(dir_benchmarks_engines, 're2', 'hg.re2'), stdout=subprocess.PIPE)
+  p2 = subprocess.Popen(["grep", 'changeset'], stdout=subprocess.PIPE, stdin=p1.stdout)
   p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
   p3.wait()
   return p3.communicate()[0].rstrip(' \n\t')
