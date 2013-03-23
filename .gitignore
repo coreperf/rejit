@@ -7,6 +7,7 @@ librejit_g.a
 *.pyc
 .sconsign.dblite
 data.temp
+data.register
 tools/benchmarks/resources/engines/re2/engine
 tools/benchmarks/resources/engines/re2/hg.re2/
 tools/benchmarks/resources/engines/rejit/engine

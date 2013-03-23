@@ -1,10 +1,12 @@
 <p>
-<b>Regexp:</b> <code>abcdefg$</code>
+<b>Regexp:</b> <code>abcdefg#</code>
 <br />
-Search for a simple concatenation of characters. (The end of line anchor
-generally used to ensure that no match occurs is not strictly necessary here.)
+Search for a simple concatenation of characters.
 <br />
-Starting character 'a' is <b>not</b> present in the searched text.
+Starting character 'a' is <b>not</b> present in the text searched.
+<br />
+The trailing '#' is not present either in the text searched. This is a trick,
+used also in later benchmarks, to ensure that there are no matches in the text.
 <br /><br />
 Re2 uses memchr() to look for the starting character.
 Its speed is particularly good when the C library provides a SIMD optimized memchr().

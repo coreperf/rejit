@@ -1005,7 +1005,7 @@ void FastForwardGen::Generate() {
       Label simd_code, simd_loop;
       Label maybe_match, keep_searching, find_null, exit;
 
-      __ bind(&align);
+      __ bind(&align);  // -----------------------------------------------------
       // Align the string pointer on a 16 bytes boundary before entering the
       // SIMD path.
       // This allows to avoid potentially illegal accesses after the eos.
@@ -1035,7 +1035,7 @@ void FastForwardGen::Generate() {
         __ jmp(&exit);
         __ bind(&no_match);
       }
-      __ jmp(&align_loop);
+      __ jmp(&align_loop);  // ------------------------------------------- align
 
 
       __ bind(&simd_code);

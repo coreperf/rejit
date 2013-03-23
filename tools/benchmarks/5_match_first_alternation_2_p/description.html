@@ -2,11 +2,6 @@
 <br /><b>Regexp:</b> <code>(abcd---#|abcd___#)</code>
 <br />
 Search for an alternation of two words sharing a common prefix.<br />
-The character '#' is not present in the text searched to ensure there is no
-match. We cannot use a trailing '$' because rejit would use it as the fast
-forward element.
-<br />
-Following benchmarks containing '#' use the same trick.
 <br />
 Re2 spots the common prefix and uses memchr() to speed up the search.
 Rejit does not do that yet.

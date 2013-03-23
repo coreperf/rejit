@@ -34,7 +34,7 @@ import re2_utils
 from re2_utils import *
 
 if __name__ == "__main__":
-  regexp = 'abcdefgh$'
+  regexp = 'abcdefgh#'
   args = [regexp,
       '--low_char=b',
       '--high_char=z']
