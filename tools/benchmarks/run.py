@@ -136,7 +136,7 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
 
   series = {}
 
-  for engine in engines:
+  for engine in sorted(engines):
     data_file = open(benchmark_engine_data_path(benchmark, engine), 'r')
     data = csv.reader(data_file, delimiter=' ')
 
@@ -157,7 +157,7 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
         legend = ('%s_%s' %(engine, line[0])).rstrip(' \t\n\r').lstrip(' \t\n\r')
         series[legend] = line[first_perf_index::]
 
-  for legend in sorted(series, reverse=True):
+  for legend in sorted(series):
     data_points[legend] = ''
     for i in range(0, n_l):
       # TODO: find a beter fix for that
@@ -173,13 +173,13 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
   
   data_file.close()
 
-  main_colors = ['#DEBD00', '#277AD9', '#00940A']
-  secondary_colors = ['#E0D48D', '#94B8E0', '#72B377']
+  main_colors = ['#DEBD00', '#277AD9', '#00940A', '#A22EBF']
+  secondary_colors = ['#E0D48D', '#94B8E0', '#72B377', '#BF6CD4']
   colors_index = -1
   prev_root = ''
-  for legend in sorted(series, reverse=True):
+  for legend in sorted(series):
     l_s = legend.split('_')
-    root = l_s[0]
+    root = '_'.join(l_s[0:len(l_s) - 1])
     if root != prev_root:
       colors_index += 1
     set_info = '{data: data_%s_%s, label: "%s",\n' % (benchmark, legend,
@@ -381,7 +381,7 @@ def plot_results():
   p_benchmarks = subprocess.Popen(["ls", dir_benchmarks], stdout=subprocess.PIPE)
   benchmarks = p_benchmarks.communicate()[0].split()
   benchmarks = filter(lambda x: isfile(benchmark_description_path(x)), benchmarks)
-  for benchmark in benchmarks:
+  for benchmark in sorted(benchmarks):
     write_benchmark_data(benchmark)
 
   html(html_results, '</table>')

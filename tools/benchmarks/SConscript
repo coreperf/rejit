@@ -17,6 +17,8 @@ import utils
 Import('env librejit help_messages')
 
 
+# TODO: Move third party requirement check to their respective scripts.
+
 # Check third party requirements.
 print "Checking for javascript flot... ",
 flot_git = 'git://github.com/flot/flot.git'
@@ -50,6 +52,37 @@ if not os.path.exists(re2_dir) or not os.path.isdir(re2_dir):
   p.wait()
   if ret != 0:
     print 'Failed to build re2. Aborting build.'
+    sys.exit(1)
+else:
+  print "ok."
+
+print "Checking for v8... ",
+v8_git = 'git://github.com/v8/v8.git'
+v8_dir = join(utils.dir_benchmarks_engines, 'v8', 'git.v8')
+if not os.path.exists(v8_dir) or not os.path.isdir(v8_dir):
+  print "not found."
+  print "Cloning v8."
+  p = subprocess.Popen(['git', 'clone', v8_git, v8_dir], stdout=PIPE)
+  for line in p.stdout.readlines():
+    print line,
+  ret = p.wait()
+  if ret != 0:
+    print 'Failed to clone v8. Aborting build.'
+    sys.exit(1)
+  print "Building v8. This may take some time."
+  p = subprocess.Popen(['make', '-C', v8_dir, 'dependencies', '-j5'], stdout=PIPE)
+  for line in p.stdout.readlines():
+    print line,
+  p.wait()
+  if ret != 0:
+    print 'Failed to build v8 dependencies. Aborting build.'
+    sys.exit(1)
+  p = subprocess.Popen(['make', '-C', v8_dir, 'native', '-j5'], stdout=PIPE)
+  for line in p.stdout.readlines():
+    print line,
+  p.wait()
+  if ret != 0:
+    print 'Failed to build v8. Aborting build.'
     sys.exit(1)
 else:
   print "ok."

@@ -214,16 +214,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     'worst' performance graphs show performance for 1 run and 1 compilation
     (averaged). 'amortised' performance graphs show performance for 1
     compilation and 100 runs</li>
+    <li>Benchmarking v8 is tricky because the engine does some clever
+    optimization that is not wanted when benchmarking raw speed.
+    <br />Javascript time precision is in milliseconds, so the number of runs
+    is increased to 5000 for text sizes strictly smaller than 128KiB.
+    <br />I am sceptic about the performance for 'v8_amortised' in
+    benchmarks 4 and 5, especially when comparing to benchmarks 0, 1, and
+    2. Some clever optimization may prevent from actually running the
+    regexp. Or maybe there is a really good algorithm working here.
+    The 'v8_correction_amortised' runs the
+    same regexps, but suffixed with a repetition of 1 '{1,1}'. Performance looks
+    more coherent. Any information on this is welcome.</li>
     <li>Benchmarks showing performance of full regexp matching are not
     presented. As explained above, rejit's related mechanisms are completely
-    unoptimized and the performance on those will likely be poor compared to
-    other engines (except maybe on backtracking regexps).</li>
+    unoptimized and the performance would not be representative.</li>
     <li>Rejit is a prototype implementation, has not been optimized, and there are
     many unimplemented SIMD paths. Hence there are many situations in which
     rejit will perform badly (especially compared to SIMD paths).
     </li>
     <br /><br />
-    Finally before we go to the benchmarks, here are a few things where rejit is
+    Finally before showing some graphs, here are a few things where rejit is
     still very bad at. (Eventually they should become as fast as the rest).
     <li>Full matches.</li>
     <li>The handling of <code>.*</code> is bad. Example slow regexp: <code>.*$</code> .</li>
