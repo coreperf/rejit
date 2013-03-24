@@ -297,6 +297,22 @@ void MacroAssembler::CallCpp(Address address) {
 }
 
 
+void MacroAssembler::inc_c(Register dst) {
+  if (char_size() == 1) {
+    incq(dst);
+  } else {
+    addq(dst, Immediate(char_size()));
+  }
+}
+void MacroAssembler::dec_c(Register dst) {
+  if (char_size() == 1) {
+    decq(dst);
+  } else {
+    subq(dst, Immediate(char_size()));
+  }
+}
+
+
 void MacroAssembler::Advance(unsigned n_chars,
                              Direction direction,
                              Register reg) {

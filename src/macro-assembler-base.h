@@ -20,7 +20,13 @@ namespace internal {
 class MacroAssemblerBase : public Assembler {
  public:
   MacroAssemblerBase(void* buffer, int buffer_size)
-    : Assembler(buffer, buffer_size) {}
+    : Assembler(buffer, buffer_size), char_size_(kCharSize) {}
+
+  inline unsigned char_size() const { return char_size_; }
+  inline void set_char_size(unsigned size) { char_size_ = size; }
+
+ private:
+  unsigned char_size_;
 };
 
 enum Direction {

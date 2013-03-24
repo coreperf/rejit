@@ -688,6 +688,38 @@ void Codegen::VisitEndOfLine(EndOfLine* eol) {
 }
 
 
+// Try to match mc from the current string_pointer position.
+// string_pointer is not modified.
+// On output the condition flags will match equal/not_equal depending on wether
+// there is a match or not.
+static void MatchMultipleChar(MacroAssembler *masm_,
+                              Direction direction,
+                              MultipleChar* mc) {
+  // The implementation must not expect anything regarding the alignment of the
+  // strings.
+  // TODO: Implement a SIMD path.
+  unsigned n_chars = mc->chars_length();
+  __ movq(rsi, string_pointer);
+  // TODO(rames): This assumes that the regexp is still accessible at
+  // runtime (mc->chars() points to the regexp string).
+  if (direction == kForward) {
+    __ Move(rdi, (uint64_t)(mc->chars()));
+  } else {
+    __ Move(rdi, (uint64_t)(mc->chars() + n_chars - 1));
+  }
+  // TODO(rames): Work out the best options depending on the maximum number of
+  // characters to match.
+  if (n_chars >= 8) {
+    __ Move(rcx, n_chars / 8);
+    __ repnecmpsq();
+  }
+  if (n_chars % 8 > 0) {
+    __ Move(rcx, n_chars % 8);
+    __ repnecmpsb();
+  }
+}
+
+
 void Codegen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   unsigned n_chars = mc->chars_length();
@@ -697,37 +729,15 @@ void Codegen::VisitMultipleChar(MultipleChar* mc) {
   if (direction() == kBackward) {
     __ subq(string_pointer, Immediate(kCharSize));
     __ movq(scratch, string_pointer);
-    __ subq(scratch, Immediate(mc->chars_length()));
+    __ subq(scratch, Immediate(n_chars));
     __ cmpq(scratch, string_base);
     __ j(below, &no_match);
   }
 
-  __ movq(rsi, string_pointer);
-  // TODO(rames): Clean that!
-  // TODO(rames): This assumes that the regexp is still accessible at
-  // runtime. (mc->chars() points to the regexp string)
-  if (direction() == kForward) {
-    __ Move(rdi, (uint64_t)(mc->chars()));
-  } else {
-    __ Move(rdi, (uint64_t)(mc->chars() + mc->chars_length() - 1));
-  }
-  // TODO(rames): Work out the best options depending on the maximum number of
-  // characters to match.
-  if (n_chars >= 8) {
-    __ movq(rcx, Immediate(n_chars / 8));
-    __ repnecmpsq();
-    // TODO(rames): the jump is probably not necessary as the next instructions
-    // won't apply if the flags are not equal.
-    __ j(not_equal, &no_match);
-  }
+  MatchMultipleChar(masm_, direction(), mc);
+  __ j(not_equal, &no_match);
 
-  if (n_chars % 8 > 0) {
-    __ movq(rcx, Immediate(n_chars % 8));
-    __ repnecmpsb();
-    __ j(not_equal, &no_match);
-  }
-
-  DirectionSetOutputFromEntry(mc->chars_length(), mc);
+  DirectionSetOutputFromEntry(n_chars, mc);
   __ bind(&no_match);
   if (direction() == kBackward) {
     __ addq(string_pointer, Immediate(kCharSize));
@@ -990,52 +1000,49 @@ void FastForwardGen::Generate() {
     }
 
     // We currently only support a SIMD path for alternations of MultipleChars.
+    // TODO: Add support for alternations of other regexps. This should simpler
+    // with the new code structure.
     if (CpuFeatures::IsSupported(SSE4_2) &&
         multiple_chars_only &&
         regexp_list_->size() < XMMRegister::kNumRegisters - 1) {
-      /* Pre-load the XMM registers for MultipleChars. */
-      static const int first_xmm_fixed_code = 4;
+      // Pre-load the XMM registers for MultipleChars.
+      static const int first_free_xmm_code = 4;
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
-        __ movdqp(XMMRegister::from_code(first_xmm_fixed_code + i),
+        __ movdqp(XMMRegister::from_code(first_free_xmm_code + i),
                   regexp_list_->at(i)->AsMultipleChar()->chars(),
                   regexp_list_->at(i)->AsMultipleChar()->chars_length());
       }
 
-      Label align, align_loop;
+      Label align_string_pointer, align_loop;
       Label simd_code, simd_loop;
       Label maybe_match, keep_searching, find_null, exit;
 
-      __ bind(&align);  // -----------------------------------------------------
+      __ bind(&align_string_pointer);
       // Align the string pointer on a 16 bytes boundary before entering the
       // SIMD path.
-      // This allows to avoid potentially illegal accesses after the eos.
-      __ subq(string_pointer, Immediate(kCharSize));
+      // Along with the use of movdqa below, it allows to avoid potentially
+      // illegal accesses after the eos.
+      // TODO: This alignment code should be abstracted and shared with other
+      // places.
+      __ dec_c(string_pointer);
       __ bind(&align_loop);
-      __ addq(string_pointer, Immediate(kCharSize));
-      // Check for eos character. We may as well do this before the alignment
-      // check to maybe skip a useless pass.
-      __ cmpb(Operand(string_pointer, 0), Immediate(0));
+      __ inc_c(string_pointer);
+      __ cmpb(current_char, Immediate(0));
       __ j(zero, &exit);
       // Check the alignment.
       __ testq(string_pointer, Immediate(0xf));
       __ j(zero, &simd_code);
       // Check for matches.
-      // TODO: Could we safely wider cmpsX instructions?
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
         Label no_match;
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
-        __ movq(rsi, string_pointer);
-        __ Move(rdi, (uint64_t)(mc->chars()));
-        __ Move(rcx, mc->chars_length());
-        __ repnecmpsb();
+        MatchMultipleChar(masm_, kForward, mc);
         __ j(not_equal, &no_match);
-        // TODO: If the code generated by FoundState is non negligeable, use
-        // labels to merge with the FoundState code generated below.
         FoundState(0, mc->entry_state());
         __ jmp(&exit);
         __ bind(&no_match);
       }
-      __ jmp(&align_loop);  // ------------------------------------------- align
+      __ jmp(&align_loop);
 
 
       __ bind(&simd_code);
@@ -1050,33 +1057,77 @@ void FastForwardGen::Generate() {
         Assembler::unsigned_bytes | Assembler::equal_order |
         Assembler::pol_pos | Assembler::lsi;
 
+      Label match_somewhere_0x00, match_somewhere_0x10,
+            match_somewhere_0x20, match_somewhere_0x30;
+      XMMRegister xmm_s_0x00 = xmm0;
+      XMMRegister xmm_s_0x10 = xmm1;
+      XMMRegister xmm_s_0x20 = xmm2;
+      XMMRegister xmm_s_0x30 = xmm3;
+
+      // Load the first 16 bytes.
+      // After that xmm_s_0x00 will be preloaded from the last round of the fast
+      // loop.
+      __ movdqa(xmm_s_0x00, Operand(string_pointer, 0));
+
+      // This loop scans the code for eos or potential match.
+      // It makes no distinction between potential matches to be able to scan as
+      // fast as possible. When a potential match is detected, we hand control
+      // to a more thorough code.
       __ bind(&simd_loop);
-      // Look for potential matches.
-      // Check if the eos is found, and keep track of the earlier match.
-      // TODO: Instead of tracking the lowest index, track a mask of potential
-      // matches and process them all. This may increase the speed for higher
-      // densities of potential matches.
+
+#define fast_round(current_offset, next_offset, xmm_next)                      \
+      for (unsigned i = 0; i < regexp_list_->size(); i++) {                    \
+        __ pcmpistri(pcmp_str_control,                                         \
+                     XMMRegister::from_code(first_free_xmm_code + i),          \
+                     xmm_s_##current_offset);                                  \
+        __ j(below_equal, &match_somewhere_##current_offset);                  \
+        if (i == 0) {                                                          \
+          /* The conditional jump above ensures that the eos wasn't reached. */\
+          __ movdqa(xmm_s_##xmm_next, Operand(string_pointer, next_offset));   \
+        }                                                                      \
+      }
+      fast_round(0x00, 0x10, 0x10)
+      fast_round(0x10, 0x20, 0x20)
+      fast_round(0x20, 0x30, 0x30)
+      fast_round(0x30, 0x40, 0x00)
+
+      __ addq(string_pointer, Immediate(0x40));
+      __ jmp(&simd_loop);
+
+      __ bind(&match_somewhere_0x30);
+      __ addq(string_pointer, Immediate(0x10));
+      __ bind(&match_somewhere_0x20);
+      __ addq(string_pointer, Immediate(0x10));
+      __ bind(&match_somewhere_0x10);
+      __ addq(string_pointer, Immediate(0x10));
+      __ bind(&match_somewhere_0x00);
+
+
+      // We know there is a potential match or eos somewhere between in
+      // [string_pointer : string_pointer + 0x10].
+      // Find at what index this potential match is.
       Register low_index = scratch2;
       Register null_found = scratch3;
       __ Move(low_index, 0x10);
       __ Move(null_found, 0);
-      __ movdqa(xmm0, Operand(string_pointer, 0));
 
+      __ movdqa(xmm0, Operand(string_pointer, 0));
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
         __ pcmpistri(pcmp_str_control,
-                     XMMRegister::from_code(first_xmm_fixed_code + i), xmm0);
+                     XMMRegister::from_code(first_free_xmm_code + i), xmm0);
         __ setcc(zero, scratch);
         __ or_(null_found, scratch);
         __ cmpq(rcx, low_index);
         __ cmovq(below, low_index, rcx);
       }
 
+      // pcmpistr[im] takes care of invalidating matches after the eos if it was
+      // found.
       __ cmpq(low_index, Immediate(0x10));
       __ j(not_equal, &maybe_match);
 
       __ cmpb(null_found, Immediate(0));
       __ j(zero, &keep_searching);
-
       // There is no potential match, and we found the null character.
       // Advance the string pointer up to the null character and exit.
       __ AdvanceToEOS();
@@ -1091,10 +1142,8 @@ void FastForwardGen::Generate() {
       // Check if it is good enough to exit the fast forward loop.
       __ addq(string_pointer, low_index);
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
-        // TODO: We could use pre loaded registers if there are enough. Or maybe
+        // TODO: We could use pre-loaded registers if there are enough. Or maybe
         // move from xmm registers if it is faster.
-        // TODO: For mcs with many characters, a tighter check is probably a
-        // good idea.
         Label no_match;
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
         __ MoveCharsFrom(scratch, mc->chars_length(), mc->chars());
@@ -1104,7 +1153,7 @@ void FastForwardGen::Generate() {
         __ jmp(&exit);
         __ bind(&no_match);
       }
-      __ jmp(&align);
+      __ jmp(&align_string_pointer);
 
       __ bind(&exit);
 
