@@ -12,8 +12,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef REJIT_AUTOMATA_H_
-#define REJIT_AUTOMATA_H_
+#ifndef REJIT_REGEXP_H_
+#define REJIT_REGEXP_H_
 
 #include "globals.h"
 #include "platform.h"
@@ -556,5 +556,5 @@ int ff_phy_cmp(Regexp* r1, Regexp* r2);
 
 } }  // namespace rejit::internal
 
-#endif  // REJIT_AUTOMATA_H_
+#endif  // REJIT_REGEXP_H_
 

@@ -38,7 +38,7 @@ See below for further options.
 options = {
     'all' : { # Unconditionally processed.
       'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic', '-Werror'],
-      'CPPPATH' : map(lambda p: join(os.getcwd(), p), ['src/', 'include/'])
+      'CPPPATH' : map(lambda p: join(utils.dir_rejit, p), ['src/', 'include/'])
       },
 #   'build_option:value' : {
 #     'environment_key' : 'values to append'
