@@ -171,9 +171,12 @@ env.StaticLibrary(join(build_dir, 'rejit'), sources)
 basic = env.Program(join(build_dir, 'basic'), join(build_dir_sample, 'basic.cc'),
     LIBS=[librejit])
 env.Alias('basic', basic)
+regexdna = env.Program(join(build_dir, 'regexdna'), join(build_dir_sample, 'regexdna.cc'),
+    LIBS=[librejit])
+env.Alias('regexdna', regexdna)
 t_test = env.Program(join(build_dir, 'test-rejit'), join(build_dir_tests, 'test.cc'),
     LIBS=[librejit])
-Default(basic, t_test)
+Default(basic, regexdna, t_test)
 
 # Building benchmarks involve checking out and compiling third-party engines.
 # We don't want to do that by default.

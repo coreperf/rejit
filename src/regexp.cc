@@ -203,7 +203,7 @@ Regexp* Repetition::DeepCopy() {
 
 
 RegexpInfo::~RegexpInfo() {
-  regexp_->~Regexp();
+  if (regexp_)              regexp_->~Regexp();
   if (vmem_match_full_)     delete vmem_match_full_;
   if (vmem_match_anywhere_) delete vmem_match_anywhere_;
   if (vmem_match_first_)    delete vmem_match_first_;

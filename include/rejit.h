@@ -19,12 +19,11 @@
 
 #include <vector>
 
+using namespace std;
+
 namespace rejit {
 
-void RejitTest();
-
 // A match result.
-//
 // Upon match,
 // begin points to the first character of the match.
 // end points to
@@ -41,6 +40,43 @@ struct Match {
   const char* end;
 };
 
+// High level helpers.
+// These are convenient helpers that abstract the use of the Regej class below.
+// However rejit currently does not yet have a cache for compiled regular
+// expressions. So running these helpers many times will be less efficient than
+// keeping using the Regej methods.
+// TODO(rames): Add table with examples.
+
+// Returns true iff the regexp matches the whole string.
+bool MatchFull(const char* regexp, const char* string);
+// Returns true if there is a match in the text.
+bool MatchAnywhere(const char* regexp, const char* text);
+// Find the left-most longest match in the text. Returns true if there is a
+// match, and false otherwise.
+bool MatchFirst(const char* regexp, const char* text, Match* match);
+// Returns a list of all left-most longest matches.
+void MatchAll(const char* regexp, const char* text,
+              std::vector<struct Match>* matches);
+// Count the number of left-most longest matches in the text.
+size_t MatchAllCount(const char* regexp, const char* text);
+
+// TODO: Provide more convenient function signatures with strings.
+// Replace one or multiple matches in text.
+// The replacement functions allocate a new buffer which is filled with the
+// text and replaced matches and then returned. It is the caller's
+// responsibility to free the returned buffer.
+char* Replace(const char* text,
+              Match to_replace, const char* with,
+              size_t text_size = 0, size_t with_size = 0);
+char* Replace(const char* text,
+              vector<Match>* to_replace, const char* with,
+              size_t text_size = 0, size_t with_size = 0);
+// This is equivalent to MatchAll followed by Replace.
+// It is the caller's responsibility to free the returned buffer.
+char* ReplaceAll(const char* regexp, const char* text, const char* with,
+                 size_t text_size = 0, size_t with_size = 0);
+
+// Types of matches. 
 // Ordered by matching 'difficulty'.
 enum MatchType {
   kMatchFull,
@@ -49,7 +85,6 @@ enum MatchType {
   kMatchAll,
   kNMatchTypes
 };
-
 namespace internal  {
 // Internal structure used to track compilation information.
 // A forward declaration is required here to reference it from class Regej.
@@ -61,17 +96,19 @@ class Regej {
   explicit Regej(const char* regexp);
   ~Regej();
 
-  // TODO(rames): Add table with examples.
+  // For details about following functions, see global functions above for.
 
-  // Returns true iff the regexp matches the whole string.
-  bool MatchFull(const char* string);
-  // Returns true if there is a match in the string.
-  bool MatchAnywhere(const char* string);
-  // Find the left-most longest match in string. Returns true if there is a
-  // match.
-  bool MatchFirst(const char* string, Match* match);
-  // Returns a list of all left-most longest matches.
+  // Matching functions can operate on char pointers without needing to know the
+  // size of the text.
+  bool MatchFull(const char* text);
+  bool MatchAnywhere(const char* text);
+  bool MatchFirst(const char* text, Match* match);
   void MatchAll(const char*, std::vector<struct Match>* matches);
+  size_t MatchAllCount(const char* text);
+
+  // This is equivalent to MatchAll followed by Replace.
+  char* ReplaceAll(const char* text, const char* with,
+                   size_t text_size = 0, size_t with_size = 0);
 
   bool Compile(MatchType match_type);
 
