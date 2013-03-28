@@ -544,7 +544,7 @@ class RegexpInfo {
 
   DISALLOW_COPY_AND_ASSIGN(RegexpInfo);
 
-  friend class Regej;
+  friend Regej;
 };
 
 

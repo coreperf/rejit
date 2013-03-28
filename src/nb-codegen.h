@@ -42,7 +42,7 @@ class RegexpIndexer : public RealRegexpVisitor<void> {
   LIST_FLOW_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
 #undef DECLARE_REGEXP_VISITORS
 
-  inline virtual void VisitRegexp(Regexp* re);
+  virtual void VisitRegexp(Regexp* re);
   inline virtual void VisitMultipleChar(MultipleChar* re) { VisitRegexp(re); }
   inline virtual void VisitPeriod(Period* re) { VisitRegexp(re); }
   inline virtual void VisitBracket(Bracket* re) { VisitRegexp(re); }
