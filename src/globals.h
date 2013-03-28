@@ -38,7 +38,6 @@
 #include "rejit.h"
 #include "checks.h"
 #include "flags.h"
-#include "utils.h"
 #include "cpu.h"
 
 using namespace std;  // NOLINT
@@ -52,10 +51,12 @@ const int MB = KB * KB;
 const uint32_t kMaxUInt = 0xffffffff;
 const uint64_t kMaxUInt64 = 0xffffffffffffffffULL;
 
-const int kCharSize = sizeof(char);  // NOLINT
 const int kPointerSize = sizeof(void*);  // NOLINT
 const int kBitsPerByte = 8;
 const int kBitsPerPointer = kPointerSize * kBitsPerByte;
+const int kCharSize = sizeof(char);  // NOLINT
+const int kBitsPerChar = 8;
+const int kCharsPerPointer = kPointerSize / kCharSize;
 
 typedef unsigned char byte;
 typedef byte* Address;

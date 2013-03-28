@@ -24,9 +24,9 @@ const char* kIndentString = "  ";
 int kIndentLevel = 0;
 
 
-uint64_t FirstCharsMask(int n) {
+uint64_t FirstBytesMask(int n) {
   if (n >= kPointerSize) return kMaxUInt64;
-  uint64_t mask = (1ULL << (n * kCharSize * kBitsPerByte)) - 1ULL;
+  uint64_t mask = (1ULL << (n * kBitsPerByte)) - 1ULL;
   return mask;
 }
 

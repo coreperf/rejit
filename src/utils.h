@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include <string>
+#include "globals.h"
 
 using namespace std;  // NOLINT
 
@@ -123,7 +124,8 @@ inline Dest BitCast(const Source& source) {
 // Arithmetic ------------------------------------------------------------------
 // TODO(rames): Use good implementations for all arithmetic utils.
 
-uint64_t FirstCharsMask(int n);
+uint64_t FirstBytesMask(int n);
+inline uint64_t FirstCharsMask(int n) { return FirstBytesMask(n * kCharSize); }
 
 // Returns true iff x a power of 2. Cannot be used with the
 // maximally negative value of the type T (the -1 overflows).

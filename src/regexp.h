@@ -17,6 +17,7 @@
 
 #include "globals.h"
 #include "platform.h"
+#include "utils.h"
 
 namespace rejit {
 namespace internal {
@@ -193,6 +194,11 @@ class MultipleChar : public Regexp {
   unsigned chars_length() const { return chars_length_; }
 
   int64_t first_chars() const {
+    return *reinterpret_cast<const int64_t*>(chars_) &
+      FirstCharsMask(chars_length());
+  }
+
+  int64_t imm_chars() const {
     return *reinterpret_cast<const int64_t*>(chars_) &
       FirstCharsMask(chars_length());
   }

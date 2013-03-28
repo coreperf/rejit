@@ -699,23 +699,27 @@ static void MatchMultipleChar(MacroAssembler *masm_,
   // strings.
   // TODO: Implement a SIMD path.
   unsigned n_chars = mc->chars_length();
-  __ movq(rsi, string_pointer);
-  // TODO(rames): This assumes that the regexp is still accessible at
-  // runtime (mc->chars() points to the regexp string).
-  if (direction == kForward) {
-    __ Move(rdi, (uint64_t)(mc->chars()));
+  if (n_chars <= 8 && direction == kForward) {
+    __ cmp(mc->chars_length(), current_chars, mc->imm_chars());
   } else {
-    __ Move(rdi, (uint64_t)(mc->chars() + n_chars - 1));
-  }
-  // TODO(rames): Work out the best options depending on the maximum number of
-  // characters to match.
-  if (n_chars >= 8) {
-    __ Move(rcx, n_chars / 8);
-    __ repnecmpsq();
-  }
-  if (n_chars % 8 > 0) {
-    __ Move(rcx, n_chars % 8);
-    __ repnecmpsb();
+    __ movq(rsi, string_pointer);
+    // TODO(rames): This assumes that the regexp is still accessible at
+    // runtime (mc->chars() points to the regexp string).
+    if (direction == kForward) {
+      __ Move(rdi, (uint64_t)(mc->chars()));
+    } else {
+      __ Move(rdi, (uint64_t)(mc->chars() + n_chars - 1));
+    }
+    // TODO(rames): Work out the best options depending on the maximum number of
+    // characters to match.
+    if (n_chars >= 8) {
+      __ Move(rcx, n_chars / 8);
+      __ repnecmpsq();
+    }
+    if (n_chars % 8 > 0) {
+      __ Move(rcx, n_chars % 8);
+      __ repnecmpsb();
+    }
   }
 }
 
@@ -1147,7 +1151,7 @@ void FastForwardGen::Generate() {
         Label no_match;
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
         __ MoveCharsFrom(scratch, mc->chars_length(), mc->chars());
-        __ cmp(mc->chars_length(), scratch, Operand(string_pointer, 0));
+        __ cmp_truncated(mc->chars_length(), scratch, Operand(string_pointer, 0));
         __ j(not_equal, &no_match);
         FoundState(0, mc->entry_state());
         __ jmp(&exit);
@@ -1258,7 +1262,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     __ bind(&potential_match);
     __ addq(string_pointer, rcx);
 
-    __ cmp(n_chars, fixed_chars, Operand(string_pointer, 0));
+    __ cmp_truncated(n_chars, fixed_chars, Operand(string_pointer, 0));
     __ j(not_equal, &align);
 
     __ bind(&found);
@@ -1276,10 +1280,10 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     // register?
     __ bind(&loop);
     __ addq(string_pointer, Immediate(kCharSize));
-    __ mov(n_chars, rax, Operand(string_pointer, 0));
+    __ mov_truncated(n_chars, rax, current_char);
     __ cmpb_al(Immediate(0));
     __ j(equal, &exit);
-    __ cmp(n_chars, rax, fixed_chars);
+    __ cmp_truncated(n_chars, rax, fixed_chars);
     __ j(not_equal, &loop);
 
     __ bind(&done);
@@ -1715,7 +1719,7 @@ void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 // and see if we should try to check more characters.
 void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
-  __ cmp(mc->chars_length(), current_chars, mc->first_chars());
+  __ cmp_truncated(mc->chars_length(), current_chars, mc->first_chars());
   __ j(not_equal, &no_match);
   FoundState(0, mc->entry_state());
   __ jmp(potential_match_);

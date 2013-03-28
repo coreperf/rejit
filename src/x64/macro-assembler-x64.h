@@ -48,15 +48,6 @@ class MacroAssembler : public MacroAssemblerBase {
     movq(r, Operand(string_pointer, 0));
   }
 
-  void Move(Register dst, uint64_t value);
-
-  inline void Addq(Register reg, Immediate src) {
-    if (src.value_ != 0) addq(reg, src);
-  }
-
-  void MoveCharsFrom(Register dst, unsigned n, const char* chars);
-  void LoadCharsFrom(Register dst, unsigned n, const Operand& src);
-
   void PushAllRegisters();
   void PopAllRegisters();
   void PushAllRegistersAndFlags();
@@ -69,11 +60,38 @@ class MacroAssembler : public MacroAssemblerBase {
   void PrepareStack();
   void CallCpp(Address address);
 
+  void Move(Register dst, uint64_t value);
+
+  void MoveCharsFrom(Register dst, unsigned n, const char* chars);
+  void LoadCharsFrom(Register dst, unsigned n, const Operand& src);
+
+  void MaskFirstChars(unsigned n_chars, Register dst);
+
   // Variable width helpers.
   void mov(unsigned width, Register dst, const Operand&);
+  void mov_truncated(unsigned width, Register dst, const Operand&);
 
-  void cmp(unsigned width, Register dst, Register src);
-  void cmp(unsigned width, Register dst, const Operand& src);
+  // TODO: Detail expectations for the truncated helpers
+  template <class Type>
+    void cmp_truncated_(unsigned width, Register dst, Type src) {
+      if (width == 0) return;
+      if (width == 1) {
+        cmpb(dst, src);
+      } else if (width < 4) {
+        cmpw(dst, src);
+      } else if (width < 8) {
+        cmpl(dst, src);
+      } else {
+        cmpq(dst, src);
+      }
+    }
+  inline void cmp_truncated(unsigned width, Register dst, Register src) {
+    return cmp_truncated_<Register>(width, dst, src);
+  }
+  inline void cmp_truncated(unsigned width, Register dst, const Operand& src) {
+    return cmp_truncated_<const Operand&>(width, dst, src);
+  }
+  void cmp_truncated(unsigned width, const Operand& dst, int64_t src);
   void cmp(unsigned width, const Operand& dst, int64_t src);
 
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
@@ -107,10 +125,6 @@ class MacroAssembler : public MacroAssemblerBase {
  private:
   /* data */
 };
-
-
-uint64_t FirstCharsMask(int n);
-
 
 
 } }  // namespace rejit::internal

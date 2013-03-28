@@ -258,7 +258,7 @@ def plot_over_time(html_file, engine, benchmark, interest_labels):
     Error('Incorrectly formatted labels.')
 
   # We want the performance for the following file sizes.
-  interest_labels = ['8', '2048']
+  interest_labels = ['8', '2048', '1048576']
   interest_indexes = []
   for label in interest_labels:
     if labels.index(label):

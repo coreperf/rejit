@@ -77,7 +77,45 @@ void MacroAssembler::LoadCharsFrom(Register dst, unsigned n, const Operand& src)
 }
 
 
+void MacroAssembler::MaskFirstChars(unsigned n_chars, Register dst) {
+  if (n_chars >= 8)
+    return;
+  if (n_chars == 0) {
+    xor_(dst, dst);
+  } else if (FitsImmediate(FirstCharsMask(n_chars))) {
+    and_(dst, Immediate(FirstCharsMask(n_chars)));
+  } else {
+    // TODO: What is the fastest way to do that?
+    shl(dst, Immediate((kCharsPerPointer - n_chars) * kBitsPerChar));
+    shr(dst, Immediate((kCharsPerPointer - n_chars) * kBitsPerChar));
+  }
+}
+
+
 void MacroAssembler::mov(unsigned width, Register dst, const Operand& src) {
+  unsigned loaded_width = 0;
+  if (width > 4) {
+    movq(dst, src);
+    loaded_width = 8;
+  } else if (width > 2) {
+    movl(dst, src);
+    loaded_width = 4;
+  } else if (width > 1) {
+    movw(dst, src);
+    loaded_width = 2;
+  } else if (width == 1) {
+    movb(dst, src);
+    loaded_width = 1;
+  }
+  if (width < loaded_width) {
+    MaskFirstChars(width, dst);
+  }
+}
+
+
+void MacroAssembler::mov_truncated(unsigned width,
+                                   Register dst,
+                                   const Operand& src) {
   if (width == 0) return;
   if (width == 1) {
     movb(dst, src);
@@ -91,35 +129,9 @@ void MacroAssembler::mov(unsigned width, Register dst, const Operand& src) {
 }
 
 
-void MacroAssembler::cmp(unsigned width, Register r1, Register r2) {
-  if (width == 0) return;
-  if (width == 1) {
-    cmpb(r1, r2);
-  } else if (width < 4) {
-    cmpw(r1, r2);
-  } else if (width < 8) {
-    cmpl(r1, r2);
-  } else {
-    cmpq(r1, r2);
-  }
-}
-
-
-void MacroAssembler::cmp(unsigned width, Register r1, const Operand& r2) {
-  if (width == 0) return;
-  if (width == 1) {
-    cmpb(r1, r2);
-  } else if (width < 4) {
-    cmpw(r1, r2);
-  } else if (width < 8) {
-    cmpl(r1, r2);
-  } else {
-    cmpq(r1, r2);
-  }
-}
-
-
-void MacroAssembler::cmp(unsigned width, const Operand& dst, int64_t src) {
+void MacroAssembler::cmp_truncated(unsigned width,
+                                   const Operand& dst,
+                                   int64_t src) {
   if (width == 0) return;
   if (width == 1) {
     cmpb(dst, Immediate(src & FirstCharsMask(1)));
@@ -130,6 +142,37 @@ void MacroAssembler::cmp(unsigned width, const Operand& dst, int64_t src) {
   } else {
     Move(mscratch, src);
     cmpq(dst, mscratch);
+  }
+}
+
+
+void MacroAssembler::cmp(unsigned width, const Operand& dst, int64_t src) {
+  ASSERT(0 < width && width <= 8);
+
+  if (width == 1) {
+    cmpb(dst, Immediate(src & FirstBytesMask(1)));
+  } else if (width == 2) {
+    cmpw(dst, Immediate(src & FirstBytesMask(2)));
+  } else if (width == 3) {
+    mov(width, scratch, dst);
+    cmpl(scratch, Immediate(src & FirstBytesMask(3)));
+  } else if (width == 4) {
+    cmpl(dst, Immediate(src & FirstBytesMask(4)));
+  } else if (width < 8) {
+    mov(width, scratch1, dst);
+    if (FitsImmediate(src & FirstBytesMask(width))) {
+      cmpq(scratch1, Immediate(src & FirstBytesMask(width)));
+    } else {
+      Move(scratch2, src & FirstBytesMask(width));
+      cmpq(scratch1, scratch2);
+    }
+  } else if (width == 8) {
+    if (FitsImmediate(src)) {
+      cmpq(dst, Immediate(src));
+    } else {
+      Move(scratch, src);
+      cmpq(dst, scratch);
+    }
   }
 }
 

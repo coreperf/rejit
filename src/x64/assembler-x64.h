@@ -294,6 +294,8 @@ class Immediate {
   friend class MacroAssembler;
 };
 
+inline bool FitsImmediate(int64_t val) { return is_int32(val); }
+
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
