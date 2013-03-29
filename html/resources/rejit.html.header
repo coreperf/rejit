@@ -214,17 +214,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     'worst' performance graphs show performance for 1 run and 1 compilation
     (averaged). 'amortised' performance graphs show performance for 1
     compilation and 100 runs</li>
-    <li>Benchmarking v8 is tricky because the engine does some clever
-    optimization that is not wanted when benchmarking raw speed.
+    <li>v8 results should be interpreted with caution. It is hard to tell what
+    the engine exactly does. Performance for benchmarks 4 and 5 is surprising
+    when comparing with performance for benchmarks 0, 1, and 2. 
     <br />Javascript time precision is in milliseconds, so the number of runs
-    is increased to 5000 for text sizes strictly smaller than 128KiB.
-    <br />I am sceptic about the performance for 'v8_amortised' in
-    benchmarks 4 and 5, especially when comparing to benchmarks 0, 1, and
-    2. Some clever optimization may prevent from actually running the
-    regexp. Or maybe there is a really good algorithm working here.
-    The 'v8_correction_amortised' runs the
-    same regexps, but suffixed with a repetition of 1 '{1,1}'. Performance looks
-    more coherent. Any information on this is welcome.</li>
+    is increased to 5000 for text sizes strictly smaller than 128KiB.</li>
     <li>Benchmarks showing performance of full regexp matching are not
     presented. As explained above, rejit's related mechanisms are completely
     unoptimized and the performance would not be representative.</li>
