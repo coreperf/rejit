@@ -47,6 +47,7 @@
 #include <netdb.h>
 
 #include "platform.h"
+#include "utils.h"
 
 namespace rejit {
 namespace internal {
