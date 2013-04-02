@@ -229,5 +229,16 @@ int ff_phy_cmp(Regexp* r1, Regexp* r2) {
 }
 
 
+bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps) {
+  vector<Regexp*>::const_iterator it;
+      for (it = regexps->begin(); it < regexps->end(); it++) {
+        if ((*it)->entry_state() != entry_state) {
+          break;
+        }
+      }
+      return it == regexps->end();
+}
+
+
 } }  // namespace rejit::internal
 

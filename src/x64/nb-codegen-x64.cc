@@ -637,6 +637,18 @@ void Codegen::GenerateMatchDirection(Direction direction,
 }
 
 
+void Codegen::GenerateMatchBackward(RegexpInfo* rinfo,
+                                    MatchType match_type,
+                                    Label* fast_forward) {
+  if (fast_forward &&
+      all_regexps_start_at(rinfo->entry_state(), rinfo->ff_list())) {
+    __ movq(backward_match(), string_pointer);
+  } else {
+    GenerateMatchDirection(kBackward, rinfo, match_type, fast_forward);
+  }
+}
+
+
 void Codegen::VisitEpsilon(Epsilon* epsilon) {
   DirectionSetOutputFromEntry(0, epsilon);
 }

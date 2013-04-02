@@ -167,11 +167,9 @@ class Codegen : public PhysicalRegexpVisitor<void> {
                               RegexpInfo* rinfo,
                               MatchType match_type,
                               Label* fast_forward = NULL);
-  inline void GenerateMatchBackward(RegexpInfo* rinfo,
-                                    MatchType match_type,
-                                    Label* fast_forward = NULL) {
-    GenerateMatchDirection(kBackward, rinfo, match_type, fast_forward);
-  }
+  void GenerateMatchBackward(RegexpInfo* rinfo,
+                             MatchType match_type,
+                             Label* fast_forward = NULL);
   inline void GenerateMatchForward(RegexpInfo* rinfo,
                                    MatchType match_type,
                                    Label* fast_forward = NULL) {

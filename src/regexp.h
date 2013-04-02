@@ -506,6 +506,7 @@ class RegexpInfo {
     regexp_max_length_ = max(regexp_max_length_,  regexp->MatchLength());
   }
 
+
   // Accessors.
   int entry_state() const { return entry_state_; }
   int output_state() const { return output_state_; }
@@ -558,6 +559,8 @@ class RegexpInfo {
 
 // Preferred order for fast forward selection.
 int ff_phy_cmp(Regexp* r1, Regexp* r2);
+
+bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps);
 
 
 } }  // namespace rejit::internal
