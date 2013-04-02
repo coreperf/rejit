@@ -221,7 +221,7 @@ RegexpInfo::~RegexpInfo() {
 int ff_phy_cmp(Regexp* r1, Regexp* r2) {
   ASSERT(r1->IsPhysical() && r2->IsPhysical());
   if (r1->IsMultipleChar() && r2->IsMultipleChar()) {
-    return r1->AsMultipleChar()->chars_length() >
+    return r1->AsMultipleChar()->chars_length() -
       r2->AsMultipleChar()->chars_length();
   }
 

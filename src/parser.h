@@ -93,7 +93,7 @@ class Parser {
 
   bool IsRetroactiveChar(char c) {
     if (c == '*') return true;
-    if (c == '[') return true;
+    if (c == '{') return true;
     return false;
   }
 
