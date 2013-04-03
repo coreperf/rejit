@@ -1213,26 +1213,25 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   if (CpuFeatures::IsSupported(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
-    Label potential_match, found, exit;
+    Label potential_match, check_potential_match, found, exit;
 
     Register fixed_chars = scratch3;
     __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
 
+    // Align the string pointer on a 16 bytes boundary.
+    // TODO: use SIMD here.
     __ bind(&align);
-    __ subq(string_pointer, Immediate(kCharSize));
-
+    __ dec_c(string_pointer);
     __ bind(&align_loop);
-    __ addq(string_pointer, Immediate(kCharSize));
-    __ cmpb(Operand(string_pointer, 0), Immediate(0));
+    __ inc_c(string_pointer);
+    __ cmpb(current_char, Immediate(0));
     __ j(zero, &exit);
-    __ testq(string_pointer, Immediate((1 << 4) - 1));
+    __ testq(string_pointer, Immediate(0xf));
     __ j(zero, &simd_code);
-
-    __ movq(rsi, string_pointer);
-    __ Move(rdi, (uint64_t)(mc->chars()));
-    __ Move(rcx, n_chars);
-    __ repnecmpsb();
-    __ j(equal, &found);
+    // For speed, use a fast pre-check and defer further verification to more
+    // thorough code.
+    __ cmp_truncated(n_chars, fixed_chars, current_chars);
+    __ j(equal, &check_potential_match);
 
     __ jmp(&align_loop);
 
@@ -1276,6 +1275,10 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
 
     __ cmp_truncated(n_chars, fixed_chars, Operand(string_pointer, 0));
     __ j(not_equal, &align);
+
+    __ bind(&check_potential_match);
+    MatchMultipleChar(masm_, kForward, mc);
+    __ j(not_equal, &align_loop);
 
     __ bind(&found);
     FoundState(0, mc->entry_state());

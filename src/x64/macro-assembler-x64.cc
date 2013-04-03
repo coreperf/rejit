@@ -61,7 +61,7 @@ void MacroAssembler::Move(Register dst, uint64_t value) {
 //        __ Move(fixed_chars, Immediate(c))
 //      }
 
-// TODO: this does not have to zero the rest of the register.
+// TODO: Clean all these methods
 void MacroAssembler::MoveCharsFrom(Register dst, unsigned n, const char *location) {
   if (n == 0) return;
   int64_t chars = *reinterpret_cast<const int64_t*>(location);
