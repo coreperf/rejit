@@ -48,16 +48,21 @@ class MacroAssembler : public MacroAssemblerBase {
     movq(r, Operand(string_pointer, 0));
   }
 
+  void PushRegisters(RegList regs);
+  void PopRegisters(RegList regs);
+
+  // Currently following the System V ABI only.
+  void PushCallerSavedRegisters();
+  void PopCallerSavedRegisters();
+  void PushCalleeSavedRegisters();
+  void PopCalleeSavedRegisters();
+
   void PushAllRegisters();
   void PopAllRegisters();
   void PushAllRegistersAndFlags();
   void PopAllRegistersAndFlags();
 
-  // TODO(rames): correctly handle callee-saved.
-  void PreserveRegs();
-  void RestoreRegs();
-
-  void PrepareStack();
+  void CallCppPrepareStack();
   void CallCpp(Address address);
 
   void Move(Register dst, uint64_t value);

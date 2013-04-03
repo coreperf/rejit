@@ -21,6 +21,83 @@ MacroAssembler::MacroAssembler()
   : MacroAssemblerBase(NULL, 4 * KB) { }
 
 
+void MacroAssembler::PushRegisters(RegList regs) {
+  int i;
+  for (i = Register::kNumRegisters - 1; i >= 0; i--) {
+    if (regs & (1 << i)) {
+      push(Register::from_code(i));
+    }
+  }
+}
+
+
+void MacroAssembler::PopRegisters(RegList regs) {
+  int i;
+  for (i = 0; i < Register::kNumRegisters; i++) {
+    if (regs & (1 << i)) {
+      pop(Register::from_code(i));
+    }
+  }
+}
+
+
+// TODO: We generally don't care about all those registers and don't need to
+// preserve them all.
+void MacroAssembler::PushCallerSavedRegisters() {
+  PushRegisters(kCallerSavedRegList);
+}
+
+
+void MacroAssembler::PopCallerSavedRegisters() {
+  PopRegisters(kCallerSavedRegList);
+}
+
+
+// TODO: The saved registers are above the the frame pointer on the stack, which
+// does not fit the ABI. This is because we mess up with lower the stack pointer
+// while setting up the state ring (and other stuff), but don't restore it
+// before returning.
+void MacroAssembler::PushCalleeSavedRegisters() {
+  PushRegisters(rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit());
+  push(rbp);
+  movq(rbp, rsp);
+}
+
+
+void MacroAssembler::PopCalleeSavedRegisters() {
+  movq(rsp, rbp);
+  pop(rbp);
+  PopRegisters(rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit());
+}
+
+
+void MacroAssembler::PushAllRegisters() {
+  // All registers except rsp.
+  PushRegisters(0xffff & ~rsp.bit());
+}
+
+
+void MacroAssembler::PopAllRegisters() {
+  // All registers except rsp.
+  PopRegisters(0xffff & ~rsp.bit());
+}
+
+
+// TODO(rames): Push and pop ah instread of rax.
+void MacroAssembler::PushAllRegistersAndFlags() {
+  PushAllRegisters();
+  lahf();
+  push(rax);
+}
+
+
+void MacroAssembler::PopAllRegistersAndFlags() {
+  pop(rax);
+  sahf();
+  PopAllRegisters();
+}
+
+
 // The structure of this function is copied from
 //  v8 x64 MacroAssembler::LoadSmiConstant().
 void MacroAssembler::Move(Register dst, uint64_t value) {
@@ -211,118 +288,7 @@ void MacroAssembler::movdqp(XMMRegister dst, const char* chars, size_t n_chars) 
 }
 
 
-void MacroAssembler::PushAllRegisters() {
-  push(rax);
-  push(rcx);
-  push(rdx);
-  push(rbx);
-  push(rsi);
-  push(rdi);
-  push(r8);
-  push(r9);
-  push(r10);
-  push(r11);
-  push(r12);
-  push(r13);
-  push(r14);
-  push(r15);
-}
-
-
-void MacroAssembler::PopAllRegisters() {
-  pop(r15);
-  pop(r14);
-  pop(r13);
-  pop(r12);
-  pop(r11);
-  pop(r10);
-  pop(r9);
-  pop(r8);
-  pop(rdi);
-  pop(rsi);
-  pop(rbx);
-  pop(rdx);
-  pop(rcx);
-  pop(rax);
-}
-
-
-void MacroAssembler::PreserveRegs() {
-  push(rcx);
-  push(rdx);
-  push(rbx);
-  push(rsi);
-  push(rdi);
-  push(r8);
-  push(r9);
-  push(r10);
-  push(r11);
-  push(r12);
-  push(r13);
-  push(r14);
-  push(r15);
-}
-
-
-void MacroAssembler::RestoreRegs() {
-  pop(r15);
-  pop(r14);
-  pop(r13);
-  pop(r12);
-  pop(r11);
-  pop(r10);
-  pop(r9);
-  pop(r8);
-  pop(rdi);
-  pop(rsi);
-  pop(rbx);
-  pop(rdx);
-  pop(rcx);
-}
-
-
-// TODO(rames): Push and pop ah instread of rax.
-void MacroAssembler::PushAllRegistersAndFlags() {
-  push(rax);
-  push(rcx);
-  push(rdx);
-  push(rbx);
-  push(rsi);
-  push(rdi);
-  push(r8);
-  push(r9);
-  push(r10);
-  push(r11);
-  push(r12);
-  push(r13);
-  push(r14);
-  push(r15);
-  lahf();
-  push(rax);
-}
-
-
-void MacroAssembler::PopAllRegistersAndFlags() {
-  pop(rax);
-  sahf();
-  pop(r15);
-  pop(r14);
-  pop(r13);
-  pop(r12);
-  pop(r11);
-  pop(r10);
-  pop(r9);
-  pop(r8);
-  pop(rdi);
-  pop(rsi);
-  pop(rbx);
-  pop(rdx);
-  pop(rcx);
-  pop(rax);
-}
-
-
-void MacroAssembler::PrepareStack() {
+void MacroAssembler::CallCppPrepareStack() {
   movq(scratch, rsp);
   subq(rsp, Immediate(kPointerSize));
   // TODO(rames): introduce a platform stack alignment.
@@ -332,11 +298,13 @@ void MacroAssembler::PrepareStack() {
 
 
 void MacroAssembler::CallCpp(Address address) {
-  PrepareStack();
+  PushCallerSavedRegisters();
+  CallCppPrepareStack();
   Move(rax, (int64_t)address);
   call(rax);
   // Restore the stack pointer.
   movq(rsp, Operand(rsp, 0));
+  PopCallerSavedRegisters();
 }
 
 

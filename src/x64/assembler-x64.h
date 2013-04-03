@@ -159,6 +159,13 @@ const Register r15 = { kRegister_r15_Code };
 const Register no_reg = { kRegister_no_reg_Code };
 
 
+typedef uint16_t RegList;
+
+static const RegList kCallerSavedRegList =
+rax.bit() | rcx.bit() | rdx.bit() | rsi.bit() | rdi.bit() |
+r8.bit() | r9.bit() | r10.bit() | r11.bit();
+
+
 struct XMMRegister {
   static const int kNumRegisters = 16;
 
@@ -1359,6 +1366,7 @@ class Assembler : public AssemblerBase {
   }
 
   void movw(Register dst, const Operand& src);
+
   void std();
   void lahf();
 

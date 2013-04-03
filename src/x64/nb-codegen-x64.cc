@@ -187,10 +187,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
     cout << "---------- End of regexp list" << endl;
   }
 
-  // Setup the frame pointer.
-  __ PreserveRegs();
-  __ push(rbp);
-  __ movq(rbp, rsp);
+  __ PushCalleeSavedRegisters();
 
   // Check that the base string we were passed is not null.
   __ cmpq(rdi, Immediate(0));
@@ -283,9 +280,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
   // Unwind the stack and return.
   __ cld();
   __ bind(&unwind_and_return);
-  __ movq(rsp, rbp);
-  __ pop(rbp);
-  __ RestoreRegs();
+  __ PopCalleeSavedRegisters();
   __ ret(0);
 }
 
@@ -509,9 +504,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
             __ movq(ff_position(), rdx);
             __ subq(ff_position(), Immediate(kCharSize));
             __ movq(rsi, backward_match());
-            __ PushAllRegisters();
             __ CallCpp(FUNCTION_ADDR(RegisterMatch));
-            __ PopAllRegisters();
             ClearAllTimes();
           }
 
@@ -604,9 +597,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
         __ subq(ff_position(), Immediate(kCharSize));
         __ movq(last_match_end(), rdx);
         __ movq(rsi, backward_match());
-        __ PushAllRegisters();
         __ CallCpp(FUNCTION_ADDR(RegisterMatch));
-        __ PopAllRegisters();
         ClearAllTimes();
         __ jmp(fast_forward);
 
