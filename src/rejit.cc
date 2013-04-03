@@ -17,7 +17,7 @@
 #include "rejit.h"
 #include "checks.h"
 #include "parser.h"
-#include "nb-codegen.h"
+#include "codegen.h"
 
 #include "macro-assembler.h"
 

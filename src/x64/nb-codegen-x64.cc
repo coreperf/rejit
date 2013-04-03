@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include "nb-codegen.h"
+#include "codegen.h"
 #include "x64/macro-assembler-x64.h"
 #include <cmath>
 
