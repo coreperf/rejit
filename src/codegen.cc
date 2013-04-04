@@ -327,9 +327,9 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   RegexpIndexer indexer(rinfo);
   indexer.Index(root);
   if (FLAG_print_re_tree) {
-    cout << "Regexp tree ----------" << endl;
+    cout << "Regexp tree --------------------------------{{{" << endl;
     cout << *root << endl;
-    cout << "---------- End of regexp tree" << endl;
+    cout << "}}}------------------------- End of regexp tree" << endl;
   }
   RegexpLister lister(rinfo, rinfo->gen_list());
   lister.Visit(root);
@@ -355,11 +355,13 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   ring_base_ = Operand(rbp, StateRingBaseOffsetFromFrame());
 
   if (FLAG_print_state_ring_info) {
+    cout << "State rinf info ----------------------------{{{" << endl;
     cout << "n_states : " << n_states << endl;
     cout << "state_ring_time_size_ : " << state_ring_time_size_ << endl;
     cout << "state_ring_times_ : " << state_ring_times_ << endl;
     cout << "state_ring_size_ : " << state_ring_size_ << endl;
     cout << "time_summary_size_ : " << time_summary_size_ << endl;
+    cout << "}}}--------------------- End of state ring info" << endl;
   }
 
 

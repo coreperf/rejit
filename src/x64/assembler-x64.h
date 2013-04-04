@@ -1407,7 +1407,7 @@ class Assembler : public AssemblerBase {
     emit(0xAE);
   }
 
-  uint8_t pcmp_str_source_mask = 1;
+  static const uint8_t pcmp_str_source_mask = 1;
   enum pcmp_str_source {
     unsigned_bytes,
     unsigned_words,
@@ -1415,7 +1415,7 @@ class Assembler : public AssemblerBase {
     signed_words
   };
 
-  uint8_t pcmp_str_operation_mask = 3 << 2;
+  static const uint8_t pcmp_str_operation_mask = 3 << 2;
   enum pcmp_str_operation {
     equal_any   = 0 << 2,
     ranges      = 1 << 2,
@@ -1423,7 +1423,7 @@ class Assembler : public AssemblerBase {
     equal_order = 3 << 2
   };
 
-  uint8_t pcmp_str_polarity_mask = 3 << 4;
+  static const uint8_t pcmp_str_polarity_mask = 3 << 4;
   enum pcmp_str_polarity {
     pol_pos  = 0 << 4,
     pol_neg  = 1 << 4,
@@ -1431,7 +1431,7 @@ class Assembler : public AssemblerBase {
     mask_neg = 3 << 4
   };
 
-  uint8_t pcmp_str_out_sel_mask = 1 << 6;
+  static const uint8_t pcmp_str_out_sel_mask = 1 << 6;
   enum pcmp_str_out_sel {
     lsi         = 0 << 6,
     msi         = 1 << 6,

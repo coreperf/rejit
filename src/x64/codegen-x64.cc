@@ -145,11 +145,11 @@ void Codegen::Generate(RegexpInfo* rinfo,
   vector<Regexp*>* gen_list = rinfo->gen_list();
 
   if (FLAG_print_re_list) {
-    cout << "Regexp list ----------" << endl;
+    cout << "Regexp list --------------------------------{{{" << endl;
     for (it = gen_list->begin(); it < gen_list->end(); it++) {
       cout << **it << endl;
     }
-    cout << "---------- End of regexp list" << endl;
+    cout << "}}}------------------------- End of regexp list" << endl;
   }
 
   __ PushCalleeSavedRegisters();
@@ -245,7 +245,7 @@ bool Codegen::GenerateFastForward(RegexpInfo* rinfo,
   bool ff_success = fff.Visit(rinfo->regexp());
 
   if (FLAG_print_ff_elements) {
-    Indent(cout) << "fast forward regexps {" << endl;
+    cout << "Fast forward elements ----------------------{{{" << endl;
     { IndentScope indent;
       if (ff_success) {
         vector<Regexp*>::iterator ffit;
@@ -256,7 +256,7 @@ bool Codegen::GenerateFastForward(RegexpInfo* rinfo,
         Indent(cout) << "ff failed" << endl;
       }
     }
-    Indent(cout) << "} end of fast forward regexps" << endl;
+    cout << "}}}--------------- End of fast forward elements" << endl;
   }
 
   if (ff_success) {
