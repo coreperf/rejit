@@ -212,8 +212,6 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   Operand StateRingBase();
   int StateRingBaseOffsetFromFrame();
 
-  Operand result_matches();
-
   void FlowTime();
   void CheckTimeFlow();
 

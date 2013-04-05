@@ -22,13 +22,20 @@
 namespace rejit {
 namespace internal {
 
-const Operand string_base(rbp, -1 * kPointerSize);
-const Register ring_index = r15;
 const Register string_pointer = r14;
 const Operand current_char = Operand(string_pointer, 0);
 const Operand next_char = Operand(string_pointer, kCharSize);
 const Operand previous_char = Operand(string_pointer, -kCharSize);
 const Operand current_chars = Operand(string_pointer, 0);
+
+const Register ring_index = r15;
+const Operand string_base(rbp, -1 * kPointerSize);
+const Operand result_matches(rbp, -2 * kPointerSize);
+const Operand ff_position(rbp, -3 * kPointerSize);
+const Operand ff_found_state(rbp, -4 * kPointerSize);
+const Operand backward_match(rbp, -5 * kPointerSize);
+const Operand forward_match(rbp, -6 * kPointerSize);
+const Operand last_match_end(rbp, -7 * kPointerSize);
 
 const Register mscratch = r8;
 const Register scratch = r9;
@@ -42,11 +49,6 @@ class MacroAssembler : public MacroAssemblerBase {
  public:
   MacroAssembler();
   // TODO(ajr): Check destructor need.
-
-  void LoadCurrentChar(Register r) {
-    // TODO(rames): Issue when accessing at a memory limit, eg. end of page?
-    movq(r, Operand(string_pointer, 0));
-  }
 
   void PushRegisters(RegList regs);
   void PopRegisters(RegList regs);
@@ -66,9 +68,19 @@ class MacroAssembler : public MacroAssemblerBase {
   void CallCpp(Address address);
 
   void Move(Register dst, uint64_t value);
+  inline void Move(Register dst, Register src) {
+    if (!dst.is(src)) {
+      movq(dst, src);
+    }
+  }
 
   void MoveCharsFrom(Register dst, unsigned n, const char* chars);
   void LoadCharsFrom(Register dst, unsigned n, const Operand& src);
+
+  void LoadCurrentChar(Register r) {
+    // TODO(rames): Issue when accessing at a memory limit, eg. end of page?
+    movq(r, Operand(string_pointer, 0));
+  }
 
   void MaskFirstChars(unsigned n_chars, Register dst);
 
@@ -101,6 +113,10 @@ class MacroAssembler : public MacroAssemblerBase {
 
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, size_t n_chars);
+
+  // Registers start and end must contain the 8-bytes aligned addresses for the
+  // range to zero out.
+  void ZeroMem(Register start, Register end);
 
   // Increment or decrement by the size of a character.
   void inc_c(Register dst);

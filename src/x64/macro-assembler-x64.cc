@@ -288,6 +288,22 @@ void MacroAssembler::movdqp(XMMRegister dst, const char* chars, size_t n_chars) 
 }
 
 
+void MacroAssembler::ZeroMem(Register start, Register end) {
+  // TODO: More efficient implementation?
+  Label zero_loop;
+  ASSERT(!start.is(rcx));
+
+  Move(rcx, end);
+  Move(scratch, 0);
+  subq(rcx, start);
+  shr(rcx, Immediate(kPointerSizeLog2));
+
+  bind(&zero_loop);
+  movq(Operand(start, rcx, times_8, -kPointerSize), scratch);
+  loop(&zero_loop);
+}
+
+
 void MacroAssembler::CallCppPrepareStack() {
   movq(scratch, rsp);
   subq(rsp, Immediate(kPointerSize));

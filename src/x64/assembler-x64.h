@@ -1365,6 +1365,16 @@ class Assembler : public AssemblerBase {
     return vmem;
   }
 
+  inline void loop(Label* L) {
+    ASSERT(L->is_bound());
+    const int short_size = sizeof(int8_t);
+    int offset = L->pos() - pc_offset() - 1;
+    ASSERT(offset <= 0 &&
+           is_int8(offset - short_size));
+    emit(0xE2);
+    emit((offset - short_size) & 0xFF);
+  }
+
   void movw(Register dst, const Operand& src);
 
   void std();

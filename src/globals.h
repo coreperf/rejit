@@ -52,6 +52,7 @@ const uint32_t kMaxUInt = 0xffffffff;
 const uint64_t kMaxUInt64 = 0xffffffffffffffffULL;
 
 const int kPointerSize = sizeof(void*);  // NOLINT
+const int kPointerSizeLog2 = 3;
 const int kBitsPerByte = 8;
 const int kBitsPerPointer = kPointerSize * kBitsPerByte;
 const int kCharSize = sizeof(char);  // NOLINT
