@@ -218,7 +218,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     the engine exactly does. Performance for benchmarks 4 and 5 is surprising
     when comparing with performance for benchmarks 0, 1, and 2. 
     <br />Javascript time precision is in milliseconds, so the number of runs
-    is increased to 5000 for text sizes strictly smaller than 128KiB.</li>
+    is increased to 20000 for text sizes strictly smaller than 128KiB.</li>
     <li>Benchmarks showing performance of full regexp matching are not
     presented. As explained above, rejit's related mechanisms are completely
     unoptimized and the performance would not be representative.</li>

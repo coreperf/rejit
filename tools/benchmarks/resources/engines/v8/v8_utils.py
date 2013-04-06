@@ -36,14 +36,14 @@ def run(engine_args):
   m_amortised = ['amortised' , current_time , current_commit]
   results     = [labels, m_amortised]
 
-  for length in utils.default_run_lengths:
-    if int(length) < 128 * 1024:
-      iterations = int(utils.default_n_iterations) * 50
+  for size in utils.default_run_sizes:
+    if size < utils.max_small_size:
+      iterations = utils.default_n_iterations * small_sizes_iteration_factor
     else:
-      iterations = int(utils.default_n_iterations)
+      iterations = utils.default_n_iterations
     args = [engine,
         '--iterations=' + str(iterations),
-        '--size=' + length] + engine_args
+        '--size=' + str(size)] + engine_args
     gc.collect()
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     ret = p.wait()
@@ -53,7 +53,7 @@ def run(engine_args):
       out = p.communicate()[0]
       out_s = out.split()
 
-    labels.append(length)
+    labels.append(size)
     m_amortised.append(out_s[0])
 
   m_amortised = map(lambda x: x if is_number(x) else '0', m_amortised)

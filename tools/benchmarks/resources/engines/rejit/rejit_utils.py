@@ -40,10 +40,10 @@ def run(engine_args):
   m_best      = ['best'      , current_time , current_commit]
   results     = [labels, m_worst, m_amortised, m_best]
 
-  for length in utils.default_run_lengths:
+  for size in utils.default_run_sizes:
     args = [engine,
-        '--iterations=' + utils.default_n_iterations,
-        '--size=' + length] + engine_args
+        '--iterations=' + str(utils.default_n_iterations),
+        '--size=' + str(size)] + engine_args
     gc.collect()
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     ret = p.wait()
@@ -53,7 +53,7 @@ def run(engine_args):
       out = p.communicate()[0]
       out_s = out.split()
 
-    labels.append(length)
+    labels.append(size)
     m_worst.append(out_s[0])
     m_amortised.append(out_s[1])
     m_best.append(out_s[2])
