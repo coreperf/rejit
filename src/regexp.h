@@ -556,6 +556,9 @@ class RegexpInfo {
 
 // Regexp utils ----------------------------------------------------------------
 
+bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2);
+bool regexp_cmp_output_state(Regexp* r1, Regexp* r2);
+
 // Preferred order for fast forward selection.
 int ff_phy_cmp(Regexp* r1, Regexp* r2);
 

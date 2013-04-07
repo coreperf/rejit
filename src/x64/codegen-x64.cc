@@ -484,12 +484,29 @@ void Codegen::GenerateMatchDirection(Direction direction,
       UNREACHABLE();
   }
 
-  for (it = gen_list->begin(); it < gen_list->end(); it++) {
-    // Control regexps are handled in HandleControlRegexps().
-    if (!(*it)->IsControlRegexp()) {
-      Visit(*it);
-    }
+  // Generate code to match the regexps.
+  // Skip regexps which entry state is unset.
+  if (direction == kForward) {
+    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_entry_state);
+  } else {
+    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_output_state);
   }
+  Label skip;
+  int current_state = -1;
+  for (it = gen_list->begin(); it < gen_list->end(); it++) {
+    if ((direction == kForward && (*it)->entry_state() != current_state) ||
+        (direction == kBackward && (*it)->output_state() != current_state)) {
+      __ bind(&skip);
+      skip.Unuse();
+      current_state =
+        direction == kForward ? (*it)->entry_state() : (*it)->output_state();
+      TestState(0, current_state);
+      __ j(zero, &skip);
+    }
+    // Control regexps are handled in HandleControlRegexps().
+    Visit(*it);
+  }
+  __ bind(&skip);
 
   ClearTime(0);
 

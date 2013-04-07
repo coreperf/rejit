@@ -217,6 +217,16 @@ RegexpInfo::~RegexpInfo() {
 
 // Regexp utils ----------------------------------------------------------------
 
+bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2) {
+  return r1->entry_state() < r2->entry_state();
+}
+
+
+bool regexp_cmp_output_state(Regexp* r1, Regexp* r2) {
+  return r1->output_state() < r2->output_state();
+}
+
+
 // A positive return value means that r1 is better than r2 for fast forwarding.
 int ff_phy_cmp(Regexp* r1, Regexp* r2) {
   ASSERT(r1->IsPhysical() && r2->IsPhysical());
