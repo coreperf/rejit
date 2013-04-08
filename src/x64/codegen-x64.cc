@@ -72,8 +72,7 @@ Operand Codegen::StateOperand(int time, int state_index) {
 
 Operand Codegen::StateOperand(int time, Register state_index) {
   __ movq(scratch, state_index);
-  // TODO(rames): abstract log2 kPointerSize.
-  __ shl(scratch, Immediate(3));
+  __ shl(scratch, Immediate(kPointerSizeLog2));
   __ addq(scratch, ring_index);
   __ addq(scratch, Immediate(StateRingBaseOffsetFromFrame() + time *
                              state_ring_time_size()));
@@ -262,7 +261,7 @@ bool Codegen::GenerateFastForward(RegexpInfo* rinfo,
   if (ff_success) {
     FastForwardGen ffgen(this, rinfo->ff_list());
     __ movq(string_pointer, ff_position);
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
     // Clear the temporary matches.
     __ movq(backward_match, Immediate(0));
     __ movq(forward_match,  Immediate(0));
@@ -599,48 +598,38 @@ void Codegen::VisitEpsilon(Epsilon* epsilon) {
 
 
 void Codegen::VisitStartOfLine(StartOfLine* sol) {
-  Label skip, match;
-  DirectionTestEntryState(0, sol);
-  __ j(zero, &skip);
+  Label match, no_match;
 
   __ cmpq(string_pointer, string_base);
   __ j(equal, &match);
-
   __ cmpb(previous_char, Immediate('\n'));
-  __ setcc(equal, rax);
+  __ j(equal, &match);
   __ cmpb(previous_char, Immediate('\r'));
-  __ setcc(equal, scratch);
+  __ j(equal, &match);
 
-  __ or_(rax, scratch);
-  __ cmpb_al(Immediate(1));
-  __ j(not_equal, &skip);
+  __ jmp(&no_match);
 
   __ bind(&match);
   DirectionSetOutputFromEntry(0, sol);
-  __ bind(&skip);
+  __ bind(&no_match);
 }
 
 
 void Codegen::VisitEndOfLine(EndOfLine* eol) {
-  Label skip, match;
-  DirectionTestEntryState(0, eol);
-  __ j(zero, &skip);
+  Label match, no_match;
 
   __ cmpb(current_char, Immediate('\n'));
-  __ setcc(equal, rax);
+  __ j(equal, &match);
   __ cmpb(current_char, Immediate('\r'));
-  __ setcc(equal, scratch);
-  __ or_(rax, scratch);
+  __ j(equal, &match);
   __ cmpb(current_char, Immediate('\0'));
-  __ setcc(equal, scratch);
-  __ or_(rax, scratch);
+  __ j(equal, &match);
 
-  __ cmpb_al(Immediate(1));
-  __ j(not_equal, &skip);
+  __ jmp(&no_match);
 
   __ bind(&match);
   DirectionSetOutputFromEntry(0, eol);
-  __ bind(&skip);
+  __ bind(&no_match);
 }
 
 
@@ -687,7 +676,7 @@ void Codegen::VisitMultipleChar(MultipleChar* mc) {
   // If matching backward, there is no terminating character to help the match
   // fail.
   if (direction() == kBackward) {
-    __ subq(string_pointer, Immediate(kCharSize));
+    __ dec_c(string_pointer);
     __ movq(scratch, string_pointer);
     __ subq(scratch, Immediate(n_chars));
     __ cmpq(scratch, string_base);
@@ -700,7 +689,7 @@ void Codegen::VisitMultipleChar(MultipleChar* mc) {
   DirectionSetOutputFromEntry(n_chars, mc);
   __ bind(&no_match);
   if (direction() == kBackward) {
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
   }
 }
 
@@ -710,24 +699,22 @@ void Codegen::VisitPeriod(Period* period) {
   Label no_match;
 
   if (direction() == kBackward) {
-    __ subq(string_pointer, Immediate(kCharSize));
+    __ dec_c(string_pointer);
     // TODO(rames): need this for others.
     __ cmpq(string_pointer, string_base);
     __ j(below, &no_match);
   }
 
   __ cmpb(current_char, Immediate('\n'));
-  __ setcc(equal, rax);
-  __ cmpb(current_char, Immediate('\r'));
-  __ setcc(equal, scratch);
-  __ or_(rax, scratch);
-  __ cmpb_al(Immediate(1));
   __ j(equal, &no_match);
+  __ cmpb(current_char, Immediate('\r'));
+  __ j(equal, &no_match);
+
   DirectionSetOutputFromEntry(1, period);
 
   __ bind(&no_match);
   if (direction() == kBackward) {
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
   }
 }
 
@@ -736,7 +723,7 @@ void Codegen::VisitBracket(Bracket* bracket) {
   Label out;
 
   if (direction() == kBackward) {
-    __ subq(string_pointer, Immediate(kCharSize));
+    __ dec_c(string_pointer);
     // TODO(rames): need this for others.
     __ cmpq(string_pointer, string_base);
     __ j(below, &out);
@@ -777,7 +764,7 @@ void Codegen::VisitBracket(Bracket* bracket) {
   DirectionSetOutputFromEntry(1, bracket);
   __ bind(&out);
   if (direction() == kBackward) {
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
   }
 }
 
@@ -788,7 +775,6 @@ void Codegen::TestState(int time, int state_index) {
   if (time != 0) {
     ComputeStateOperandOffset(scratch2, time, state_index);
     __ cmpq(StateOperand(scratch2), Immediate(0));
-
   } else {
     __ cmpq(StateOperand(0, state_index), Immediate(0));
   }
@@ -1123,15 +1109,14 @@ void FastForwardGen::Generate() {
 
       __ bind(&loop);
 
-      __ movb(rax, current_char);
-      __ cmpb_al(Immediate(0));
+      __ cmpb(current_char, Immediate(0));
       __ j(zero, &potential_match);
 
       for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
         Visit(*it);
       }
 
-      __ addq(string_pointer, Immediate(kCharSize));
+      __ inc_c(string_pointer);
 
       __ jmp(&loop);
 
@@ -1233,12 +1218,12 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     Register fixed_chars = scratch3;
 
     __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
-    __ subq(string_pointer, Immediate(kCharSize));
+    __ dec_c(string_pointer);
 
     // TODO(rames): Is it more efficient to increment an offset rather than the
     // register?
     __ bind(&loop);
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
     __ mov_truncated(n_chars, rax, current_char);
     __ cmpb_al(Immediate(0));
     __ j(equal, &exit);
@@ -1258,10 +1243,10 @@ void FastForwardGen::VisitSinglePeriod(Period* period) {
   // Need to refactor the ff finder mechanisms.
   Label loop, done;
 
-  __ subq(string_pointer, Immediate(1 * kCharSize));
+  __ dec_c(string_pointer);
 
   __ bind(&loop);
-  __ addq(string_pointer, Immediate(1 * kCharSize));
+  __ inc_c(string_pointer);
 
   __ movb(rax, current_char);
   __ cmpb_al(Immediate(0));
@@ -1388,9 +1373,9 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 //    __ cmpq(rcx, Immediate(16));
 //    __ j(not_equal, &match);
 //    Label find_null;
-//    __ subq(string_pointer, Immediate(kCharSize));
+//    __ dec_c(string_pointer);
 //    __ bind(&find_null);
-//    __ addq(string_pointer, Immediate(kCharSize));
+//    __ inc_c(string_pointer);
 //    __ movb(rax, Operand(string_pointer, 0));
 //    __ cmpb_al(Immediate(0));
 //    __ j(not_zero, &find_null);
@@ -1424,9 +1409,9 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 //    //__ j(not_equal, &match);
 //    //// Find the null char.
 //    //Label find_null;
-//    //__ subq(string_pointer, Immediate(kCharSize));
+//    //__ dec_c(string_pointer);
 //    //__ bind(&find_null);
-//    //__ addq(string_pointer, Immediate(kCharSize));
+//    //__ inc_c(string_pointer);
 //    //__ movb(rax, Operand(string_pointer, 0));
 //    //__ cmpb_al(Immediate(0));
 //    //__ j(not_zero, &find_null);
@@ -1437,18 +1422,15 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
     Label* target =
       bracket->flags() & Bracket::non_matching ? &done : &match;
 
-    __ subq(string_pointer, Immediate(1 * kCharSize));
+    __ dec_c(string_pointer);
 
     __ bind(&loop);
-    __ addq(string_pointer, Immediate(1 * kCharSize));
+    __ inc_c(string_pointer);
 
     __ movb(rax, current_char);
 
     __ cmpb_al(Immediate(0));
     __ j(equal, &done);
-
-    __ Move(scratch1, 0);
-    __ Move(scratch2, 0);
 
     vector<char>::const_iterator it;
     for (it = bracket->single_chars()->begin();
@@ -1456,6 +1438,11 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
          it++) {
       __ cmpb_al(Immediate(*it));
       __ j(equal, target);
+    }
+
+    if (bracket->char_ranges()->size()) {
+      __ Move(scratch1, 0);
+      __ Move(scratch2, 0);
     }
 
     vector<Bracket::CharRange>::const_iterator rit;
@@ -1491,9 +1478,9 @@ void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
     __ j(equal, &found);
 
     __ bind(&align);
-    __ subq(string_pointer, Immediate(kCharSize));
+    __ dec_c(string_pointer);
     __ bind(&align_loop);
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
     __ cmpb(Operand(string_pointer, 0), Immediate(0));
     __ j(zero, &exit);
     __ testq(string_pointer, Immediate((1 << 4) - 1));
@@ -1543,7 +1530,7 @@ void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
     __ bind(&simd_adjust);
     __ addq(string_pointer, rcx);
     __ bind(&adjust);
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
 
     __ bind(&found);
     FoundState(0, sol->entry_state());
@@ -1556,10 +1543,10 @@ void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
     __ cmpq(string_pointer, string_base);
     __ j(equal, &match);
 
-    __ subq(string_pointer, Immediate(1 * kCharSize));
+    __ dec_c(string_pointer);
 
     __ bind(&loop);
-    __ addq(string_pointer, Immediate(1 * kCharSize));
+    __ inc_c(string_pointer);
 
     __ cmpb(current_char, Immediate(0));
     __ j(equal, &done);
@@ -1586,9 +1573,9 @@ void FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
     Label adjust, simd_adjust, found, exit;
 
     __ bind(&align);
-    __ subq(string_pointer, Immediate(kCharSize));
+    __ dec_c(string_pointer);
     __ bind(&align_loop);
-    __ addq(string_pointer, Immediate(kCharSize));
+    __ inc_c(string_pointer);
     __ cmpb(Operand(string_pointer, 0), Immediate(0));
     __ j(zero, &found);
     __ testq(string_pointer, Immediate((1 << 4) - 1));
@@ -1644,10 +1631,10 @@ void FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
   } else {
     Label loop, match, done;
 
-    __ subq(string_pointer, Immediate(1 * kCharSize));
+    __ dec_c(string_pointer);
 
     __ bind(&loop);
-    __ addq(string_pointer, Immediate(1 * kCharSize));
+    __ inc_c(string_pointer);
 
     __ movb(rax, current_char);
 
