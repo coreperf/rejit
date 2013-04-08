@@ -244,8 +244,6 @@ int RunTest() {
   TEST(kMatchFirst, 0, "(aaa|bbb)$", "____aba__");
   TEST(kMatchFirst, 1, "$(\naaa|\rbbb)", "__\naaa__");
 
-
-
   // Test kMatchAll.
   TEST(kMatchAll, 0, "x", "____________________");
   TEST(kMatchAll, 3, "x", "xxx_________________");
@@ -272,6 +270,17 @@ int RunTest() {
   TEST(kMatchAll, 4, "(a.)+", "_a.__a.a.a.____a.____a.a.a.a.a.a._________");
   TEST(kMatchAll, 4, "x+", "x__xxx____x____xxxxxx");
   TEST(kMatchAll, 4, "(a.)+", "a.__a.a.a.____a.____a.a.a.a.a.a.");
+
+  // Alternation of fast forward elements.
+  TEST_First(1, "(xxx|$)", "___xxx___", 3, 6);
+  TEST_First(1, "(xxx|^)", "___xxx___", 0, 0);
+  TEST_First_unbound(1, "(xxx|[ab-d])", "___ab___xxx___", 3, 4);
+  TEST_First(1, "(xxx|^|$)", "___xxx___", 0, 0);
+  TEST(kMatchAll, 3, "(xxx|^|$)", "___xxx___");
+  TEST(kMatchAll, 6, "(xxx|^|$)", "___xxx_\n\n__");
+  TEST(kMatchAll, 8, "(xxx|^|$|[ab-d])", "___ab___xxx_\n\n__");
+  TEST(kMatchAll, 4, "(^|$|[^x])", "_xxx_x_");
+
 
   return failure;
 }

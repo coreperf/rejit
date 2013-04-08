@@ -243,8 +243,8 @@ class Bracket : public Regexp {
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
 
-  void AddSingleChar(char c) { single_chars_.push_back(c); }
-  void AddCharRange(CharRange range) { char_ranges_.push_back(range); }
+  inline void AddSingleChar(char c) { single_chars_.push_back(c); }
+  inline void AddCharRange(CharRange range) { char_ranges_.push_back(range); }
 
   // Accessors.
   uint32_t flags() const { return flags_; }

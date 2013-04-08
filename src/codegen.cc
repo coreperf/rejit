@@ -355,7 +355,7 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   ring_base_ = Operand(rbp, StateRingBaseOffsetFromFrame());
 
   if (FLAG_print_state_ring_info) {
-    cout << "State rinf info ----------------------------{{{" << endl;
+    cout << "State ring info ----------------------------{{{" << endl;
     cout << "n_states : " << n_states << endl;
     cout << "state_ring_time_size_ : " << state_ring_time_size_ << endl;
     cout << "state_ring_times_ : " << state_ring_times_ << endl;

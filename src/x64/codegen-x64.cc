@@ -237,8 +237,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
 }
 
 
-bool Codegen::GenerateFastForward(RegexpInfo* rinfo,
-                                     MatchType match_type) {
+bool Codegen::GenerateFastForward(RegexpInfo* rinfo, MatchType match_type) {
   vector<Regexp*>* fflist = rinfo->ff_list();
   FF_finder fff(rinfo->regexp(), fflist);
   bool ff_success = fff.Visit(rinfo->regexp());
@@ -260,6 +259,8 @@ bool Codegen::GenerateFastForward(RegexpInfo* rinfo,
 
   if (ff_success) {
     FastForwardGen ffgen(this, rinfo->ff_list());
+    // TODO: Do we need to increment here? It seems we are compensating
+    // everywhere by decrementing.
     __ movq(string_pointer, ff_position);
     __ inc_c(string_pointer);
     // Clear the temporary matches.
@@ -326,8 +327,8 @@ void Codegen::CheckMatch(Direction direction,
       // A match is not an exit situation, as longer matches may occur.
       Operand remember_match = direction == kBackward ? backward_match
         : forward_match;
-      int match_state =  direction == kBackward ? rinfo->entry_state()
-        : rinfo->output_state();
+      int match_state =
+        direction == kBackward ? rinfo->entry_state() : rinfo->output_state();
       TestState(0, match_state);
       __ j(zero, &no_match);
 
@@ -418,6 +419,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
         // accessing memory after the end of the string.
         __ cmpb(current_char, Immediate(0));
         __ j(zero, &limit);
+        // TODO: Comment on this. Why do we need it?
         __ cmpb(next_char, Immediate(0));
         __ j(zero, &limit);
 
@@ -425,8 +427,8 @@ void Codegen::GenerateMatchDirection(Direction direction,
           __ jmp(fast_forward);
 
         } else if (match_type == kMatchFirst) {
-          Operand remembered_match = direction == kBackward ? backward_match
-            : forward_match;
+          Operand remembered_match =
+            direction == kBackward ? backward_match : forward_match;
           __ cmpq(remembered_match, Immediate(0));
           __ j(zero, fast_forward);
           __ jmp(&limit);
@@ -446,16 +448,25 @@ void Codegen::GenerateMatchDirection(Direction direction,
             __ jmp(&exit);
 
           } else {
-            // TOTO(rames): Merge code with CheckMatch.
+            // TOTO(rames): Merge code with CheckMatch?
             Register match = rdi;
             __ movq(match, result_matches);
             __ cmpq(match, Immediate(0));
             __ j(zero, &keep_searching);
             __ movq(rdx, forward_match);
             __ movq(last_match_end, rdx);
-            __ movq(ff_position, rdx);
-            __ subq(ff_position, Immediate(kCharSize));
             __ movq(rsi, backward_match);
+            __ movq(ff_position, rdx);
+            // We normally decrement the ff_position to account for the
+            // increment when entering ff.
+            // When the match has a length of zero, we need to artificially
+            // increment the ff_position to avoid matching at the same position
+            // again.
+            __ Move(scratch, 0);
+            __ cmpq(rdx, rsi);
+            __ setcc(not_equal, scratch);
+            // TODO: Correct for kCharSize.
+            __ subq(ff_position, scratch);
             __ CallCpp(FUNCTION_ADDR(RegisterMatch));
             ClearAllTimes();
           }
@@ -545,12 +556,24 @@ void Codegen::GenerateMatchDirection(Direction direction,
         __ j(zero, &keep_searching);
         // TODO(rames): should the string pointer be rdx?
         __ movq(rdx, forward_match);
-        __ movq(ff_position, rdx);
-        __ subq(ff_position, Immediate(kCharSize));
         __ movq(last_match_end, rdx);
         __ movq(rsi, backward_match);
+        __ movq(ff_position, rdx);
+        __ Move(scratch, 0);
+        // Correct ff_position for matches of null lengths to avoid matching
+        // them again. This is fine because if there was any match of length
+        // greater than zero from there, it should have matched instead.
+        __ cmpq(rdx, rsi);
+        __ setcc(not_equal, scratch);
+        // TODO: Correct for kCharSize.
+        __ subq(ff_position, scratch);
         __ CallCpp(FUNCTION_ADDR(RegisterMatch));
         ClearAllTimes();
+        // If the ff_position is already at the eos, we should exit here.
+        // Continuing to ff would process past eos.
+        __ movq(scratch, ff_position);
+        __ cmpb(Operand(scratch, 0), Immediate(0));
+        __ j(zero, &exit);
         __ jmp(fast_forward);
 
         __ bind(&keep_searching);
@@ -576,7 +599,6 @@ void Codegen::GenerateMatchDirection(Direction direction,
   }
 
   __ bind(&exit);
-
 }
 
 
@@ -1119,15 +1141,16 @@ void FastForwardGen::Generate() {
 
       __ bind(&loop);
 
-      __ cmpb(current_char, Immediate(0));
-      __ j(zero, &potential_match);
-
       for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
         Visit(*it);
       }
 
-      __ inc_c(string_pointer);
+      // We must check for eos after having visited the ff elements, because eos
+      // may be a potential match for one of them.
+      __ cmpb(current_char, Immediate(0));
+      __ j(zero, &potential_match);
 
+      __ inc_c(string_pointer);
       __ jmp(&loop);
 
       __ bind(&potential_match);
@@ -1153,6 +1176,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     Label align, align_loop;
     Label simd_code, simd_loop;
     Label potential_match, check_potential_match, found, exit;
+
 
     Register fixed_chars = scratch3;
     __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
@@ -1278,7 +1302,6 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 //      bracket->single_chars()->size() < 16 &&
 //      bracket->char_ranges()->size() < 8) {
 //
-//    //__ stop("sse");
 //
 //    uint64_t single_chars_ctrl =
 //      Assembler::unsigned_bytes | Assembler::equal_any |
@@ -1642,8 +1665,8 @@ void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 
 // Generic visitors --------------------------------------------------
 
-// TODO(rames): Also benchmark cases with a high density of potential matches
-// and see if we should try to check more characters.
+// TODO: Benchmark those and optimize.
+
 void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   __ cmp_truncated(mc->chars_length(), current_chars, mc->first_chars());
@@ -1654,23 +1677,59 @@ void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
 }
 
 
-void FastForwardGen::VisitPeriod(Period*) {
-  UNIMPLEMENTED();
+void FastForwardGen::VisitPeriod(Period* period) {
+  Label no_match;
+  __ cmpb(current_char, Immediate('\n'));
+  __ j(equal, &no_match);
+  __ cmpb(current_char, Immediate('\r'));
+  __ j(equal, &no_match);
+  FoundState(0, period->entry_state());
+  __ jmp(potential_match_);
+  __ bind(&no_match);
 }
 
 
 void FastForwardGen::VisitBracket(Bracket* bracket) {
-  UNIMPLEMENTED();
+  Label maybe_match, no_match;
+
+  bool matching_bracket = !(bracket->flags() & Bracket::non_matching);
+  Label* on_matching_char = matching_bracket ? &maybe_match : &no_match;
+
+  MatchBracket(masm_, current_char, bracket, on_matching_char);
+  if (matching_bracket) {
+    __ jmp(&no_match);
+  }
+
+  __ bind(&maybe_match);
+  FoundState(0, bracket->entry_state());
+  __ jmp(potential_match_);
+  __ bind(&no_match);
 }
 
 
-void FastForwardGen::VisitStartOfLine(StartOfLine*) {
-  UNIMPLEMENTED();
+void FastForwardGen::VisitStartOfLine(StartOfLine* sol) {
+  STATIC_ASSERT('\0' < '\n' && '\n' < '\r');
+  Label maybe_match, no_match;
+  __ cmpq(string_pointer, string_base);
+  __ j(equal, &maybe_match);
+  __ cmpb(previous_char, Immediate('\r'));
+  __ j(above, &no_match);
+
+  __ bind(&maybe_match);
+  FoundState(0, sol->entry_state());
+  __ jmp(potential_match_);
+  __ bind(&no_match);
 }
 
 
-void FastForwardGen::VisitEndOfLine(EndOfLine*) {
-  UNIMPLEMENTED();
+void FastForwardGen::VisitEndOfLine(EndOfLine* eol) {
+  STATIC_ASSERT('\0' < '\n' && '\n' < '\r');
+  Label no_match;
+  __ cmpb(current_char, Immediate('\r'));
+  __ j(above, &no_match);
+  FoundState(0, eol->entry_state());
+  __ jmp(potential_match_);
+  __ bind(&no_match);
 }
 
 

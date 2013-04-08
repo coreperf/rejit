@@ -62,6 +62,10 @@ const int kCharsPerPointer = kPointerSize / kCharSize;
 typedef unsigned char byte;
 typedef byte* Address;
 
+// The signedness of char is implementation defined.
+// See C++ standard 3.9.1 Fundamental types (1.)
+typedef unsigned char uchar;
+
 
 #define DISALLOW_COPY_AND_ASSIGN(Type) \
   Type(const Type&);                   \
