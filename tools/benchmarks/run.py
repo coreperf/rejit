@@ -34,6 +34,8 @@ from utils import *
 # Arguments handling -----------------------------------------------------------
 import argparse
 parser = argparse.ArgumentParser(description='Run rejit benchmarks')
+parser.add_argument('-j', '--jobs', default=1, type=int,
+    help='Number of jobs to run simultaneously for the *build* commands')
 parser.add_argument('--register',
     help="Register benchmarks results and plot performance over time.",
     action="store_true")
@@ -56,7 +58,7 @@ def benchmark_engine_data_path(benchmark, engine):
 
 # Build benchmarks in release mode ---------------------------------------------
 print "\nBuilding benchmarks..."
-subprocess.call(["scons", "-C", dir_rejit, 'benchmark', "benchtest=on"])
+subprocess.call(["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"])
 
 # Run the benchmarks -----------------------------------------------------------
 def run_benchs():

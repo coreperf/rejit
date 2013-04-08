@@ -21,6 +21,8 @@ import subprocess
 import argparse
 
 parser = argparse.ArgumentParser(description='Run rejit tests.')
+parser.add_argument('-j', '--jobs', default=1, type=int,
+    help='Number of jobs to run simultaneously for the *build* commands')
 args = parser.parse_args()
 
 dir_tests = dirname(os.path.realpath(__file__))
@@ -35,8 +37,7 @@ import utils
 # Build test executables in all modes.
 for mode in utils.build_options_modes:
   print "Building tests (mode=%s)..." % mode
-  #subprocess.check_call(["scons", "-C", dir_rejit, join(utils.build_dir(mode), 'test-rejit'), "benchtest=on"])
-  subprocess.check_call(["scons", "-C", dir_rejit, "mode=%s" % mode, "benchtest=on"])
+  subprocess.check_call(["scons", "-C", dir_rejit, '-j', str(args.jobs), "mode=%s" % mode, "benchtest=on"])
   print ''
 
 # Run tests in all modes.
