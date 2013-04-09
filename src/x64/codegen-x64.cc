@@ -719,53 +719,63 @@ void Codegen::VisitPeriod(Period* period) {
 }
 
 
-void Codegen::VisitBracket(Bracket* bracket) {
-  Label out;
+// If the current character matches, jump to 'on_matching_char', else fall
+// through.
+static void MatchBracket(MacroAssembler *masm_,
+                         const Operand& c,
+                         Bracket* bracket,
+                         Label* on_matching_char,
+                         Label* on_eos = NULL) {
+  __ movb(rax, c);
 
-  if (direction() == kBackward) {
-    __ dec_c(string_pointer);
-    // TODO(rames): need this for others.
-    __ cmpq(string_pointer, string_base);
-    __ j(below, &out);
+  if (on_eos) {
+    __ cmpb_al(Immediate(0));
+    __ j(equal, on_eos);
   }
 
-  __ Move(scratch1, 0);
-  __ Move(scratch2, 0);
-  __ Move(scratch3, 0);
-
-  // Set scratch3 if there is a match.
   vector<char>::const_iterator it;
   for (it = bracket->single_chars()->begin();
        it < bracket->single_chars()->end();
        it++) {
-    __ cmpb(current_char, Immediate(*it));
-    __ setcc(equal, scratch1);
-    __ or_(scratch3, scratch1);
+    __ cmpb_al(Immediate(*it));
+    __ j(equal, on_matching_char);
   }
 
   vector<Bracket::CharRange>::const_iterator rit;
   for (rit = bracket->char_ranges()->begin();
        rit < bracket->char_ranges()->end();
        rit++) {
-    __ cmpb(current_char, Immediate((*rit).low));
-    __ setcc(greater_equal, scratch1);
-    __ cmpb(current_char, Immediate((*rit).high));
-    __ setcc(less_equal, scratch2);
-    __ and_(scratch1, scratch2);
-    __ or_(scratch3, scratch1);
+    __ cmpb_al(Immediate((*rit).low));
+    __ setcc(greater_equal, rbx);
+    __ cmpb_al(Immediate((*rit).high));
+    __ setcc(less_equal, rcx);
+    __ andb(rbx, rcx);
+    __ j(not_zero, on_matching_char);
+  }
+}
+
+
+void Codegen::VisitBracket(Bracket* bracket) {
+  Label match, no_match;
+
+  bool non_matching = bracket->flags() & Bracket::non_matching;
+  Label* on_matching_char = non_matching ? &no_match : &match;
+
+  if (direction() == kBackward) {
+    __ cmpq(string_pointer, string_base);
+    __ j(equal, &no_match);
   }
 
-  __ testb(scratch3, Immediate(1));
-  if (!(bracket->flags() & Bracket::non_matching)) {
-    __ j(zero, &out);
-  } else {
-    __ j(not_zero, &out);
+  MatchBracket(masm_,
+               direction() == kBackward ? previous_char : current_char,
+               bracket, on_matching_char);
+  if (!non_matching) {
+    __ jmp(&no_match);
   }
+
+  __ bind(&match);
   DirectionSetOutputFromEntry(1, bracket);
-  __ bind(&out);
-  if (direction() == kBackward) {
-    __ inc_c(string_pointer);
-  }
+  __ bind(&no_match);
 }
 
 
@@ -1418,52 +1428,23 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 //    //__ jmp(&exit);
 //
 //  } else {
-    Label loop, match, done;
-    Label* target =
-      bracket->flags() & Bracket::non_matching ? &done : &match;
+    Label loop, match, exit;
+    bool non_matching = bracket->flags() & Bracket::non_matching;
+    Label* on_matching_char = non_matching ? &loop : &match;
 
     __ dec_c(string_pointer);
-
     __ bind(&loop);
     __ inc_c(string_pointer);
-
-    __ movb(rax, current_char);
-
-    __ cmpb_al(Immediate(0));
-    __ j(equal, &done);
-
-    vector<char>::const_iterator it;
-    for (it = bracket->single_chars()->begin();
-         it < bracket->single_chars()->end();
-         it++) {
-      __ cmpb_al(Immediate(*it));
-      __ j(equal, target);
+    MatchBracket(masm_, current_char, bracket, on_matching_char, &exit);
+    if (non_matching) {
+      __ jmp(&match);
     }
-
-    if (bracket->char_ranges()->size()) {
-      __ Move(scratch1, 0);
-      __ Move(scratch2, 0);
-    }
-
-    vector<Bracket::CharRange>::const_iterator rit;
-    for (rit = bracket->char_ranges()->begin();
-         rit < bracket->char_ranges()->end();
-         rit++) {
-      __ cmpb_al(Immediate((*rit).low));
-      __ setcc(greater_equal, scratch1);
-      __ cmpb_al(Immediate((*rit).high));
-      __ setcc(less_equal, scratch2);
-      __ and_(scratch1, scratch2);
-      __ j(not_zero, target);
-    }
-
     __ jmp(&loop);
 
     __ bind(&match);
     FoundState(0, bracket->entry_state());
-    __ bind(&done);
+    __ bind(&exit);
   //}
-
 }
 
 

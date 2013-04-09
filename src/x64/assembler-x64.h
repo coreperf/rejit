@@ -816,6 +816,11 @@ class Assembler : public AssemblerBase {
     arithmetic_op_32(0x23, dst, src);
   }
 
+  void andb(Register dst, Register src) {
+    emit(0x22);
+    emit_modrm(dst, src);
+  }
+
   void andb(Register dst, Immediate src) {
     immediate_arithmetic_op_8(0x4, dst, src);
   }
