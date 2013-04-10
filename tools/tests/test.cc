@@ -290,7 +290,7 @@ static int Test(MatchType match_type, unsigned expected,
                 const char* regexp, const char* string,
                 int line) {
   bool exception = false;
-  unsigned res;
+  unsigned res = 0;
 
   if (match_type == kMatchFirst) {
     int rc;
