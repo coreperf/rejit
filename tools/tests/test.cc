@@ -28,22 +28,23 @@ namespace rejit {
 #define x200(s) x100(s) x100(s)
 
 // Simple test. Only check if the result is what we expect.
-static bool Test(MatchType match_type, unsigned expected,
-                 const char* regexp, const char* string,
-                 int line);
+static int Test(MatchType match_type, unsigned expected,
+                const char* regexp, const char* string,
+                int line);
 #define TEST(match_type, expected, regexp, string) \
-  Test(match_type, expected, regexp, string, __LINE__);
+  failure |= Test(match_type, expected, regexp, string, __LINE__);
 
 
 // Also check the start and end of the match.
-static bool TestFirst(unsigned expected,
-                      const char* regexp,
-                      const char* string,
-                      unsigned expected_start, 
-                      unsigned expected_end, 
-                      int line);
+static int TestFirst(unsigned expected,
+                     const char* regexp,
+                     const char* string,
+                     unsigned expected_start,
+                     unsigned expected_end,
+                     int line);
 #define TEST_First(expected, regexp, string, expected_start, expected_end)     \
-  TestFirst(expected, regexp, string, expected_start, expected_end, __LINE__)
+  failure |= TestFirst(expected, regexp, string, expected_start, expected_end, \
+                       __LINE__)
 // Also test with a non-matching prefix and suffix.
 // Short strings may not exercise all code paths. This helps exercising
 // (for example)the fast forward paths.
@@ -54,9 +55,9 @@ static bool TestFirst(unsigned expected,
   TEST_First(expected, re, x200(" ") str x200(" "), 200 + start, 200 + end)
 
 
-void RunTest() {
-  cout << "\nStarting rejit tests.\n" << endl;
+int RunTest() {
   assert(FLAG_benchtest);
+  int failure = 0;
 
   // Simple characters.
   TEST(kMatchFull, 1, "0123456789", "0123456789");
@@ -272,18 +273,22 @@ void RunTest() {
   TEST(kMatchAll, 4, "x+", "x__xxx____x____xxxxxx");
   TEST(kMatchAll, 4, "(a.)+", "a.__a.a.a.____a.____a.a.a.a.a.a.");
 
-  std::cout << "rejit tests done." << std::endl;
+  return failure;
 }
 
 
-static bool Test(MatchType match_type, unsigned expected,
-                 const char* regexp, const char* string,
-                 int line) {
-  bool error = false;
-  unsigned res = false;
+static int Test(MatchType match_type, unsigned expected,
+                const char* regexp, const char* string,
+                int line) {
+  bool exception = false;
+  unsigned res;
 
   if (match_type == kMatchFirst) {
-    Test(kMatchAnywhere, expected, regexp, string, line);
+    int rc;
+    // If there is a first match, there is a match somewhere.
+    if ((rc = Test(kMatchAnywhere, expected, regexp, string, line))) {
+      return rc;
+    }
   }
 
   try {
@@ -309,10 +314,10 @@ static bool Test(MatchType match_type, unsigned expected,
         UNREACHABLE();
     }
   } catch (int e) {
-    error = true;
+    exception = true;
   }
 
-  if (error || res != expected) {
+  if (exception || res != expected) {
     cout << "--- FAILED rejit test line " << line
          << " ------------------------------------------------------" << endl;
     cout << "regexp:\n" << regexp << endl;
@@ -323,27 +328,29 @@ static bool Test(MatchType match_type, unsigned expected,
     SET_FLAG(print_re_list, true);
     SET_FLAG(print_ff_elements, true);
     SET_FLAG(print_state_ring_info, true);
-    Regej re(regexp);
-    vector<Match> matches;
-    Match         match;
-    switch (match_type) {
-      case kMatchFull:
-        res = re.MatchFull(string);
-        break;
-      case kMatchAnywhere:
-        res = re.MatchAnywhere(string);
-        break;
-      case kMatchFirst:
-        res = re.MatchFirst(string, &match);
-        break;
-      case kMatchAll:
-        re.MatchAll(string, &matches);
-        res = matches.size();
-        break;
+    try {
+      Regej re(regexp);
+      vector<Match> matches;
+      Match         match;
+      switch (match_type) {
+        case kMatchFull:
+          res = re.MatchFull(string);
+          break;
+        case kMatchAnywhere:
+          res = re.MatchAnywhere(string);
+          break;
+        case kMatchFirst:
+          res = re.MatchFirst(string, &match);
+          break;
+        case kMatchAll:
+          re.MatchAll(string, &matches);
+          res = matches.size();
+          break;
 
-      default:
-        UNREACHABLE();
-    }
+        default:
+          UNREACHABLE();
+      }
+    } catch (int e) {}
     SET_FLAG(trace_repetitions, false);
     SET_FLAG(print_re_tree, false);
     SET_FLAG(print_re_list, false);
@@ -351,20 +358,22 @@ static bool Test(MatchType match_type, unsigned expected,
     SET_FLAG(print_state_ring_info, false);
     cout << "------------------------------------------------------------------------------------\n\n" << endl;
   }
-  return res == expected;
+  return exception || res != expected;
 }
 
-static bool TestFirst(unsigned expected,
-                      const char* regexp,
-                      const char* string,
-                      unsigned expected_start, 
-                      unsigned expected_end, 
-                      int line) {
-  bool error = false;
+static int TestFirst(unsigned expected,
+                     const char* regexp,
+                     const char* string,
+                     unsigned expected_start,
+                     unsigned expected_end,
+                     int line) {
+  bool exception = false;
   unsigned res, found_start, found_end;
 
-  // Safety check.
-  Test(kMatchAnywhere, expected, regexp, string, line);
+  int rc;
+  if ((rc = Test(kMatchAnywhere, expected, regexp, string, line))) {
+    return rc;
+  }
 
   try {
     Regej re(regexp);
@@ -372,14 +381,14 @@ static bool TestFirst(unsigned expected,
     res = re.MatchFirst(string, &match);
     found_start = match.begin - string;
     found_end = match.end - string;
-    error = (expected == 1) &&
+    exception = (expected == 1) &&
       (found_end != expected_end || found_start != expected_start);
 
   } catch (int e) {
-    error = true;
+    exception = true;
   }
 
-  if (error || (res != expected)) {
+  if (exception || (res != expected)) {
     cout << "--- FAILED rejit test line " << line
          << " ------------------------------------------------------" << endl;
     cout << "regexp:\n" << regexp << endl;
@@ -393,9 +402,11 @@ static bool TestFirst(unsigned expected,
     SET_FLAG(print_ff_elements, true);
     SET_FLAG(print_state_ring_info, true);
 
-    Regej re(regexp);
-    Match match;
-    res = re.MatchFirst(string, &match);
+    try {
+      Regej re(regexp);
+      Match match;
+      res = re.MatchFirst(string, &match);
+    } catch (int e) {}
 
     SET_FLAG(trace_repetitions, false);
     SET_FLAG(print_re_tree, false);
@@ -404,7 +415,7 @@ static bool TestFirst(unsigned expected,
     SET_FLAG(print_state_ring_info, false);
     cout << "------------------------------------------------------------------------------------\n\n" << endl;
   }
-  return res == expected;
+  return exception || res != expected;
 }
 
 #undef x10
@@ -416,8 +427,13 @@ static bool TestFirst(unsigned expected,
 
 
 int main() {
-  rejit::RunTest();
-  return 0;
+  int rc = rejit::RunTest();
+  if (rc) {
+    printf("FAILED\n");
+  } else {
+    printf("success\n");
+  }
+  return rc;
 }
 
 #undef TEST

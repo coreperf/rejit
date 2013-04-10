@@ -43,6 +43,12 @@ for mode in utils.build_options_modes:
 # Run tests in all modes.
 for mode in utils.build_options_modes:
   print "Running tests (mode=%s)..." % mode
-  subprocess.call([join(dir_rejit, utils.build_dir(mode), 'test-rejit')])
-  print ''
-
+  ptest = subprocess.Popen([join(dir_rejit, utils.build_dir(mode), 'test-rejit')], stdout=subprocess.PIPE)
+  test_output = ptest.communicate()[0]
+  if test_output:
+    print test_output
+  else:
+    if ptest.returncode != 0:
+      print 'FAILED'
+    else:
+      print 'success'
