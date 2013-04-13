@@ -23,7 +23,10 @@ import argparse
 parser = argparse.ArgumentParser(description='Run rejit tests.')
 parser.add_argument('-j', '--jobs', default=1, type=int,
     help='Number of jobs to run simultaneously for the *build* commands')
+parser.add_argument('--simd', choices=['on', 'off', 'both'], default='both',
+    help='Test SIMD with the specified configurations.')
 args = parser.parse_args()
+
 
 dir_tests = dirname(os.path.realpath(__file__))
 dir_rejit = dir_tests
@@ -31,24 +34,29 @@ while 'SConstruct' not in os.listdir(dir_rejit):
   dir_rejit = os.path.realpath(join(dir_rejit, '..'))
 sys.path.insert(0, join(dir_rejit, 'tools'))
 import utils
-import utils
 
 
-# Build test executables in all modes.
-for mode in utils.build_options_modes:
-  print "Building tests (mode=%s)..." % mode
-  subprocess.check_call(["scons", "-C", dir_rejit, '-j', str(args.jobs), "mode=%s" % mode, "benchtest=on"])
-  print ''
+if args.simd == 'both':
+  simd_modes = ['on', 'off']
+else:
+  simd_modes = [args.simd]
 
-# Run tests in all modes.
-for mode in utils.build_options_modes:
-  print "Running tests (mode=%s)..." % mode
-  ptest = subprocess.Popen([join(dir_rejit, utils.build_dir(mode), 'test-rejit')], stdout=subprocess.PIPE)
-  test_output = ptest.communicate()[0]
-  if test_output:
-    print test_output
-  else:
-    if ptest.returncode != 0:
-      print 'FAILED'
+# Build and run tests in all modes.
+# The automated tests test both with SIMD enabled and disabled for maximum
+# coverage.
+for simd_enabled in simd_modes:
+  for mode in utils.build_options_modes:
+    print "Testing (mode=%s, simd=%s)..." % (mode, simd_enabled)
+    scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs),
+        "benchtest=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
+    subprocess.check_call(scons_command)
+    print ''
+    ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit')], stdout=subprocess.PIPE)
+    test_output = ptest.communicate()[0]
+    if test_output:
+      print test_output
     else:
-      print 'success'
+      if ptest.returncode != 0:
+        print 'FAILED'
+      else:
+        print 'success'

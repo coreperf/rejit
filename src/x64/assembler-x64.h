@@ -390,13 +390,22 @@ class CpuFeatures {
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
     ASSERT(initialized_);
-    // if (f == SSE2 && !FLAG_enable_sse2) return false;
-    // if (f == SSE3 && !FLAG_enable_sse3) return false;
-    // if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
+    // TODO: Check if we need to support systems without these instructions.
     // if (f == CMOV && !FLAG_enable_cmov) return false;
     // if (f == RDTSC && !FLAG_enable_rdtsc) return false;
     // if (f == SAHF && !FLAG_enable_sahf) return false;
     return (supported_ & (1LL << f)) != 0;
+  }
+
+  static inline bool IsAvailable(CpuFeature f) {
+    ASSERT(initialized_);
+#ifdef NO_SIMD
+    // TODO: Introduce separate flags for different versions of SSE.
+    if (f == SSE2 || f == SSE3 || f == SSE4_1 || f == SSE4_2) {
+      return false;
+    }
+#endif
+    return IsSupported(f);
   }
 
 #ifdef DEBUG

@@ -28,6 +28,13 @@ dir_html_resources         = join(dir_html, 'resources')
 dir_benchmarks             = join(dir_tools, 'benchmarks')
 dir_benchmarks_resources   = join(dir_benchmarks, 'resources')
 dir_benchmarks_engines     = join(dir_benchmarks_resources, 'engines')
+dir_build                  = join(dir_root, 'build')
+dir_build_latest           = join(dir_root, 'build', 'latest')
+
+
+def ensure_dir(path_name):
+  if not os.path.exists(path_name):
+    os.makedirs(path_name)
 
 
 # Build helpers ----------------------------------------------------------------
@@ -50,9 +57,6 @@ def GuessOS():
     return 'macos'
   else:
     return None
-
-def build_dir(mode):
-  return join('build', mode)
 
 
 # Misc Helpers -----------------------------------------------------------------

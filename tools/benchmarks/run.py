@@ -42,6 +42,8 @@ parser.add_argument('--register',
 parser.add_argument('--plot',
     help="Don't run the benchmark, only plot the results.",
     action="store_true")
+parser.add_argument('--nosimd', action='store_true',
+    help='Disable SIMD usage.')
 args = parser.parse_args()
 
 out_name = 'data.register' if args.register else 'data.temp'
@@ -58,7 +60,10 @@ def benchmark_engine_data_path(benchmark, engine):
 
 # Build benchmarks in release mode ---------------------------------------------
 print "\nBuilding benchmarks..."
-subprocess.call(["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"])
+scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"]
+if args.nosimd:
+  scons_command += ['simd=off']
+subprocess.call(scons_command)
 
 # Run the benchmarks -----------------------------------------------------------
 def run_benchs():

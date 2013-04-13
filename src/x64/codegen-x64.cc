@@ -980,7 +980,7 @@ void FastForwardGen::Generate() {
     // We currently only support a SIMD path for alternations of MultipleChars.
     // TODO: Add support for alternations of other regexps. This should simpler
     // with the new code structure.
-    if (CpuFeatures::IsSupported(SSE4_2) &&
+    if (CpuFeatures::IsAvailable(SSE4_2) &&
         multiple_chars_only &&
         regexp_list_->size() < XMMRegister::kNumRegisters - 1) {
       // Pre-load the XMM registers for MultipleChars.
@@ -1172,7 +1172,7 @@ void FastForwardGen::FoundState(int time, int state) {
 void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   int n_chars = mc->chars_length();
 
-  if (CpuFeatures::IsSupported(SSE4_2)) {
+  if (CpuFeatures::IsAvailable(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
     Label potential_match, check_potential_match, found, exit;
@@ -1298,7 +1298,7 @@ void FastForwardGen::VisitSinglePeriod(Period* period) {
 
 void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
   // TODO(rames): Allow more complex brackets.
-//  if (CpuFeatures::IsSupported(SSE4_2) &&
+//  if (CpuFeatures::IsAvailable(SSE4_2) &&
 //      bracket->single_chars()->size() < 16 &&
 //      bracket->char_ranges()->size() < 8) {
 //
@@ -1473,7 +1473,7 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 
 // TODO: Merge VisitSingleStartOfLine and VisitSingleEndOfLine code.
 void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
-  if (CpuFeatures::IsSupported(SSE4_2)) {
+  if (CpuFeatures::IsAvailable(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
     Label adjust, simd_adjust, found, exit;
@@ -1571,7 +1571,7 @@ void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
 
 
 void FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
-  if (CpuFeatures::IsSupported(SSE4_2)) {
+  if (CpuFeatures::IsAvailable(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
     Label adjust, simd_adjust, found, exit;

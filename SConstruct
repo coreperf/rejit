@@ -12,10 +12,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import sys
-
+import os
 from os.path import join, dirname
+import subprocess
 
 dir_root = dirname(File('SConstruct').rfile().abspath)
 sys.path.insert(0, join(dir_root, 'tools'))
@@ -58,6 +58,9 @@ options = {
     'benchtest:on' : {
       'CCFLAGS' : ['-DBENCHTEST']
       },
+    'simd:off' : {
+      'CCFLAGS' : ['-DNO_SIMD']
+      },
     }
 
 
@@ -83,13 +86,30 @@ def DefaultVariable(name, help, allowed):
 vars = Variables('build_config.py')
 # Define command line build options.
 vars.AddVariables(
-    EnumVariable('mode', 'build mode', 'release', allowed_values=utils.build_options_modes),
+    EnumVariable('mode', 'Build mode', 'release', allowed_values=utils.build_options_modes),
     # For now only the x64 architecture is a valid target.
     EnumVariable('arch', 'Target architecture', utils.GuessArchitecture(), allowed_values=utils.build_options_archs),
     EnumVariable('os', 'Target os', utils.GuessOS(), allowed_values=utils.build_options_oses),
     DefaultVariable('benchtest', 'Compile for benchmarks or tests.', ['on', 'off']),
     DefaultVariable('modifiable_flags', 'Allow modifying flags at runtime.', ['on', 'off']),
+    # TODO: We stick with an enumerated variable to keep the 'on' 'off' scheme
+    # and avoid introducing helpers to convert types when looking in the options
+    # dictionary. But this may be refactored to use boolean variables if
+    # cleaner.
+    EnumVariable('simd', 'Allow SIMD usage', 'on', allowed_values=['on', 'off']),
     )
+# To avoid recompiling multiple times when build options are changed, different
+# build paths are used depending on the options set.
+# This lists the options that should be taken into account to create the build
+# path.
+# TODO: Clean this. Create an option class.
+options_influencing_build_path = [
+#   ('option_name', include_option_name_in_path),
+    ('mode', False),
+    ('benchtest', True),
+    ('modifiable_flags', True),
+    ('simd', True)
+    ]
 
 # Construct the build environment ----------------------------------------------
 
@@ -115,6 +135,7 @@ if unknown_build_options:
 # This allows colors to be displayed when using with clang.
 env['ENV']['TERM'] = os.environ['TERM']
 
+
 # Process the build options.
 # 'all' is unconditionally processed.
 if 'all' in options:
@@ -123,6 +144,12 @@ if 'all' in options:
       env[var] += options['all'][var]
     else:
       env[var] = options['all'][var]
+
+# TODO: Clean this
+# The benchmarks require modifiable flags. But this needs to be set before we
+# compute the build dir path.
+if 'benchmark' in COMMAND_LINE_TARGETS:
+  env['modifiable_flags'] = 'on'
 
 # Other build options must match 'option:value'
 dict = env.Dictionary()
@@ -142,7 +169,16 @@ for key in keys:
 # Sources and build targets ----------------------------------------------------
 # Sources are in src/. Build in build/ to avoid spoiling the src/ directory with
 # built objects.
-build_dir = os.path.realpath(utils.build_dir(env['mode']))
+build_dir = utils.dir_build
+utils.ensure_dir(build_dir)
+for option in options_influencing_build_path:
+  if option[1]:
+    build_dir = join(build_dir, option[0] + '_'+ env[option[0]])
+  else:
+    build_dir = join(build_dir, env[option[0]])
+# Create a link to the latest build directory.
+subprocess.check_call(["rm", "-f", utils.dir_build_latest])
+subprocess.check_call(["ln", "-s", build_dir, utils.dir_build_latest])
 def PrepareBuildDir(location):
   location_build_dir = join(build_dir, location)
   VariantDir(location_build_dir, location)
