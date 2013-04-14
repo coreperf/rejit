@@ -1016,6 +1016,9 @@ void FastForwardGen::Generate() {
       // illegal accesses after the eos.
       // TODO: This alignment code should be abstracted and shared with other
       // places.
+      // TODO: This is still incorrect. The initial check for eos does not
+      // ensure the validity of access to the following chars in
+      // MatchMultipleChar().
       __ dec_c(string_pointer);
       __ bind(&align_loop);
       __ inc_c(string_pointer);
@@ -1196,21 +1199,20 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
 
     // Align the string pointer on a 16 bytes boundary.
-    // TODO: use SIMD here.
     __ bind(&align);
-    __ dec_c(string_pointer);
+    __ movb(rcx, string_pointer);
+    __ negb(rcx);
+    __ andb(rcx, Immediate(0xf));
+    __ j(zero, &simd_code);
+
     __ bind(&align_loop);
-    __ inc_c(string_pointer);
     __ cmpb(current_char, Immediate(0));
     __ j(zero, &exit);
-    __ testq(string_pointer, Immediate(0xf));
-    __ j(zero, &simd_code);
-    // For speed, use a fast pre-check and defer further verification to more
-    // thorough code.
     __ cmp_truncated(n_chars, fixed_chars, current_chars);
     __ j(equal, &check_potential_match);
+    __ inc_c(string_pointer);
+    __ loop(&align_loop);
 
-    __ jmp(&align_loop);
 
 
     __ bind(&simd_code);
