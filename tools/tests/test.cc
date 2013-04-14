@@ -116,6 +116,12 @@ int RunTest() {
   TEST_First(1, "x$", "012x\n___", 3, 4);
   TEST_First(0, "^x", "012\n___", 0, 0);
   TEST_First(0, "x$", "012\n___", 0, 0);
+  TEST_First_unbound(1, "^xxx", "\nxxx_____________", 1, 4);
+
+  TEST(kMatchAll, 1, "^", "___");
+  TEST(kMatchAll, 2, "^", "\n");
+  TEST(kMatchAll, 3, "^", "\n\n");
+  TEST(kMatchAll, 4, "^", "\n\n\n");
 
   // Alternation.
   TEST(kMatchFull, 1, "0123|abcd|efgh", "abcd");

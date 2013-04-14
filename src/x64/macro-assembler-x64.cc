@@ -383,9 +383,7 @@ void MacroAssembler::asm_assert_(Condition cond, const char *file, int line, con
   Move(rdi, (int64_t)file);
   Move(rsi, line);
   Move(rdx, (int64_t)description);
-  PushAllRegistersAndFlags();
   CallCpp(FUNCTION_ADDR(rejit_fatal));
-  PopAllRegistersAndFlags();
 
   bind(&skip);
 }

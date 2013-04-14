@@ -1255,6 +1255,19 @@ void Assembler::leave() {
 }
 
 
+void Assembler::movb(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  if (!dst.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst, src);
+  } else {
+    emit_optional_rex_32(dst, src);
+  }
+  emit(0x8A);
+  emit_modrm(dst, src);
+}
+
+
 void Assembler::movb(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   if (!dst.is_byte_register()) {
@@ -1568,6 +1581,14 @@ void Assembler::neg(Register dst) {
   EnsureSpace ensure_space(this);
   emit_rex_64(dst);
   emit(0xF7);
+  emit_modrm(0x3, dst);
+}
+
+
+void Assembler::negb(Register dst) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst);
+  emit(0xF6);
   emit_modrm(0x3, dst);
 }
 

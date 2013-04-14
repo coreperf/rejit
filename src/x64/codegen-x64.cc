@@ -619,39 +619,53 @@ void Codegen::VisitEpsilon(Epsilon* epsilon) {
 }
 
 
+// Falls through when no matches is found.
+static void MatchStartOrEndOfLine(MacroAssembler* masm_,
+                                  ControlRegexp* seol,
+                                  const Operand& char_pos,
+                                  Label* on_match,
+                                  bool char_loaded_in_rax = false,
+                                  Label* on_start_of_string = NULL) {
+  if (on_start_of_string) {
+    ASSERT(seol->IsStartOfLine());
+    __ cmpq(string_pointer, string_base);
+    __ j(equal, on_start_of_string);
+  }
+  if (!char_loaded_in_rax) {
+    __ movb(rax, char_pos);
+  }
+  __ cmpb_al(Immediate('\n'));
+  __ j(equal, on_match);
+  __ cmpb_al(Immediate('\r'));
+  __ j(equal, on_match);
+  if (seol->IsEndOfLine()) {
+    __ cmpb(current_char, Immediate('\0'));
+    __ j(equal, on_match);
+  }
+}
+
+
 void Codegen::VisitStartOfLine(StartOfLine* sol) {
-  Label match, no_match;
+  Label match, done;
 
-  __ cmpq(string_pointer, string_base);
-  __ j(equal, &match);
-  __ cmpb(previous_char, Immediate('\n'));
-  __ j(equal, &match);
-  __ cmpb(previous_char, Immediate('\r'));
-  __ j(equal, &match);
-
-  __ jmp(&no_match);
+  MatchStartOrEndOfLine(masm_, sol, previous_char, &match, false, &match);
+  __ jmp(&done);
 
   __ bind(&match);
   DirectionSetOutputFromEntry(0, sol);
-  __ bind(&no_match);
+  __ bind(&done);
 }
 
 
 void Codegen::VisitEndOfLine(EndOfLine* eol) {
-  Label match, no_match;
+  Label match, done;
 
-  __ cmpb(current_char, Immediate('\n'));
-  __ j(equal, &match);
-  __ cmpb(current_char, Immediate('\r'));
-  __ j(equal, &match);
-  __ cmpb(current_char, Immediate('\0'));
-  __ j(equal, &match);
-
-  __ jmp(&no_match);
+  MatchStartOrEndOfLine(masm_, eol, current_char, &match);
+  __ jmp(&done);
 
   __ bind(&match);
   DirectionSetOutputFromEntry(0, eol);
-  __ bind(&no_match);
+  __ bind(&done);
 }
 
 
@@ -1471,30 +1485,46 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 }
 
 
-// TODO: Merge VisitSingleStartOfLine and VisitSingleEndOfLine code.
-void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
+void FastForwardGen::VisitSingleStartOrEndOfLine(ControlRegexp* seol) {
+  ASSERT(seol->IsStartOfLine() || seol->IsEndOfLine());
+  bool find_sol = seol->IsStartOfLine();
   if (CpuFeatures::IsAvailable(SSE4_2)) {
     Label align, align_loop;
     Label simd_code, simd_loop;
     Label adjust, simd_adjust, found, exit;
 
-    __ cmpq(string_pointer, string_base);
-    __ j(equal, &found);
+    if (find_sol) {
+      __ cmpq(string_pointer, string_base);
+      __ j(equal, &found);
+      // TODO: Explain!
+      // The loop below finds new line characters at string_pointer, and
+      // string_pointer is corrected upon match.
+      // So in practice it matches for sol at string_pointer + 1, and we must
+      // not forget to check for sol at the current string_pointer position.
+      MatchStartOrEndOfLine(masm_, seol, previous_char, &found);
+    }
 
+    // Align the string_pointer on a 16-bytes boundary for the SIMD loop.
     __ bind(&align);
-    __ dec_c(string_pointer);
-    __ bind(&align_loop);
-    __ inc_c(string_pointer);
-    __ cmpb(Operand(string_pointer, 0), Immediate(0));
-    __ j(zero, &exit);
-    __ testq(string_pointer, Immediate((1 << 4) - 1));
+    __ movb(rcx, string_pointer);
+    __ negb(rcx);
+    __ andb(rcx, Immediate(0xf));
     __ j(zero, &simd_code);
 
-    __ cmpb(current_char, Immediate('\n'));
-    __ j(equal, &adjust);
-    __ cmpb(current_char, Immediate('\r'));
-    __ j(equal, &adjust);
-    __ jmp(&align_loop);
+    __ movb(rax, current_char);
+
+    __ bind(&align_loop);
+    MatchStartOrEndOfLine(masm_, seol, current_char, &adjust, true);
+    __ inc_c(string_pointer);
+    __ movb(rax, current_char);
+    if (find_sol) {
+      __ cmpb_al(Immediate(0));
+      __ loop(not_equal, &align_loop);
+      // Exit on eos.
+      __ jmp(&exit);
+    } else {
+      __ loop(&align_loop);
+    }
 
 
     __ bind(&simd_code);
@@ -1528,133 +1558,64 @@ void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
     __ j(not_equal, &simd_adjust);
 
     __ AdvanceToEOS();
-    __ jmp(&exit);
+    __ jmp(find_sol ? &exit : &found);
 
-    // Adjust the string pointer, which should point to the character after the new line.
     __ bind(&simd_adjust);
     __ addq(string_pointer, rcx);
     __ bind(&adjust);
-    __ inc_c(string_pointer);
+    if (find_sol) {
+      // The string pointer should point after the new line.
+      __ inc_c(string_pointer);
+    }
 
     __ bind(&found);
-    FoundState(0, sol->entry_state());
+    FoundState(0, seol->entry_state());
     __ bind(&exit);
 
   } else {
-    Label loop, match, done;
+    Label loop, match, eos, done;
+    const Operand& cchar =
+      seol->IsStartOfLine() ? previous_char : current_char;
 
-    // Check if we are at the beginning of the string.
-    __ cmpq(string_pointer, string_base);
-    __ j(equal, &match);
+    if (find_sol) {
+      // Check if we are at the beginning of the string.
+      __ cmpq(string_pointer, string_base);
+      __ j(equal, &match);
+    }
 
-    __ dec_c(string_pointer);
+    __ movb(rax, cchar);
 
     __ bind(&loop);
+    MatchStartOrEndOfLine(masm_, seol, cchar, &match, true);
     __ inc_c(string_pointer);
-
-    __ cmpb(current_char, Immediate(0));
-    __ j(equal, &done);
-
-    __ movb(rax, previous_char);
-    __ cmpb_al(Immediate('\n'));
-    __ j(equal, &match);
-    __ cmpb_al(Immediate('\r'));
-    __ j(equal, &match);
-
+    __ movb(rax, cchar);
+    if (find_sol) {
+      __ cmpb_al(Immediate(0));
+      __ j(zero, &eos);
+    }
     __ jmp(&loop);
 
     __ bind(&match);
-    FoundState(0, sol->entry_state());
+    FoundState(0, seol->entry_state());
+    if (find_sol) {
+      // If we found the eos, we need to correct string_pointer to point to it
+      // and not past it.
+      __ jmp(&done);
+      __ bind(&eos);
+      __ dec_c(string_pointer);
+    }
     __ bind(&done);
   }
 }
 
 
+void FastForwardGen::VisitSingleStartOfLine(StartOfLine* sol) {
+  VisitSingleStartOrEndOfLine(sol);
+}
+
+
 void FastForwardGen::VisitSingleEndOfLine(EndOfLine* eol) {
-  if (CpuFeatures::IsAvailable(SSE4_2)) {
-    Label align, align_loop;
-    Label simd_code, simd_loop;
-    Label adjust, simd_adjust, found, exit;
-
-    __ bind(&align);
-    __ dec_c(string_pointer);
-    __ bind(&align_loop);
-    __ inc_c(string_pointer);
-    __ cmpb(Operand(string_pointer, 0), Immediate(0));
-    __ j(zero, &found);
-    __ testq(string_pointer, Immediate((1 << 4) - 1));
-    __ j(zero, &simd_code);
-
-    __ cmpb(current_char, Immediate('\n'));
-    __ j(equal, &found);
-    __ cmpb(current_char, Immediate('\r'));
-    __ j(equal, &found);
-    __ jmp(&align_loop);
-
-
-    __ bind(&simd_code);
-    Label offset_0x0, offset_0x10, offset_0x20;
-    static const uint8_t pcmp_str_control =
-      Assembler::unsigned_bytes | Assembler::equal_any |
-      Assembler::pol_pos | Assembler::lsi;
-
-    __ movdq(xmm0, 0, '\n' << 8 | '\r');
-    __ movdqa(xmm1, Operand(string_pointer, 0));
-
-    __ bind(&simd_loop);
-    __ pcmpistri(pcmp_str_control, xmm0, xmm1);
-    __ j(below_equal, &offset_0x0);
-    __ movdqa(xmm2, Operand(string_pointer, 0x10));
-    __ pcmpistri(pcmp_str_control, xmm0, xmm2);
-    __ j(below_equal, &offset_0x10);
-    __ movdqa(xmm3, Operand(string_pointer, 0x20));
-    __ pcmpistri(pcmp_str_control, xmm0, xmm3);
-    __ j(below_equal, &offset_0x20);
-    __ movdqa(xmm1, Operand(string_pointer, 0x30));
-    __ addq(string_pointer, Immediate(0x30));
-    __ jmp(&simd_loop);
-
-    __ bind(&offset_0x20);
-    __ addq(string_pointer, Immediate(0x10));
-    __ bind(&offset_0x10);
-    __ addq(string_pointer, Immediate(0x10));
-    __ bind(&offset_0x0);
-    __ cmpq(rcx, Immediate(0x10));
-    __ j(not_equal, &adjust);
-
-    __ AdvanceToEOS();
-    __ jmp(&found);
-
-    __ bind(&adjust);
-    __ addq(string_pointer, rcx);
-
-    __ bind(&found);
-    FoundState(0, eol->entry_state());
-    __ bind(&exit);
-
-  } else {
-    Label loop, match, done;
-
-    __ dec_c(string_pointer);
-
-    __ bind(&loop);
-    __ inc_c(string_pointer);
-
-    __ movb(rax, current_char);
-
-    __ cmpb_al(Immediate(0));
-    __ j(equal, &match);
-    __ cmpb_al(Immediate('\n'));
-    __ j(equal, &match);
-    __ cmpb_al(Immediate('\r'));
-    __ j(equal, &match);
-
-    __ jmp(&loop);
-
-    __ bind(&match);
-    FoundState(0, eol->entry_state());
-    __ bind(&done);
-  }
+  VisitSingleStartOrEndOfLine(eol);
 }
 
 

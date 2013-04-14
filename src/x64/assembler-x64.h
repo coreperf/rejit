@@ -599,6 +599,7 @@ class Assembler : public AssemblerBase {
   void leave();
 
   // Moves
+  void movb(Register dst, Register src);
   void movb(Register dst, const Operand& src);
   void movb(Register dst, Immediate imm);
   void movb(const Operand& dst, Register src);
@@ -874,6 +875,7 @@ class Assembler : public AssemblerBase {
 
   void neg(Register dst);
   void neg(const Operand& dst);
+  void negb(Register dst);
   void negl(Register dst);
 
   void not_(Register dst);
@@ -1379,15 +1381,29 @@ class Assembler : public AssemblerBase {
     return vmem;
   }
 
-  inline void loop(Label* L) {
+  void loop(Condition cond, Label* L) {
     ASSERT(L->is_bound());
     const int short_size = sizeof(int8_t);
     int offset = L->pos() - pc_offset() - 1;
     ASSERT(offset <= 0 &&
            is_int8(offset - short_size));
-    emit(0xE2);
+    switch (cond) {
+      case always:
+        emit(0xE2);
+        break;
+      case equal:
+        emit(0xE1);
+        break;
+      case not_equal:
+        emit(0xE0);
+        break;
+      default:
+        UNREACHABLE();
+    }
     emit((offset - short_size) & 0xFF);
   }
+
+  inline void loop(Label* L) { loop(always, L); }
 
   void movw(Register dst, const Operand& src);
 

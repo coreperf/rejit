@@ -268,6 +268,8 @@ class FastForwardGen : public PhysicalRegexpVisitor<void> {
   LIST_PHYSICAL_REGEXP_TYPES(DECLARE_SINGLE_REGEXP_VISITORS)
 #undef DECLARE_REGEXP_VISITORS
 
+  void VisitSingleStartOrEndOfLine(ControlRegexp* seol);
+
   void VisitSingle(Regexp* regexp) {
     switch (regexp->type()) {
 #define TYPE_CASE(RegexpType)                                             \
