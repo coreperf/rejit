@@ -1519,9 +1519,9 @@ void FastForwardGen::VisitSingleStartOrEndOfLine(ControlRegexp* seol) {
     __ movb(rax, current_char);
     if (find_sol) {
       __ cmpb_al(Immediate(0));
-      __ loop(not_equal, &align_loop);
+      __ loop(not_zero, &align_loop);
       // Exit on eos.
-      __ jmp(&exit);
+      __ j(zero, &exit);
     } else {
       __ loop(&align_loop);
     }
