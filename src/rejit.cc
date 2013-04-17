@@ -29,77 +29,71 @@ namespace rejit {
 #define __ masm->
 
 
-bool MatchFull(const char* regexp, const char* string) {
+bool MatchFull(const char* regexp, const string& text) {
   Regej re(regexp);
-  return re.MatchFull(string);
+  return re.MatchFull(text);
 }
 
 
-bool MatchAnywhere(const char* regexp, const char* text) {
+bool MatchAnywhere(const char* regexp, const string& text) {
   Regej re(regexp);
   return re.MatchAnywhere(text);
 }
 
 
-bool MatchFirst(const char* regexp, const char* text, Match* match) {
+bool MatchFirst(const char* regexp, const string& text, Match* match) {
   Regej re(regexp);
   return re.MatchFirst(text, match);
 }
 
 
-void MatchAll(const char* regexp, const char* text,
-              std::vector<struct Match>* matches) {
+size_t MatchAll(const char* regexp, const string& text,
+                std::vector<struct Match>* matches) {
   Regej re(regexp);
   return re.MatchAll(text, matches);
 }
 
 
-size_t MatchAllCount(const char* regexp, const char* text) {
+size_t MatchAllCount(const char* regexp, const string& text) {
   Regej re(regexp);
   return re.MatchAllCount(text);
 }
 
 
-char* Replace(const char* text,
-              Match to_replace, const char* with,
-              size_t text_size, size_t with_size) {
+void Replace(Match to_replace, string& text, const string& with) {
   vector<Match> matches;
   matches.push_back(to_replace);
-  return Replace(text, &matches, with, text_size, with_size);
+  return Replace(&matches, text, with);
 }
 
 
-char* Replace(const char* text,
-              vector<Match>* to_replace, const char* with,
-              size_t text_size, size_t with_size) {
-  if (text_size == 0) {
-    text_size = strlen(text);
-  }
-  if (with_size == 0) {
-    with_size = strlen(with);
-  }
+void Replace(vector<Match>* to_replace, string& text, const string& with) {
   vector<Match>::iterator it;
-  char* res = (char*)malloc(text_size + with_size * to_replace->size());
-  char* pres = res;
-  const char* ptext = text;
+  string res;
+  // TODO: The size of the original string is a good estimate to reserve space
+  // and avoid useless memcpy. Reserving more space would allow to gain
+  // significant performance when increasing the size of the result string.
+  res.reserve(text.size());
+  const char* ptext = text.c_str();
   for (it = to_replace->begin(); it < to_replace->end(); it++) {
-    memcpy(pres, ptext, (*it).begin - ptext);
-    pres += (*it).begin - ptext;
+    res.append(ptext, (*it).begin - ptext);
     ptext = (*it).end;
-    memcpy(pres, with, with_size);
-    pres += with_size;
+    res.append(with);
   }
-  memcpy(pres, ptext, text + text_size - ptext);
-  pres += text + text_size - ptext;
-  *pres = 0;
-  return res;
+  res.append(ptext, text.c_str() + text.size() - ptext);
+  text.assign(res);
 }
 
 
-char* ReplaceAll(const char* regexp, const char* text, const char* with,
-                 size_t text_size, size_t with_size) {
+bool ReplaceFirst(const char* regexp, string& text, const string& with) {
   Regej re(regexp);
-  return re.ReplaceAll(text, with, text_size, with_size);
+  return re.ReplaceFirst(text, with);
+}
+
+
+size_t ReplaceAll(const char* regexp, string& text, const string& with) {
+  Regej re(regexp);
+  return re.ReplaceAll(text, with);
 }
 
 
@@ -108,61 +102,72 @@ Regej::Regej(const char* regexp) :
   rinfo_(new RegexpInfo()) {}
 
 
+Regej::Regej(const string& regexp) :
+  regexp_(regexp.c_str()),
+  rinfo_(new RegexpInfo()) {}
+
+
 Regej::~Regej() {
   delete rinfo_;
 }
 
 
-bool Regej::MatchFull(const char* s) {
+bool Regej::MatchFull(const string& text) {
   if (!rinfo_->match_full_) {
     if (!Compile(kMatchFull)) return false;
   }
-  return rinfo_->match_full_(s);
+  return rinfo_->match_full_(text.c_str());
 }
 
 
-bool Regej::MatchAnywhere(const char* s) {
+bool Regej::MatchAnywhere(const string& text) {
   if (!rinfo_->match_anywhere_) {
     if (!Compile(kMatchAnywhere)) return false;
   }
-  return rinfo_->match_anywhere_(s);
+  return rinfo_->match_anywhere_(text.c_str());
 }
 
 
-bool Regej::MatchFirst(const char* s, Match* match) {
+bool Regej::MatchFirst(const string& text, Match* match) {
   if (!rinfo_->match_first_) {
     if (!Compile(kMatchFirst)) return false;
   }
-  return rinfo_->match_first_(s, match);
+  return rinfo_->match_first_(text.c_str(), match);
 }
 
 
-void Regej::MatchAll(const char* s, vector<Match>* matches) {
+size_t Regej::MatchAll(const string& text, vector<Match>* matches) {
   if (!rinfo_->match_all_) {
-    if (!Compile(kMatchAll)) return;
+    if (!Compile(kMatchAll)) return 0;
   }
-  rinfo_->match_all_(s, matches);
+  rinfo_->match_all_(text.c_str(), matches);
+  return matches->size();
 }
 
 
-size_t Regej::MatchAllCount(const char* text) {
+size_t Regej::MatchAllCount(const string& text) {
   // TODO: Test if using a separate function not registering matches in a vector
   // is faster.
   vector<Match> matches;
-  size_t match_count;
-  MatchAll(text, &matches);
-  match_count = matches.size();
-  return match_count;
+  return MatchAll(text, &matches);
 }
 
 
-char* Regej::ReplaceAll(const char* text, const char* with,
-                        size_t text_size, size_t with_size) {
-  char* res;
+bool Regej::ReplaceFirst(string& text, const string& with) {
+  Match match;
+  bool match_found = MatchFirst(text, &match);
+  if (match_found) {
+    Replace(match, text, with);
+  }
+  return match_found;
+}
+
+
+size_t Regej::ReplaceAll(string& text, const string& with) {
   vector<Match> matches;
   MatchAll(text, &matches);
-  res = Replace(text, &matches, with, text_size, with_size);
-  return res;
+  Replace(&matches, text, with);
+  return matches.size();
 }
 
 

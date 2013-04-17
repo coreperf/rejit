@@ -28,30 +28,27 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
+#include <iostream>
 
 using namespace std;
 
 int main() {
 
-  size_t in_size;
   char* text_raw;
-  char* text;
-  char* replaced_text;
+  string text;
   size_t text_raw_size, text_size, replaced_text_size;
 
-  fseek(stdin, 0, SEEK_END);   // non-portable
-  in_size = ftell(stdin);
-  text_raw = (char*)malloc(in_size + 1);
-  text_raw[in_size] = 0;
+  fseek(stdin, 0, SEEK_END);
+  text_raw_size = ftell(stdin);
+  text_raw = (char*)malloc(text_raw_size + 1);
   rewind(stdin);
-  fread(text_raw, 1, in_size, stdin);
-  text_raw_size = strlen(text_raw);
-
-  // TODO: introduce a helper function.
-  text = rejit::ReplaceAll(">.*\n|\n", text_raw, "", text_raw_size, 0);
-  text_size = strlen(text);
+  fread(text_raw, 1, text_raw_size, stdin);
+  text.assign(text_raw, text_raw_size);
   free(text_raw);
+
+  rejit::ReplaceAll(">.*\n|\n", text, "");
+  text_size = text.size();
 
   const char* dna8mers[] = {
     "agggtaaa|tttaccct",
@@ -85,19 +82,14 @@ int main() {
   };
 
   for (unsigned i = 0; i < sizeof(iub_codes) / sizeof(char*); i += 2) {
-    replaced_text = rejit::ReplaceAll(iub_codes[i], text, iub_codes[i + 1]);
-    free(text);
-    text = replaced_text;
+    rejit::ReplaceAll(iub_codes[i], text, iub_codes[i + 1]);
   }
-
-  replaced_text_size = strlen(replaced_text);
+  replaced_text_size = text.size();
 
   printf("\n%u\n%u\n%u\n",
          (unsigned)text_raw_size,
          (unsigned)text_size,
          (unsigned)replaced_text_size);
-
-  free(replaced_text);
 
   return EXIT_SUCCESS;
 }

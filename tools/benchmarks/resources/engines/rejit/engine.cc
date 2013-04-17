@@ -193,8 +193,6 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
 #undef SET_REJIT_FLAG
 
   char *regexp = arguments.args[0];
-
-  // Check the arguments provided.
   if (regexp[0] == 0) {
     error("Cannot test an empty regular expression.");
   }
@@ -202,14 +200,14 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
   // Prepare text to match ---------------------------------
 
   // The string which will be searched for the regular expression.
-  char *text = reinterpret_cast<char*>(malloc(arguments.size));
+  string text;
 
   // Initialize the text.
-  int fd = 0;
   if (arguments.file) {
-    // Get the text in the file.
+    // Use the content of the specified file to fill text. If the file is
+    // smaller than the requested test size, copy it multiple times.
     struct stat file_stats;
-    fd = open(arguments.file, O_RDONLY);
+    int fd = open(arguments.file, O_RDONLY);
     fstat(fd, &file_stats);
     char* file_text = (char*)mmap(NULL, file_stats.st_size,
                                   PROT_READ, MAP_PRIVATE, fd, 0);
@@ -221,22 +219,20 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
     size_t copy_size;
     while (offset < arguments.size) {
       copy_size = min(arguments.size - offset, file_text_size);
-      memcpy(text + offset, file_text, copy_size);
+      text.append(file_text, copy_size);
       offset += copy_size;
     }
 
     munmap(file_text, file_stats.st_size);
 
   } else {
+    text.resize(arguments.size);
     // Fill the text with random characters.
     for (size_t i = 0; i < arguments.size - 1; i++) {
       text[i] = arguments.low_char +
         (rand() % (arguments.high_char - arguments.low_char));
     }
   }
-
-  // Set the terminating character.
-  text[arguments.size - 1] = 0;
 
   // Run ---------------------------------------------------
 
@@ -278,10 +274,6 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
                 t2.tv_usec - t1.tv_usec,
                 arguments.size, arguments.iterations);
   }
-
-
-  // Clean up.
-  free(text);
 
   return 0;
 }
