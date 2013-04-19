@@ -1376,8 +1376,7 @@ class Assembler : public AssemblerBase {
     memcpy(vmem->address(), buffer_, pc_offset());
 
     // TODO(rames): Clean up how the code is returned. Returning virtual memory
-    // is not ver intuitive!
-    //return FUNCTION_CAST<JitFunc>(Address(vmem->address()));
+    // is not very intuitive!
     return vmem;
   }
 

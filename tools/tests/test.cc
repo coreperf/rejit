@@ -289,7 +289,6 @@ int RunTest() {
   TEST(kMatchAll, 8, "(xxx|^|$|[ab-d])", "___ab___xxx_\n\n__");
   TEST(kMatchAll, 4, "(^|$|[^x])", "_xxx_x_");
 
-
   return failure;
 }
 

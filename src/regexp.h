@@ -478,11 +478,10 @@ template <class ret_type> class PhysicalRegexpVisitor {
 };
 
 
-typedef void (*JitFunc)(const char*);
-typedef bool (*MatchFullFunc)(const char*);
-typedef bool (*MatchAnywhereFunc)(const char*);
-typedef bool (*MatchFirstFunc)(const char*, Match*);
-typedef unsigned (*MatchAllFunc)(const char*, std::vector<Match>*);
+typedef bool (*MatchFullFunc)(const char*, size_t);
+typedef bool (*MatchAnywhereFunc)(const char*, size_t);
+typedef bool (*MatchFirstFunc)(const char*, size_t, Match*);
+typedef unsigned (*MatchAllFunc)(const char*, size_t, std::vector<Match>*);
 
 class RegexpInfo {
  public:

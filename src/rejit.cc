@@ -116,7 +116,7 @@ bool Regej::MatchFull(const string& text) {
   if (!rinfo_->match_full_) {
     if (!Compile(kMatchFull)) return false;
   }
-  return rinfo_->match_full_(text.c_str());
+  return rinfo_->match_full_(text.c_str(), text.size());
 }
 
 
@@ -124,7 +124,7 @@ bool Regej::MatchAnywhere(const string& text) {
   if (!rinfo_->match_anywhere_) {
     if (!Compile(kMatchAnywhere)) return false;
   }
-  return rinfo_->match_anywhere_(text.c_str());
+  return rinfo_->match_anywhere_(text.c_str(), text.size());
 }
 
 
@@ -132,7 +132,7 @@ bool Regej::MatchFirst(const string& text, Match* match) {
   if (!rinfo_->match_first_) {
     if (!Compile(kMatchFirst)) return false;
   }
-  return rinfo_->match_first_(text.c_str(), match);
+  return rinfo_->match_first_(text.c_str(), text.size(), match);
 }
 
 
@@ -140,7 +140,7 @@ size_t Regej::MatchAll(const string& text, vector<Match>* matches) {
   if (!rinfo_->match_all_) {
     if (!Compile(kMatchAll)) return 0;
   }
-  rinfo_->match_all_(text.c_str(), matches);
+  rinfo_->match_all_(text.c_str(), text.size(), matches);
   return matches->size();
 }
 

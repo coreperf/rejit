@@ -28,9 +28,6 @@ Codegen::Codegen()
     ring_base_(rax, 0) {}
 
 
-const int kStateInfoSize = 7 * kPointerSize;
-
-
 int Codegen::TimeSummaryBaseOffsetFromFrame() {
   return -kStateInfoSize - time_summary_size();
 }
@@ -129,6 +126,7 @@ void Codegen::CheckTimeFlow() {
 }
 
 
+// This is the entry point from C++.
 void Codegen::Generate(RegexpInfo* rinfo,
                           MatchType match_type) {
   if (!CpuFeatures::initialized()) {
@@ -157,32 +155,29 @@ void Codegen::Generate(RegexpInfo* rinfo,
   __ cmpq(rdi, Immediate(0));
   __ debug_msg(zero, "base string is NULL.\n");
   __ j(zero, &unwind_and_return);
-  if (!match_type != kMatchFull) {
-    __ Move(rsi, 0);
-  }
+
+  // TODO: Update code with new prototypes.
 
   // Check the match results pointer.
   if (match_type != kMatchFull && !FLAG_benchtest) {
-    __ cmpq(rsi, Immediate(0));
+    __ cmpq(rdx, Immediate(0));
     __ debug_msg(zero, "match results pointer is NULL.\n");
     __ j(zero, &unwind_and_return);
   }
 
+  // Compute the eos and check it.
+  __ addq(rsi, rdi);
+  __ cmpb(Operand(rsi, 0), Immediate(0));
+  __ debug_msg(not_zero, "Could not find '\\0' at 'string' + 'size'.\n");
+  __ j(not_zero, &unwind_and_return);
 
-  // The stack within this function is laid out as follow.
-  //
-  //        callee saved registers
-  //  0x0   rbp caller's rbp.
-  // -0x8   String base.
-  // -0x10  Result match or vector of matches.
-  // -0x18  Starting position for fast forwarding.
-  // -0x20  State from which FF thinks there may be a potential match.
-  // -0x28  Position of the end of the match when matching the regexp forward
-  //        from the ff_element.
-  // -0x30  Position of the end of the match when matching the regexp backward
-  //        from the ff_element.
-  // -0x38  Used when looking for multiple matches, indicates the end of the
-  //        previous match.
+
+
+  //  0x8 and up     : callee saved registers
+  //  0x0            : rbp caller's rbp.
+  // -kStateInfoSize : Saved state. See definition of kStateInfoSize for
+  //                   comments.
+  // -reserved_space : State ring.
 
   const size_t reserved_space =
     kStateInfoSize + state_ring_size() + time_summary_size();
@@ -193,7 +188,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
   __ movq(ring_index, Immediate(0));
 
   __ movq(string_base, rdi);
-  __ movq(result_matches, rsi);
+  __ movq(result_matches, rdx);
   __ movq(ff_position, rdi);
   // Adjust for the initial character offset in FF.
   __ subq(ff_position, Immediate(kCharSize));
