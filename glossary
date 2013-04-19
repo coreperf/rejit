@@ -1,0 +1,13 @@
+mc:
+  MultipleChar.
+  Instance of the MultipleChar class, which represents a sequence of non special
+  characters in the regular expression.
+
+sol / eol:
+  start / end of line.
+  Instance of the Start/EndOfLine class, which represent '^' or '$' in a regexp.
+
+sos / eos:
+  start / end of string.
+  Pointer to the start or terminating character '\0' of a string.
+
