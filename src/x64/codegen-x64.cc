@@ -185,9 +185,10 @@ void Codegen::Generate(RegexpInfo* rinfo,
   __ ZeroMem(rsp, rbp);
 
   __ movq(string_pointer, rdi);
-  __ movq(ring_index, Immediate(0));
+  __ Move(ring_index, 0);
 
   __ movq(string_base, rdi);
+  __ movq(string_end, rsi);
   __ movq(result_matches, rdx);
   __ movq(ff_position, rdi);
   // Adjust for the initial character offset in FF.
@@ -670,11 +671,25 @@ void Codegen::VisitEndOfLine(EndOfLine* eol) {
 // there is a match or not.
 static void MatchMultipleChar(MacroAssembler *masm_,
                               Direction direction,
-                              MultipleChar* mc) {
+                              MultipleChar* mc,
+                              bool check_len = true) {
   // The implementation must not expect anything regarding the alignment of the
   // strings.
   // TODO: Implement a SIMD path.
+  Label done;
   unsigned n_chars = mc->chars_length();
+  if (check_len) {
+    __ movq(rax, string_pointer);
+    if (direction == kForward) {
+      __ addq(rax, Immediate(n_chars));
+      __ cmpq(rax, string_end);
+      __ j(above, &done);
+    } else {
+      __ subq(rax, Immediate(n_chars));
+      __ cmpq(rax, string_base);
+      __ j(below, &done);
+    }
+  }
   if (n_chars <= 8 && direction == kForward) {
     __ cmp(mc->chars_length(), current_chars, mc->imm_chars());
   } else {
@@ -697,6 +712,7 @@ static void MatchMultipleChar(MacroAssembler *masm_,
       __ repnecmpsb();
     }
   }
+  __ bind(&done);
 }
 
 
