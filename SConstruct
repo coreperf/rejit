@@ -150,6 +150,7 @@ if 'all' in options:
 # compute the build dir path.
 if 'benchmark' in COMMAND_LINE_TARGETS:
   env['modifiable_flags'] = 'on'
+  env['benchtest'] = 'on'
 
 # Other build options must match 'option:value'
 dict = env.Dictionary()
