@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
   // Prepare text to match ---------------------------------
 
   // The string which will be searched for the regular expression.
-  char *text = reinterpret_cast<char*>(malloc(arguments.size));
+  string text;
 
   // Initialize the text.
   int fd = 0;
@@ -172,22 +172,20 @@ int main(int argc, char *argv[]) {
     size_t copy_size;
     while (offset < arguments.size) {
       copy_size = min(arguments.size - offset, file_text_size);
-      memcpy(text + offset, file_text, copy_size);
+      text.append(file_text, copy_size);
       offset += copy_size;
     }
 
     munmap(file_text, file_stats.st_size);
 
   } else {
+    text.resize(arguments.size);
     // Fill the text with random characters.
     for (size_t i = 0; i < arguments.size - 1; i++) {
       text[i] = arguments.low_char +
         (rand() % (arguments.high_char - arguments.low_char));
     }
   }
-
-  // Set the terminating character.
-  text[arguments.size - 1] = 0;
 
   // Run ---------------------------------------------------
 
@@ -227,10 +225,6 @@ int main(int argc, char *argv[]) {
                 t2.tv_usec - t1.tv_usec,
                 arguments.size, arguments.iterations);
   }
-
-
-  // Clean up.
-  free(text);
 
   return 0;
 }
