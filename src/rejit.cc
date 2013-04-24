@@ -70,10 +70,10 @@ void Replace(Match to_replace, string& text, const string& with) {
 void Replace(vector<Match>* to_replace, string& text, const string& with) {
   vector<Match>::iterator it;
   string res;
-  // TODO: The size of the original string is a good estimate to reserve space
-  // and avoid useless memcpy. Reserving more space would allow to gain
-  // significant performance when increasing the size of the result string.
-  res.reserve(text.size());
+  // The size of the original string is a good estimate for the size of the
+  // replaced string. To avoid memcpies when the size is growing we reserve
+  // slightly more.
+  res.reserve(text.size() + text.size() / 16);
   const char* ptext = text.c_str();
   for (it = to_replace->begin(); it < to_replace->end(); it++) {
     res.append(ptext, (*it).begin - ptext);

@@ -24,6 +24,8 @@
 // * use the same simple regex patterns to make IUB code alternatives explicit, and (one pattern at a time) match-replace the pattern in the redirect file, and record the sequence length
 // * write the 3 recorded sequence lengths
 
+// TODO: Implement a multithreaded regexdna.
+
 #include "rejit.h"
 
 #include <stdio.h>
