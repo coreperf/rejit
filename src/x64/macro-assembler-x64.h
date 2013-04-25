@@ -145,6 +145,7 @@ class MacroAssembler : public MacroAssemblerBase {
   // All debug helpers must preserve registers and flags.
 
   // Print a message.
+  void msg(const char* message);
   void debug_msg(const char* message);
   void debug_msg(Condition cond, const char* message);
 

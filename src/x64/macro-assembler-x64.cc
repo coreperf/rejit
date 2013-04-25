@@ -389,26 +389,35 @@ void MacroAssembler::asm_assert_(Condition cond, const char *file, int line, con
 }
 
 
+void MacroAssembler::msg(const char *message) {
+    PushAllRegistersAndFlags();
+    Move(rdi, (int64_t)message);
+    CallCpp(FUNCTION_ADDR(LocalPrint));
+    PopAllRegistersAndFlags();
+}
+
+
 void MacroAssembler::debug_msg(const char *message) {
-  PushAllRegistersAndFlags();
-  Move(rdi, (int64_t)message);
-  CallCpp(FUNCTION_ADDR(LocalPrint));
-  PopAllRegistersAndFlags();
+  if (FLAG_emit_debug_code) {
+    msg(message);
+  }
 }
 
 
 void MacroAssembler::debug_msg(Condition cond, const char *message) {
-  Label skip;
-  if (cond != always) {
-    j(NegateCondition(cond), &skip);
+  if (FLAG_emit_debug_code) {
+    Label skip;
+    if (cond != always) {
+      j(NegateCondition(cond), &skip);
+    }
+    debug_msg(message);
+    bind(&skip);
   }
-  debug_msg(message);
-  bind(&skip);
 }
 
 
 void MacroAssembler::stop(const char *message) {
-  debug_msg(message);
+  msg(message);
   int3();
 }
 
