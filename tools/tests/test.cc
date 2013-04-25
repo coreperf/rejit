@@ -280,6 +280,16 @@ int RunTest() {
   TEST(kMatchAll, 4, "(a.)+", "a.__a.a.a.____a.____a.a.a.a.a.a.");
 
   // Alternation of fast forward elements.
+  TEST_First_unbound(1, "(0|0)", "0", 0, 1);
+  TEST_First_unbound(1, "(01|01)", "01", 0, 2);
+  TEST_First_unbound(1, "(012|012)", "012", 0, 3);
+  TEST_First_unbound(1, "(0123|0123)", "0123", 0, 4);
+  TEST_First_unbound(1, "(01234|01234)", "01234", 0, 5);
+  TEST_First_unbound(1, "(012345|012345)", "012345", 0, 6);
+  TEST_First_unbound(1, "(0123456|0123456)", "0123456", 0, 7);
+  TEST_First_unbound(1, "(01234567|01234567)", "01234567", 0, 8);
+  TEST_First_unbound(1, "(012345678|012345678)", "012345678", 0, 9);
+  TEST_First_unbound(1, "(0123456789|0123456789)", "0123456789", 0, 10);
   TEST_First(1, "(xxx|$)", "___xxx___", 3, 6);
   TEST_First(1, "(xxx|^)", "___xxx___", 0, 0);
   TEST_First_unbound(1, "(xxx|[ab-d])", "___ab___xxx___", 3, 4);

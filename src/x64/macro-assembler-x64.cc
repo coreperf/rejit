@@ -217,8 +217,8 @@ void MacroAssembler::cmp_truncated(unsigned width,
   } else if (width < 8) {
     cmpl(dst, Immediate(src & FirstCharsMask(4)));
   } else {
-    Move(mscratch, src);
-    cmpq(dst, mscratch);
+    Move(scratch, src);
+    cmpq(dst, scratch);
   }
 }
 
