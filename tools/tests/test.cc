@@ -466,6 +466,13 @@ static int TestFirstUnbound(unsigned expected,
                       200 + expected_start, 200 + expected_end, line))) {
     return rc;
   }
+  for (unsigned i = 1; i <= 64; i++) {
+    text.insert(0, " ");
+    if ((rc = TestFirst(expected, regexp, text,
+                        200 + i + expected_start, 200 + i + expected_end, line))) {
+      return rc;
+    }
+  }
   return rc;
 }
 
