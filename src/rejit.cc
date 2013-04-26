@@ -30,33 +30,60 @@ namespace rejit {
 
 
 bool MatchFull(const char* regexp, const string& text) {
+  return MatchFull(regexp, text.c_str(), text.size());
+}
+
+
+bool MatchFull(const char* regexp, const char* text, size_t text_size) {
   Regej re(regexp);
-  return re.MatchFull(text);
+  return re.MatchFull(text, text_size);
 }
 
 
 bool MatchAnywhere(const char* regexp, const string& text) {
+  return MatchAnywhere(regexp, text.c_str(), text.size());
+}
+
+
+bool MatchAnywhere(const char* regexp, const char* text, size_t text_size) {
   Regej re(regexp);
-  return re.MatchAnywhere(text);
+  return re.MatchAnywhere(text, text_size);
 }
 
 
 bool MatchFirst(const char* regexp, const string& text, Match* match) {
+  return MatchFirst(regexp, text.c_str(), text.size(), match);
+}
+
+
+bool MatchFirst(const char* regexp, const char* text, size_t text_size,
+                Match* match) {
   Regej re(regexp);
-  return re.MatchFirst(text, match);
+  return re.MatchFirst(text, text_size, match);
 }
 
 
 size_t MatchAll(const char* regexp, const string& text,
                 std::vector<struct Match>* matches) {
+  return MatchAll(regexp, text.c_str(), text.size(), matches);
+}
+
+
+size_t MatchAll(const char* regexp, const char* text, size_t text_size,
+                std::vector<struct Match>* matches) {
   Regej re(regexp);
-  return re.MatchAll(text, matches);
+  return re.MatchAll(text, text_size, matches);
 }
 
 
 size_t MatchAllCount(const char* regexp, const string& text) {
+  return MatchAllCount(regexp, text.c_str(), text.size());
+}
+
+
+size_t MatchAllCount(const char* regexp, const char* text, size_t text_size) {
   Regej re(regexp);
-  return re.MatchAllCount(text);
+  return re.MatchAllCount(text, text_size);
 }
 
 
@@ -113,43 +140,68 @@ Regej::~Regej() {
 
 
 bool Regej::MatchFull(const string& text) {
+  return MatchFull(text.c_str(), text.size());
+}
+
+
+bool Regej::MatchFull(const char* text, size_t text_size) {
   if (!rinfo_->match_full_) {
     if (!Compile(kMatchFull)) return false;
   }
-  return rinfo_->match_full_(text.c_str(), text.size());
+  return rinfo_->match_full_(text, text_size);
 }
 
 
 bool Regej::MatchAnywhere(const string& text) {
+  return MatchAnywhere(text.c_str(), text.size());
+}
+
+
+bool Regej::MatchAnywhere(const char* text, size_t text_size) {
   if (!rinfo_->match_anywhere_) {
     if (!Compile(kMatchAnywhere)) return false;
   }
-  return rinfo_->match_anywhere_(text.c_str(), text.size());
+  return rinfo_->match_anywhere_(text, text_size);
 }
 
 
 bool Regej::MatchFirst(const string& text, Match* match) {
+  return MatchFirst(text.c_str(), text.size(), match);
+}
+
+
+bool Regej::MatchFirst(const char* text, size_t text_size, Match* match) {
   if (!rinfo_->match_first_) {
     if (!Compile(kMatchFirst)) return false;
   }
-  return rinfo_->match_first_(text.c_str(), text.size(), match);
+  return rinfo_->match_first_(text, text_size, match);
 }
 
 
 size_t Regej::MatchAll(const string& text, vector<Match>* matches) {
+  return MatchAll(text.c_str(), text.size(), matches);
+}
+
+
+size_t Regej::MatchAll(const char* text, size_t text_size, vector<Match>* matches) {
   if (!rinfo_->match_all_) {
     if (!Compile(kMatchAll)) return 0;
   }
-  rinfo_->match_all_(text.c_str(), text.size(), matches);
+  rinfo_->match_all_(text, text_size, matches);
   return matches->size();
 }
 
 
 size_t Regej::MatchAllCount(const string& text) {
+  return MatchAllCount(text.c_str(), text.size());
+}
+
+
+size_t Regej::MatchAllCount(const char* text, size_t text_size) {
   // TODO: Test if using a separate function not registering matches in a vector
   // is faster.
   vector<Match> matches;
-  return MatchAll(text, &matches);
+  return MatchAll(text, text_size, &matches);
 }
 
 

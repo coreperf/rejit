@@ -54,17 +54,23 @@ struct Match {
 
 // Returns true iff the regexp matches the whole text.
 bool MatchFull(const char* regexp, const string& text);
+bool MatchFull(const char* regexp, const char* text, size_t text_size);
 // Returns true if there is a match in the text.
 bool MatchAnywhere(const char* regexp, const string& text);
+bool MatchAnywhere(const char* regexp, const char* text, size_t text_size);
 // Find the left-most longest match in the text. Returns true if there is a
 // match, and false otherwise.
 bool MatchFirst(const char* regexp, const string& text, Match* match);
+bool MatchFirst(const char* regexp, const char* text, size_t text_size, Match* match);
 // Fill the vector with all left-most longest matches.
 // Returns the size of the vector for convenience.
 size_t MatchAll(const char* regexp, const string& text,
                 std::vector<struct Match>* matches);
+size_t MatchAll(const char* regexp, const char* text, size_t text_size,
+                std::vector<struct Match>* matches);
 // Count the number of left-most longest matches in the text.
 size_t MatchAllCount(const char* regexp, const string& text);
+size_t MatchAllCount(const char* regexp, const char* text, size_t text_size);
 
 // Replace one or multiple matches in text.
 void Replace(Match to_replace, string& text, const string& with);
@@ -95,15 +101,18 @@ class Regej {
   explicit Regej(const string& regexp);
   ~Regej();
 
-  // For details about following functions, see global functions above for.
-
-  // Matching functions can operate on char pointers without needing to know the
-  // size of the text.
+  // See related global functions above for details about the following
+  // functions.
   bool MatchFull(const string& text);
+  bool MatchFull(const char* text, size_t text_size);
   bool MatchAnywhere(const string& text);
+  bool MatchAnywhere(const char* text, size_t text_size);
   bool MatchFirst(const string& text, Match* match);
+  bool MatchFirst(const char* text, size_t text_size, Match* match);
   size_t MatchAll(const string& text, std::vector<struct Match>* matches);
+  size_t MatchAll(const char* text, size_t text_size, std::vector<struct Match>* matches);
   size_t MatchAllCount(const string& text);
+  size_t MatchAllCount(const char* text, size_t text_size);
 
   // This is equivalent to MatchFirst/MatchAll followed by Replace.
   bool ReplaceFirst(string& text, const string& with);
