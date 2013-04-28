@@ -89,6 +89,8 @@ int RunTest() {
   TEST(kMatchFull, 0, "..", "012");
   TEST_First(0, "...", "01", 0, 0);
   TEST_First(1, "..", "012", 0, 2);
+  TEST_First(0, ".", "\n\n\n\r\r\r", 0, 0);
+  TEST_First(1, ".", "\n\n\n\r\r\r.", 6, 7);
 
   // Start and end of line.
   TEST(kMatchFull, 1, "^" , "");

@@ -163,13 +163,6 @@ void Codegen::Generate(RegexpInfo* rinfo,
     __ j(zero, &unwind_and_return);
   }
 
-  // Compute the eos and check it.
-  __ addq(rsi, rdi);
-  __ cmpb(Operand(rsi, 0), Immediate(0));
-  __ debug_msg(not_zero, "Could not find '\\0' at 'string' + 'size'.\n");
-  __ j(not_zero, &unwind_and_return);
-
-
 
   //  0x8 and up     : callee saved registers
   //  0x0            : rbp caller's rbp.
@@ -187,6 +180,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
   __ Move(ring_index, 0);
 
   __ movq(string_base, rdi);
+  __ addq(rsi, rdi);
   __ movq(string_end, rsi);
   __ movq(result_matches, rdx);
   __ movq(ff_position, rdi);
@@ -383,13 +377,8 @@ void Codegen::GenerateMatchDirection(Direction direction,
 
   CheckMatch(direction, rinfo, match_type, &limit, &exit);
 
-  if (direction == kForward) {
-    __ cmpb(current_char, Immediate(0));
-    __ j(equal, &limit);
-  } else {
-    __ cmpq(string_pointer, string_base);
-    __ j(equal, &limit);
-  }
+  __ cmpq(string_pointer, direction == kForward ? string_end : string_base);
+  __ j(equal, &limit);
 
   CheckTimeFlow();
   switch (match_type_) {
@@ -406,18 +395,25 @@ void Codegen::GenerateMatchDirection(Direction direction,
     case kMatchFirst:
     case kMatchAll: {
       if (fast_forward) {
-        // TODO(rames): move out the current char == 0 test.
-        // It can only occur the first time in the first loop.
         Label keep_searching;
         __ j(not_zero, &keep_searching);
 
-        // Check for the current char before the next one to avoid illegally
-        // accessing memory after the end of the string.
-        __ cmpb(current_char, Immediate(0));
-        __ j(zero, &limit);
-        // TODO: Comment on this. Why do we need it?
-        __ cmpb(next_char, Immediate(0));
-        __ j(zero, &limit);
+        // TODO: Same as other TODO below. Why do we need to check one character
+        // ahead??
+        __ movq(scratch, string_pointer);
+        __ incq(scratch);
+        __ cmpq(scratch, string_end);
+        __ j(above_equal, &limit);
+        //if (direction != kForward) {
+        //  // For forward matches this would be redundant with the check before
+        //  // CheckTimeFlow().
+        //  __ cmpq(string_pointer, string_end);
+        //  __ j(equal, &limit);
+        //}
+        //// TODO: Comment on this. Why do we need it?
+        ////        First test failing without this: line 115
+        //__ cmpb(next_char, Immediate(0));
+        //__ j(zero, &limit);
 
         if (match_type == kMatchAnywhere) {
           __ jmp(fast_forward);
@@ -585,8 +581,8 @@ void Codegen::GenerateMatchDirection(Direction direction,
         // If the ff_position is already at the eos, we should exit here.
         // Continuing to ff would process past eos.
         __ movq(scratch, ff_position);
-        __ cmpb(Operand(scratch, 0), Immediate(0));
-        __ j(zero, &exit);
+        __ cmpq(scratch, string_end);
+        __ j(equal, &exit);
         __ jmp(fast_forward);
 
         __ bind(&keep_searching);
@@ -790,12 +786,12 @@ static void MatchBracket(MacroAssembler *masm_,
                          Bracket* bracket,
                          Label* on_matching_char,
                          Label* on_eos = NULL) {
-  __ movb(rax, c);
-
   if (on_eos) {
-    __ cmpb_al(Immediate(0));
+    __ cmpq(string_pointer, string_end);
     __ j(equal, on_eos);
   }
+
+  __ movb(rax, c);
 
   vector<char>::const_iterator it;
   for (it = bracket->single_chars()->begin();
@@ -1050,8 +1046,8 @@ void FastForwardGen::Generate() {
       __ dec_c(string_pointer);
       __ bind(&align_loop);
       __ inc_c(string_pointer);
-      __ cmpb(current_char, Immediate(0));
-      __ j(zero, &exit);
+      __ cmpq(string_pointer, string_end);
+      __ j(equal, &exit);
       // Check the alignment.
       __ testq(string_pointer, Immediate(0xf));
       __ j(zero, &simd_code);
@@ -1192,8 +1188,8 @@ void FastForwardGen::Generate() {
 
       // We must check for eos after having visited the ff elements, because eos
       // may be a potential match for one of them.
-      __ cmpb(current_char, Immediate(0));
-      __ j(zero, &potential_match);
+      __ cmpq(string_pointer, string_end);
+      __ j(equal, &potential_match);
 
       __ inc_c(string_pointer);
       __ jmp(&loop);
@@ -1234,8 +1230,8 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     __ j(zero, &simd_code);
 
     __ bind(&align_loop);
-    __ cmpb(current_char, Immediate(0));
-    __ j(zero, &exit);
+    __ cmpq(string_pointer, string_end);
+    __ j(equal, &exit);
     __ cmp_truncated(n_chars, fixed_chars, current_chars);
     __ j(equal, &check_potential_match);
     __ inc_c(string_pointer);
@@ -1302,9 +1298,9 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     // register?
     __ bind(&loop);
     __ inc_c(string_pointer);
-    __ mov_truncated(n_chars, rax, current_char);
-    __ cmpb_al(Immediate(0));
+    __ cmpq(string_pointer, string_end);
     __ j(equal, &exit);
+    __ mov_truncated(n_chars, rax, current_char);
     __ cmp_truncated(n_chars, rax, fixed_chars);
     __ j(not_equal, &loop);
 
@@ -1326,10 +1322,10 @@ void FastForwardGen::VisitSinglePeriod(Period* period) {
   __ bind(&loop);
   __ inc_c(string_pointer);
 
-  __ movb(rax, current_char);
-  __ cmpb_al(Immediate(0));
+  __ cmpq(string_pointer, string_end);
   __ j(equal, &done);
 
+  __ movb(rax, current_char);
   __ cmpb_al(Immediate('\n'));
   __ j(equal, &loop);
   __ cmpb_al(Immediate('\r'));

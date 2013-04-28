@@ -33,7 +33,11 @@ const Register ring_index = r15;
 const int kStateInfoSize = 8 * kPointerSize;
 // Keeps a pointer to the start of the string.
 const Operand string_base    (rbp, -kCalleeSavedRegsSize - 1 * kPointerSize);
-// Keeps a pointer to the end of the string.
+// Points past the last character of the string not including '\0'. Ie. points
+// to '\0' for '\0' terminated strings or just after the last character.
+// Memory at and after string_end should not be accessed.
+// This allows to process not '\0' terminated character streams like mmap-ed
+// files.
 const Operand string_end     (rbp, -kCalleeSavedRegsSize - 2 * kPointerSize);
 // Result match or vector of matches.
 const Operand result_matches (rbp, -kCalleeSavedRegsSize - 3 * kPointerSize);
