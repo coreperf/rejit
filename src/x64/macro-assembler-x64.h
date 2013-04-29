@@ -32,24 +32,24 @@ const Register ring_index = r15;
 
 const int kStateInfoSize = 8 * kPointerSize;
 // Keeps a pointer to the start of the string.
-const Operand string_base    (rbp, -1 * kPointerSize);
+const Operand string_base    (rbp, -kCalleeSavedRegsSize - 1 * kPointerSize);
 // Keeps a pointer to the end of the string.
-const Operand string_end     (rbp, -2 * kPointerSize);
+const Operand string_end     (rbp, -kCalleeSavedRegsSize - 2 * kPointerSize);
 // Result match or vector of matches.
-const Operand result_matches (rbp, -3 * kPointerSize);
+const Operand result_matches (rbp, -kCalleeSavedRegsSize - 3 * kPointerSize);
 // Next starting position for fast forwarding.
-const Operand ff_position    (rbp, -4 * kPointerSize);
+const Operand ff_position    (rbp, -kCalleeSavedRegsSize - 4 * kPointerSize);
 // State from which FF thinks there may be a potential match.
-const Operand ff_found_state (rbp, -5 * kPointerSize);
+const Operand ff_found_state (rbp, -kCalleeSavedRegsSize - 5 * kPointerSize);
 // Position of the end of the match when matching the regexp backward from the
 // ff_element.
-const Operand backward_match (rbp, -6 * kPointerSize);
+const Operand backward_match (rbp, -kCalleeSavedRegsSize - 6 * kPointerSize);
 // Position of the end of the match when matching the regexp forward from the
 // ff_element.
-const Operand forward_match  (rbp, -7 * kPointerSize);
+const Operand forward_match  (rbp, -kCalleeSavedRegsSize - 7 * kPointerSize);
 // Used when looking for multiple matches (kMatchAll) to indicate the end of the
 // previous match.
-const Operand last_match_end (rbp, -8 * kPointerSize);
+const Operand last_match_end (rbp, -kCalleeSavedRegsSize - 8 * kPointerSize);
 
 const Register mscratch = r8;
 const Register scratch = r9;

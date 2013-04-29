@@ -29,7 +29,7 @@ Codegen::Codegen()
 
 
 int Codegen::TimeSummaryBaseOffsetFromFrame() {
-  return -kStateInfoSize - time_summary_size();
+  return -kCalleeSavedRegsSize - kStateInfoSize - time_summary_size();
 }
 
 
@@ -156,8 +156,6 @@ void Codegen::Generate(RegexpInfo* rinfo,
   __ debug_msg(zero, "base string is NULL.\n");
   __ j(zero, &unwind_and_return);
 
-  // TODO: Update code with new prototypes.
-
   // Check the match results pointer.
   if (match_type != kMatchFull && !FLAG_benchtest) {
     __ cmpq(rdx, Immediate(0));
@@ -181,8 +179,9 @@ void Codegen::Generate(RegexpInfo* rinfo,
 
   const size_t reserved_space =
     kStateInfoSize + state_ring_size() + time_summary_size();
+  __ movq(scratch, rsp);
   __ subq(rsp, Immediate(reserved_space));
-  __ ZeroMem(rsp, rbp);
+  __ ZeroMem(rsp, scratch);
 
   __ movq(string_pointer, rdi);
   __ Move(ring_index, 0);
@@ -228,6 +227,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
   // Unwind the stack and return.
   __ cld();
   __ bind(&unwind_and_return);
+  __ addq(rsp, Immediate(reserved_space));
   __ PopCalleeSavedRegisters();
   __ ret(0);
 }

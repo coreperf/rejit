@@ -58,16 +58,15 @@ void MacroAssembler::PopCallerSavedRegisters() {
 // while setting up the state ring (and other stuff), but don't restore it
 // before returning.
 void MacroAssembler::PushCalleeSavedRegisters() {
-  PushRegisters(rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit());
   push(rbp);
   movq(rbp, rsp);
+  PushRegisters(kCalleeSavedRegList);
 }
 
 
 void MacroAssembler::PopCalleeSavedRegisters() {
-  movq(rsp, rbp);
+  PopRegisters(kCalleeSavedRegList);
   pop(rbp);
-  PopRegisters(rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit());
 }
 
 

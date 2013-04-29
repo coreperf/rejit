@@ -165,6 +165,10 @@ static const RegList kCallerSavedRegList =
 rax.bit() | rcx.bit() | rdx.bit() | rsi.bit() | rdi.bit() |
 r8.bit() | r9.bit() | r10.bit() | r11.bit();
 
+static const RegList kCalleeSavedRegList =
+rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit();
+static const int kCalleeSavedRegsSize = 5 * kPointerSize;
+
 
 struct XMMRegister {
   static const int kNumRegisters = 16;
