@@ -640,6 +640,10 @@ static void MatchStartOrEndOfLine(MacroAssembler* masm_,
     __ cmpq(string_pointer, string_base);
     __ j(equal, on_start_of_string);
   }
+  if (seol->IsEndOfLine()) {
+    __ cmpq(string_pointer, string_end);
+    __ j(equal, on_match);
+  }
   if (!char_loaded_in_rax) {
     __ movb(rax, char_pos);
   }
@@ -647,10 +651,6 @@ static void MatchStartOrEndOfLine(MacroAssembler* masm_,
   __ j(equal, on_match);
   __ cmpb_al(Immediate('\r'));
   __ j(equal, on_match);
-  if (seol->IsEndOfLine()) {
-    __ cmpb(current_char, Immediate('\0'));
-    __ j(equal, on_match);
-  }
 }
 
 
@@ -855,7 +855,7 @@ void Codegen::VisitBracket(Bracket* bracket) {
 
   MatchBracket(masm_,
                direction() == kBackward ? previous_char : current_char,
-               bracket, on_matching_char);
+               bracket, on_matching_char, &no_match);
   if (!non_matching) {
     __ jmp(&no_match);
   }
@@ -1215,6 +1215,8 @@ void FastForwardGen::Generate() {
 
       // We must check for eos after having visited the ff elements, because eos
       // may be a potential match for one of them.
+      // TODO: We could handle that by testing those for which it can be a
+      // potential match before this and others after.
       __ cmpq(string_pointer, string_end);
       __ j(equal, &potential_match);
 
@@ -1692,7 +1694,7 @@ void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 
 void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
-  __ cmp_truncated(mc->chars_length(), current_chars, mc->first_chars());
+  MatchMultipleChar(masm_, kForward, mc, true, false, &no_match);
   __ j(not_equal, &no_match);
   FoundState(0, mc->entry_state());
   __ jmp(potential_match_);
@@ -1702,6 +1704,8 @@ void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
 
 void FastForwardGen::VisitPeriod(Period* period) {
   Label no_match;
+  __ cmpq(string_pointer, string_end);
+  __ j(equal, &no_match);
   __ cmpb(current_char, Immediate('\n'));
   __ j(equal, &no_match);
   __ cmpb(current_char, Immediate('\r'));
@@ -1718,7 +1722,7 @@ void FastForwardGen::VisitBracket(Bracket* bracket) {
   bool matching_bracket = !(bracket->flags() & Bracket::non_matching);
   Label* on_matching_char = matching_bracket ? &maybe_match : &no_match;
 
-  MatchBracket(masm_, current_char, bracket, on_matching_char);
+  MatchBracket(masm_, current_char, bracket, on_matching_char, &no_match);
   if (matching_bracket) {
     __ jmp(&no_match);
   }
@@ -1747,9 +1751,12 @@ void FastForwardGen::VisitStartOfLine(StartOfLine* sol) {
 
 void FastForwardGen::VisitEndOfLine(EndOfLine* eol) {
   STATIC_ASSERT('\0' < '\n' && '\n' < '\r');
-  Label no_match;
+  Label maybe_match, no_match;
+  __ cmpq(string_pointer, string_end);
+  __ j(equal, &maybe_match);
   __ cmpb(current_char, Immediate('\r'));
   __ j(above, &no_match);
+  __ bind(&maybe_match);
   FoundState(0, eol->entry_state());
   __ jmp(potential_match_);
   __ bind(&no_match);
