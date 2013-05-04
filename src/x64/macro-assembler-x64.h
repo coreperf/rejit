@@ -128,6 +128,7 @@ class MacroAssembler : public MacroAssemblerBase {
   }
   void cmp_truncated(unsigned width, const Operand& dst, int64_t src);
   void cmp(unsigned width, const Operand& dst, int64_t src);
+  void cmp(unsigned width, const Operand& dst, Register src);
 
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, size_t n_chars);

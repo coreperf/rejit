@@ -223,8 +223,6 @@ void MacroAssembler::cmp_truncated(unsigned width,
 
 
 void MacroAssembler::cmp(unsigned width, const Operand& dst, int64_t src) {
-  ASSERT(0 < width && width <= 8);
-
   if (width == 1) {
     cmpb(dst, Immediate(src & FirstBytesMask(1)));
   } else if (width == 2) {
@@ -242,13 +240,32 @@ void MacroAssembler::cmp(unsigned width, const Operand& dst, int64_t src) {
       Move(scratch2, src & FirstBytesMask(width));
       cmpq(scratch1, scratch2);
     }
-  } else if (width == 8) {
+  } else if (width >= 8) {
     if (FitsImmediate(src)) {
       cmpq(dst, Immediate(src));
     } else {
       Move(scratch, src);
       cmpq(dst, scratch);
     }
+  }
+}
+
+
+void MacroAssembler::cmp(unsigned width, const Operand& dst, Register src) {
+  if (width == 1) {
+    cmpb(dst, src);
+  } else if (width == 2) {
+    cmpw(dst, src);
+  } else if (width == 3) {
+    mov(width, scratch, dst);
+    cmpl(scratch, src);
+  } else if (width == 4) {
+    cmpl(dst, src);
+  } else if (width < 8) {
+    mov(width, scratch1, dst);
+    cmpq(dst, src);
+  } else if (width >= 8) {
+    cmpq(dst, src);
   }
 }
 
@@ -359,12 +376,7 @@ void MacroAssembler::Advance(unsigned n_chars,
 
 
 void MacroAssembler::AdvanceToEOS() {
-  Label loop;
-  subq(string_pointer, Immediate(kCharSize));
-  bind(&loop);
-  addq(string_pointer, Immediate(kCharSize));
-  cmpb(current_char, Immediate(0));
-  j(not_zero, &loop);
+  movq(string_pointer, string_end);
 }
 
 

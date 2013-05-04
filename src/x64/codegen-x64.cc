@@ -678,48 +678,75 @@ void Codegen::VisitEndOfLine(EndOfLine* eol) {
 }
 
 
+static void CheckEnoughStringLength(MacroAssembler *masm_,
+                                    Direction direction,
+                                    unsigned n_bytes,
+                                    Label * on_not_enough) {
+  __ movq(scratch, string_pointer);
+  if (direction == kForward) {
+    __ addq(scratch, Immediate(n_bytes));
+    __ cmpq(scratch, string_end);
+    __ j(above, on_not_enough);
+  } else {
+    __ subq(scratch, Immediate(n_bytes));
+    __ cmpq(scratch, string_base);
+    __ j(below, on_not_enough);
+  }
+}
 // Try to match mc from the current string_pointer position.
 // string_pointer is not modified.
 // On output the condition flags will match equal/not_equal depending on wether
 // there is a match or not.
+// If early_check_len is true the code must check the remaining string length
+// available first to avoid accessing memory after the eos or before the sos.
+// late_check_len should be set to true when it is already known that the first
+// min(8, n_chars) bytes are accessible.
+// If provided, fixed_chars contains the min(8, n_chars) first bytes of the mc.
 static void MatchMultipleChar(MacroAssembler *masm_,
                               Direction direction,
                               MultipleChar* mc,
-                              bool check_len = true) {
-  // The implementation must not expect anything regarding the alignment of the
-  // strings.
-  // TODO: Implement a SIMD path.
+                              bool early_check_len = true,
+                              bool late_check_len = false,
+                              Label* on_no_match = NULL,
+                              // TODO: use this
+                              Register fixed_chars = no_reg) {
+  ASSERT(early_check_len ^ late_check_len);
   Label done;
   unsigned n_chars = mc->chars_length();
-  if (check_len) {
-    __ movq(rax, string_pointer);
-    if (direction == kForward) {
-      __ addq(rax, Immediate(n_chars));
-      __ cmpq(rax, string_end);
-      __ j(above, &done);
-    } else {
-      __ subq(rax, Immediate(n_chars));
-      __ cmpq(rax, string_base);
-      __ j(below, &done);
-    }
+
+  // TODO: Implement a SIMD path.
+
+  if (early_check_len) {
+    CheckEnoughStringLength(masm_, direction, n_chars, &done);
   }
-  if (n_chars <= 8 && direction == kForward) {
-    __ cmp(mc->chars_length(), current_chars, mc->imm_chars());
+
+  // For lengths of 8 bytes or less this operats the full check. For greater
+  // lengths this serves as an quick pre-check which some slow setup.
+  const Operand c = direction == kForward ?
+    current_chars : Operand(string_pointer, -(n_chars - 1));
+  if (!fixed_chars.is_valid()) {
+    __ cmp(n_chars, c, mc->imm_chars());
   } else {
+    __ cmp(n_chars, c, fixed_chars);
+  }
+  if (on_no_match) {
+    __ j(not_equal, on_no_match);
+  } else if (n_chars > 8) {
+    __ j(not_equal, &done);
+  }
+
+  if (n_chars > 8) {
+    if (late_check_len) {
+      CheckEnoughStringLength(masm_, direction, n_chars, &done);
+    }
     __ movq(rsi, string_pointer);
-    // TODO(rames): This assumes that the regexp is still accessible at
-    // runtime (mc->chars() points to the regexp string).
     if (direction == kForward) {
       __ Move(rdi, (uint64_t)(mc->chars()));
     } else {
       __ Move(rdi, (uint64_t)(mc->chars() + n_chars - 1));
     }
-    // TODO(rames): Work out the best options depending on the maximum number of
-    // characters to match.
-    if (n_chars >= 8) {
-      __ Move(rcx, n_chars / 8);
-      __ repnecmpsq();
-    }
+    __ Move(rcx, n_chars / 8);
+    __ repnecmpsq();
     if (n_chars % 8 > 0) {
       __ Move(rcx, n_chars % 8);
       __ repnecmpsb();
@@ -1213,101 +1240,110 @@ void FastForwardGen::FoundState(int time, int state) {
 void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   int n_chars = mc->chars_length();
 
+  Label found, exit;
+  Label standard_code;
+
+  Register simd_max_index = scratch2;
+  Register fixed_chars = scratch3;
+  XMMRegister fixed_chars_simd = xmm0;
+
+  // Pre-load the constant values for the characters to match.
+  __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
   if (CpuFeatures::IsAvailable(SSE4_2)) {
-    Label align, align_loop;
+    __ movdqp(fixed_chars_simd, mc->chars(), n_chars);
+  }
+
+
+  if (CpuFeatures::IsAvailable(SSE4_2)) {
+    Label align_or_finish;
     Label simd_code, simd_loop;
-    Label potential_match, check_potential_match, found, exit;
+    Label potential_match;
 
-
-    Register fixed_chars = scratch3;
-    __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
-
-    // Align the string pointer on a 16 bytes boundary.
-    __ bind(&align);
-    __ movb(rcx, string_pointer);
-    __ negb(rcx);
-    __ andb(rcx, Immediate(0xf));
-    __ j(zero, &simd_code);
-
-    __ bind(&align_loop);
-    __ cmpq(string_pointer, string_end);
-    __ j(equal, &exit);
-    __ cmp_truncated(n_chars, fixed_chars, current_chars);
-    __ j(equal, &check_potential_match);
-    __ inc_c(string_pointer);
-    __ loop(&align_loop);
-
-
-
-    __ bind(&simd_code);
-    Label offset_0x0, offset_0x10, offset_0x20;
     static const uint8_t pcmp_str_control =
       Assembler::unsigned_bytes | Assembler::equal_order |
       Assembler::pol_pos | Assembler::lsi;
 
-    __ movdqp(xmm0, mc->chars(), n_chars);
+    // Only execute the SIMD code if the length of string to process is big
+    // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
+    // adjustment), go through one iteration of the SIMD loop, and allow for a
+    // maximum 8 bytes wide quick check in MatchMultipleChar.
+    // If the length of the mc is greater than that we can even stop earlier.
+    int margin_for_simd_loop = 0xf + 0x20 + min(n_chars, 0x8);
+    int margin_before_eos = max(n_chars, margin_for_simd_loop);
+    __ movq(simd_max_index, string_end);
+    __ subq(simd_max_index, Immediate(margin_before_eos));
 
-    __ movdqa(xmm1, Operand(string_pointer, 0));
+    __ bind(&align_or_finish);
+    __ cmpq(string_pointer, simd_max_index);
+    __ j(above, &standard_code);
 
-    __ bind(&simd_loop);
+    // We know there are more than 0x10 bytes to process, so we can safely use
+    // movdqu and pcmpistri.
+    // Note that we check further than is actually required to align
+    // string_pointer, but there is no point purposedly ignoring a match.
+    __ movdqu(xmm1, Operand(string_pointer, 0x0));
     __ pcmpistri(pcmp_str_control, xmm0, xmm1);
-    __ j(below_equal, &offset_0x0);
+    // If CFlag is set there was a match.
+    __ j(below, &potential_match);
+
+    // No match in the following 0x10 bytes. Align the string pointer on the
+    // next closest 0x10 bytes boundary.
+    __ and_(string_pointer, Immediate(~0xf));
+    __ addq(string_pointer, Immediate(0x10));
+
+
+    __ bind(&simd_code);
+    Label offset_0x0, offset_0x10;
+    // TODO: Would pcmpEstr be faster than pcmpIstr?
+    // TODO: Could use pcmpistrM followed by bsr/bsf to free rcx to be used with
+    // a loop instruction.
+    __ bind(&simd_loop);
+    __ cmpq(string_pointer, simd_max_index);
+    __ j(above, &standard_code);
+    __ movdqa(xmm1, Operand(string_pointer, 0x0));
+    __ pcmpistri(pcmp_str_control, xmm0, xmm1);
+    __ j(below, &offset_0x0);
     __ movdqa(xmm2, Operand(string_pointer, 0x10));
     __ pcmpistri(pcmp_str_control, xmm0, xmm2);
-    __ j(below_equal, &offset_0x10);
-    __ movdqa(xmm3, Operand(string_pointer, 0x20));
-    __ pcmpistri(pcmp_str_control, xmm0, xmm3);
-    __ j(below_equal, &offset_0x20);
-    __ movdqa(xmm1, Operand(string_pointer, 0x30));
-    __ addq(string_pointer, Immediate(0x30));
+    __ j(below, &offset_0x10);
+    __ addq(string_pointer, Immediate(0x20));
     __ jmp(&simd_loop);
 
-    __ bind(&offset_0x20);
-    __ addq(string_pointer, Immediate(0x10));
     __ bind(&offset_0x10);
     __ addq(string_pointer, Immediate(0x10));
     __ bind(&offset_0x0);
-    __ cmpq(rcx, Immediate(0x10));
-    __ j(not_equal, &potential_match);
-
-    __ AdvanceToEOS();
-    __ jmp(&exit);
 
     __ bind(&potential_match);
+    // After pcmpistri rcx contains the offset to the first potential match.
     __ addq(string_pointer, rcx);
+    MatchMultipleChar(masm_, kForward, mc, false, true, &align_or_finish, fixed_chars);
+    __ j(not_equal, &align_or_finish);
 
-    __ cmp_truncated(n_chars, fixed_chars, Operand(string_pointer, 0));
-    __ j(not_equal, &align);
-
-    __ bind(&check_potential_match);
-    MatchMultipleChar(masm_, kForward, mc);
-    __ j(not_equal, &align_loop);
-
-    __ bind(&found);
-    FoundState(0, mc->entry_state());
-    __ bind(&exit);
-
-  } else {
-    Label loop, done, exit;
-    Register fixed_chars = scratch3;
-
-    __ MoveCharsFrom(fixed_chars, n_chars, mc->chars());
-    __ dec_c(string_pointer);
-
-    // TODO(rames): Is it more efficient to increment an offset rather than the
-    // register?
-    __ bind(&loop);
-    __ inc_c(string_pointer);
-    __ cmpq(string_pointer, string_end);
-    __ j(equal, &exit);
-    __ mov_truncated(n_chars, rax, current_char);
-    __ cmp_truncated(n_chars, rax, fixed_chars);
-    __ j(not_equal, &loop);
-
-    __ bind(&done);
-    FoundState(0, mc->entry_state());
-    __ bind(&exit);
+    __ jmp(&found);
   }
+
+  __ bind(&standard_code);
+  // The standard code is used when SIMD is not available or when the length of
+  // string left to process is too small for the SIMD loop.
+
+  Label loop;
+
+  // By stopping early we avoid useless processing and ensure we are not
+  // accessing memory from the eos.
+  __ movq(scratch2, string_end);
+  __ subq(scratch2, Immediate(n_chars));
+
+  __ dec_c(string_pointer);
+  __ bind(&loop);
+  __ inc_c(string_pointer);
+  __ cmpq(string_pointer, scratch2);
+  __ j(above, &exit);
+  __ cmp(n_chars, current_chars, fixed_chars);
+  __ j(not_equal, &loop);
+
+  __ bind(&found);
+  FoundState(0, mc->entry_state());
+  __ bind(&exit);
 }
 
 
