@@ -11,3 +11,4 @@ sos / eos:
   start / end of string.
   Pointer to the start or terminating character '\0' of a string.
 
+seos / seol: short for sos/eos / sol/eol

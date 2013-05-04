@@ -635,7 +635,7 @@ static void MatchStartOrEndOfLine(MacroAssembler* masm_,
                                   Label* on_match,
                                   bool char_loaded_in_rax = false,
                                   Label* on_start_of_string = NULL) {
-  if (on_start_of_string) {
+  if (on_start_of_string && seol->IsStartOfLine()) {
     ASSERT(seol->IsStartOfLine());
     __ cmpq(string_pointer, string_base);
     __ j(equal, on_start_of_string);
@@ -1521,125 +1521,111 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
 
 void FastForwardGen::VisitSingleStartOrEndOfLine(ControlRegexp* seol) {
   ASSERT(seol->IsStartOfLine() || seol->IsEndOfLine());
-  bool find_sol = seol->IsStartOfLine();
+  bool sol = seol->IsStartOfLine();
+
+  Label standard_code;
+  Label adjust_match, match, exit;
+
+  if (sol) {
+    // The loop below finds new line characters at string_pointer, and
+    // string_pointer is corrected upon match.
+    // So in practice it matches for sol at string_pointer + 1, and we must
+    // not forget to check for sol at the current string_pointer position.
+    MatchStartOrEndOfLine(masm_, seol, previous_char, &match, false, &match);
+  }
+
   if (CpuFeatures::IsAvailable(SSE4_2)) {
-    Label align, align_loop;
+    // This SIMD code is designed after VisitSingleMultipleChar().
+    Label align_or_finish;
     Label simd_code, simd_loop;
-    Label adjust, simd_adjust, found, exit;
+    Label simd_adjust;
 
-    if (find_sol) {
-      __ cmpq(string_pointer, string_base);
-      __ j(equal, &found);
-      // TODO: Explain!
-      // The loop below finds new line characters at string_pointer, and
-      // string_pointer is corrected upon match.
-      // So in practice it matches for sol at string_pointer + 1, and we must
-      // not forget to check for sol at the current string_pointer position.
-      MatchStartOrEndOfLine(masm_, seol, previous_char, &found);
-    }
-
-    // Align the string_pointer on a 16-bytes boundary for the SIMD loop.
-    __ bind(&align);
-    __ movb(rcx, string_pointer);
-    __ negb(rcx);
-    __ andb(rcx, Immediate(0xf));
-    __ j(zero, &simd_code);
-
-    __ movb(rax, current_char);
-
-    __ bind(&align_loop);
-    MatchStartOrEndOfLine(masm_, seol, current_char, &adjust, true);
-    __ inc_c(string_pointer);
-    __ movb(rax, current_char);
-    if (find_sol) {
-      __ cmpb_al(Immediate(0));
-      __ loop(not_zero, &align_loop);
-      // Exit on eos.
-      __ j(zero, &exit);
-    } else {
-      __ loop(&align_loop);
-    }
-
-
-    __ bind(&simd_code);
-    Label offset_0x0, offset_0x10, offset_0x20;
     static const uint8_t pcmp_str_control =
       Assembler::unsigned_bytes | Assembler::equal_any |
       Assembler::pol_pos | Assembler::lsi;
 
-    __ movdq(xmm0, 0, '\n' << 8 | '\r');
-    __ movdqa(xmm1, Operand(string_pointer, 0));
+    // Only execute the SIMD code if the length of string to process is big
+    // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
+    // adjustment), go through one iteration of the SIMD loop.
+    Register simd_max_index = scratch3;
+    int margin_for_simd_loop = 0xf + 0x20;
+    __ movq(simd_max_index, string_end);
+    __ subq(simd_max_index, Immediate(margin_for_simd_loop));
 
-    __ bind(&simd_loop);
+    __ bind(&align_or_finish);
+    __ cmpq(string_pointer, simd_max_index);
+    __ j(above, &standard_code);
+
+    // We know there are more than 0x10 bytes to process, so we can safely use
+    // movdqu and pcmpistri.
+    // Note that we check further than is actually required to align
+    // string_pointer, but there is no point purposedly ignoring a match.
+    __ movdqu(xmm1, Operand(string_pointer, 0x0));
     __ pcmpistri(pcmp_str_control, xmm0, xmm1);
-    __ j(below_equal, &offset_0x0);
+    // If CFlag is set there was a match.
+    __ j(below, &simd_adjust);
+
+    // No match in the following 0x10 bytes. Align the string pointer on the
+    // next closest 0x10 bytes boundary.
+    __ and_(string_pointer, Immediate(~0xf));
+    __ addq(string_pointer, Immediate(0x10));
+
+    __ bind(&simd_code);
+    Label offset_0x0, offset_0x10;
+    __ bind(&simd_loop);
+    __ cmpq(string_pointer, simd_max_index);
+    __ j(above, &standard_code);
+    __ movdqa(xmm1, Operand(string_pointer, 0x0));
+    __ pcmpistri(pcmp_str_control, xmm0, xmm1);
+    __ j(below, &offset_0x0);
     __ movdqa(xmm2, Operand(string_pointer, 0x10));
     __ pcmpistri(pcmp_str_control, xmm0, xmm2);
-    __ j(below_equal, &offset_0x10);
-    __ movdqa(xmm3, Operand(string_pointer, 0x20));
-    __ pcmpistri(pcmp_str_control, xmm0, xmm3);
-    __ j(below_equal, &offset_0x20);
-    __ movdqa(xmm1, Operand(string_pointer, 0x30));
-    __ addq(string_pointer, Immediate(0x30));
+    __ j(below, &offset_0x10);
+    __ addq(string_pointer, Immediate(0x20));
     __ jmp(&simd_loop);
 
-    __ bind(&offset_0x20);
-    __ addq(string_pointer, Immediate(0x10));
     __ bind(&offset_0x10);
     __ addq(string_pointer, Immediate(0x10));
     __ bind(&offset_0x0);
-    __ cmpq(rcx, Immediate(0x10));
-    __ j(not_equal, &simd_adjust);
-
-    __ AdvanceToEOS();
-    __ jmp(find_sol ? &exit : &found);
 
     __ bind(&simd_adjust);
+    // After pcmpistri rcx contains the offset to the first potential match.
     __ addq(string_pointer, rcx);
-    __ bind(&adjust);
-    if (find_sol) {
-      // The string pointer should point after the new line.
-      __ inc_c(string_pointer);
-    }
-
-    __ bind(&found);
-    FoundState(0, seol->entry_state());
-    __ bind(&exit);
-
-  } else {
-    Label loop, match, eos, done;
-    const Operand& cchar =
-      seol->IsStartOfLine() ? previous_char : current_char;
-
-    if (find_sol) {
-      // Check if we are at the beginning of the string.
-      __ cmpq(string_pointer, string_base);
-      __ j(equal, &match);
-    }
-
-    __ movb(rax, cchar);
-
-    __ bind(&loop);
-    MatchStartOrEndOfLine(masm_, seol, cchar, &match, true);
-    __ inc_c(string_pointer);
-    __ movb(rax, cchar);
-    if (find_sol) {
-      __ cmpb_al(Immediate(0));
-      __ j(zero, &eos);
-    }
-    __ jmp(&loop);
-
-    __ bind(&match);
-    FoundState(0, seol->entry_state());
-    if (find_sol) {
-      // If we found the eos, we need to correct string_pointer to point to it
-      // and not past it.
-      __ jmp(&done);
-      __ bind(&eos);
-      __ dec_c(string_pointer);
-    }
-    __ bind(&done);
+    __ jmp(&adjust_match);
   }
+
+  __ bind(&standard_code);
+
+  __ movq(rcx, string_end);
+  __ subq(rcx, string_pointer);
+  if (sol) {
+    __ j(equal, &exit);
+  } else {
+    __ j(equal, &match);
+  }
+
+  Label loop;
+  __ bind(&loop);
+  __ movb(rax, current_char);
+  __ cmpb_al(Immediate('\n'));
+  __ j(equal, &adjust_match);
+  __ cmpb_al(Immediate('\r'));
+  __ j(equal, &adjust_match);
+  __ inc_c(string_pointer);
+  __ loop(&loop);
+
+  if (sol) {
+    __ jmp(&exit);
+  }
+
+  __ bind(&adjust_match);
+  if (sol) {
+    // Adjust the string pointer.
+    __ inc_c(string_pointer);
+  }
+  __ bind(&match);
+  FoundState(0, seol->entry_state());
+  __ bind(&exit);
 }
 
 
