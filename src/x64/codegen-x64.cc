@@ -1033,6 +1033,12 @@ void FastForwardGen::Generate() {
 
   } else {
 
+    Label align_or_finish;
+    Label simd_code, standard_code;
+    Label maybe_match;
+    Label potential_match;
+    Label exit;
+
     vector<Regexp*>::iterator it;
     bool multiple_chars_only = true;
     for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
@@ -1043,65 +1049,56 @@ void FastForwardGen::Generate() {
     }
 
     // We currently only support a SIMD path for alternations of MultipleChars.
-    // TODO: Add support for alternations of other regexps. This should simpler
-    // with the new code structure.
+    // TODO: Add support for alternations of other regexps. This should be
+    // simpler with the new code structure.
     if (CpuFeatures::IsAvailable(SSE4_2) &&
         multiple_chars_only &&
         regexp_list_->size() < XMMRegister::kNumRegisters - 1) {
-      // Pre-load the XMM registers for MultipleChars.
-      static const int first_free_xmm_code = 4;
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {
-        __ movdqp(XMMRegister::from_code(first_free_xmm_code + i),
-                  regexp_list_->at(i)->AsMultipleChar()->chars(),
-                  regexp_list_->at(i)->AsMultipleChar()->chars_length());
-      }
-
-      Label align_string_pointer, align_loop;
-      Label simd_code, simd_loop;
-      Label maybe_match, keep_searching, find_null, exit;
-
-      __ bind(&align_string_pointer);
-      // Align the string pointer on a 16 bytes boundary before entering the
-      // SIMD path.
-      // Along with the use of movdqa below, it allows to avoid potentially
-      // illegal accesses after the eos.
-      // TODO: This alignment code should be abstracted and shared with other
-      // places.
-      // TODO: This is still incorrect. The initial check for eos does not
-      // ensure the validity of access to the following chars in
-      // MatchMultipleChar().
-      __ dec_c(string_pointer);
-      __ bind(&align_loop);
-      __ inc_c(string_pointer);
-      __ cmpq(string_pointer, string_end);
-      __ j(equal, &exit);
-      // Check the alignment.
-      __ testq(string_pointer, Immediate(0xf));
-      __ j(zero, &simd_code);
-      // Check for matches.
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {
-        Label no_match;
-        MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
-        MatchMultipleChar(masm_, kForward, mc);
-        __ j(not_equal, &no_match);
-        FoundState(0, mc->entry_state());
-        __ jmp(&exit);
-        __ bind(&no_match);
-      }
-      __ jmp(&align_loop);
-
-
-      __ bind(&simd_code);
-      // At this point we are certain that the string pointer is 16 bytes
-      // aligned.
-      if (FLAG_emit_debug_code) {
-        __ testq(string_pointer, Immediate(0xf));
-        __ asm_assert(zero, "string_pointer must be 16 bytes aligned.");
-      }
+      // This code is designed after VisitSingleMultipleChar().
 
       static const uint8_t pcmp_str_control =
         Assembler::unsigned_bytes | Assembler::equal_order |
         Assembler::pol_pos | Assembler::lsi;
+
+      // Pre-load the XMM registers for MultipleChars.
+      static const int first_free_xmm_code = 4;
+      unsigned min_n_chars = kMaxNodeLength, max_n_chars = 0;
+      for (unsigned i = 0; i < regexp_list_->size(); i++) {
+        MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
+        __ movdqp(XMMRegister::from_code(first_free_xmm_code + i),
+                  mc->chars(), mc->chars_length());
+        min_n_chars = min(min_n_chars, mc->chars_length());
+        max_n_chars = max(max_n_chars, mc->chars_length());
+      }
+
+
+      Register low_index = scratch2;
+      Register simd_max_index = scratch3;
+      unsigned margin_for_simd_loop = 0xf + 0x40 + min(max_n_chars, (unsigned)0x8);
+      unsigned margin_before_eos = max(min_n_chars, margin_for_simd_loop);
+      __ movq(simd_max_index, string_end);
+      __ subq(simd_max_index, Immediate(margin_before_eos));
+
+      __ bind(&align_or_finish);
+      __ cmpq(string_pointer, simd_max_index);
+      __ j(above, &standard_code);
+
+      __ movdqu(xmm0, Operand(string_pointer, 0x0));
+      __ Move(low_index, 0x10);
+      for (unsigned i = 0; i < regexp_list_->size(); i++) {
+        __ pcmpistri(pcmp_str_control,
+                     XMMRegister::from_code(first_free_xmm_code + i),
+                     xmm0);
+        __ cmpq(rcx, low_index);
+        __ cmovq(below, low_index, rcx);
+      }
+      __ cmpq(low_index, Immediate(0x10));
+      __ j(not_equal, &maybe_match);
+
+      __ and_(string_pointer, Immediate(~0xf));
+      __ addq(string_pointer, Immediate(0x10));
+
+      __ bind(&simd_code);
 
       Label match_somewhere_0x00, match_somewhere_0x10,
             match_somewhere_0x20, match_somewhere_0x30;
@@ -1110,32 +1107,31 @@ void FastForwardGen::Generate() {
       XMMRegister xmm_s_0x20 = xmm2;
       XMMRegister xmm_s_0x30 = xmm3;
 
-      // Load the first 16 bytes.
-      // After that xmm_s_0x00 will be preloaded from the last round of the fast
-      // loop.
-      __ movdqa(xmm_s_0x00, Operand(string_pointer, 0));
-
       // This loop scans the code for eos or potential match.
       // It makes no distinction between potential matches to be able to scan as
-      // fast as possible. When a potential match is detected, we hand control
+      // fast as possible. When a potential match is detected, it hands control
       // to a more thorough code.
+      Label simd_loop;
       __ bind(&simd_loop);
-
-#define fast_round(current_offset, next_offset, xmm_next)                      \
+      __ cmpq(string_pointer, simd_max_index);
+      __ j(above, &standard_code);
+#define fast_round(current_offset)                                             \
       for (unsigned i = 0; i < regexp_list_->size(); i++) {                    \
+        if (i == 0) {                                                          \
+          /* The conditional jump above ensures that the eos wasn't reached. */\
+          __ movdqa(xmm_s_##current_offset,                                    \
+                    Operand(string_pointer, current_offset));                  \
+        }                                                                      \
         __ pcmpistri(pcmp_str_control,                                         \
                      XMMRegister::from_code(first_free_xmm_code + i),          \
                      xmm_s_##current_offset);                                  \
-        __ j(below_equal, &match_somewhere_##current_offset);                  \
-        if (i == 0) {                                                          \
-          /* The conditional jump above ensures that the eos wasn't reached. */\
-          __ movdqa(xmm_s_##xmm_next, Operand(string_pointer, next_offset));   \
-        }                                                                      \
+        __ j(below, &match_somewhere_##current_offset);                        \
       }
-      fast_round(0x00, 0x10, 0x10)
-      fast_round(0x10, 0x20, 0x20)
-      fast_round(0x20, 0x30, 0x30)
-      fast_round(0x30, 0x40, 0x00)
+      // TODO: Do we need so many rounds?
+      fast_round(0x00)
+      fast_round(0x10)
+      fast_round(0x20)
+      fast_round(0x30)
 
       __ addq(string_pointer, Immediate(0x40));
       __ jmp(&simd_loop);
@@ -1148,43 +1144,21 @@ void FastForwardGen::Generate() {
       __ addq(string_pointer, Immediate(0x10));
       __ bind(&match_somewhere_0x00);
 
-
       // We know there is a potential match or eos somewhere between in
       // [string_pointer : string_pointer + 0x10].
       // Find at what index this potential match is.
-      Register low_index = scratch2;
-      Register null_found = scratch3;
       __ Move(low_index, 0x10);
-      __ Move(null_found, 0);
 
       __ movdqa(xmm0, Operand(string_pointer, 0));
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
         __ pcmpistri(pcmp_str_control,
                      XMMRegister::from_code(first_free_xmm_code + i), xmm0);
-        __ setcc(zero, scratch);
-        __ or_(null_found, scratch);
         __ cmpq(rcx, low_index);
         __ cmovq(below, low_index, rcx);
       }
 
-      // pcmpistr[im] takes care of invalidating matches after the eos if it was
-      // found.
-      __ cmpq(low_index, Immediate(0x10));
-      __ j(not_equal, &maybe_match);
-
-      __ cmpb(null_found, Immediate(0));
-      __ j(zero, &keep_searching);
-      // There is no potential match, and we found the null character.
-      // Advance the string pointer up to the null character and exit.
-      __ AdvanceToEOS();
-      __ jmp(&exit);
-
-      __ bind(&keep_searching);
-      __ addq(string_pointer, Immediate(0x10));
-      __ jmp(&simd_loop);
-
       __ bind(&maybe_match);
-      // We have a potential match.
+      // We may have a potential match.
       // Check if it is good enough to exit the fast forward loop.
       __ addq(string_pointer, low_index);
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
@@ -1192,39 +1166,35 @@ void FastForwardGen::Generate() {
         // move from xmm registers if it is faster.
         Label no_match;
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
-        __ MoveCharsFrom(scratch, mc->chars_length(), mc->chars());
-        __ cmp_truncated(mc->chars_length(), scratch, Operand(string_pointer, 0));
+        MatchMultipleChar(masm_, kForward, mc, false, true, &no_match);
         __ j(not_equal, &no_match);
         FoundState(0, mc->entry_state());
         __ jmp(&exit);
         __ bind(&no_match);
       }
-      __ jmp(&align_string_pointer);
-
-      __ bind(&exit);
-
-    } else {
-      Label loop, potential_match;
-      potential_match_ = &potential_match;
-
-      __ bind(&loop);
-
-      for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
-        Visit(*it);
-      }
-
-      // We must check for eos after having visited the ff elements, because eos
-      // may be a potential match for one of them.
-      // TODO: We could handle that by testing those for which it can be a
-      // potential match before this and others after.
-      __ cmpq(string_pointer, string_end);
-      __ j(equal, &potential_match);
-
-      __ inc_c(string_pointer);
-      __ jmp(&loop);
-
-      __ bind(&potential_match);
+      __ jmp(&align_or_finish);
     }
+
+    __ bind(&standard_code);
+
+    Label loop;
+    potential_match_ = &potential_match;
+
+    __ dec_c(string_pointer);
+    __ bind(&loop);
+    __ inc_c(string_pointer);
+    for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
+      Visit(*it);
+    }
+    // We must check for eos after having visited the ff elements, because eos
+    // may be a potential match for one of them.
+    // TODO: We could handle that by testing those for which it can be a
+    // potential match before this and others after.
+    __ cmpq(string_pointer, string_end);
+    __ j(not_equal, &loop);
+
+    __ bind(&potential_match);
+    __ bind(&exit);
   }
 }
 
