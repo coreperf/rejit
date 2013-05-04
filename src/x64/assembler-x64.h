@@ -1415,7 +1415,6 @@ class Assembler : public AssemblerBase {
 
   // String instructions.
   void cmpsb() {
-    emit(0x48);
     emit(0xA6);
   }
   void cmpsq() {
