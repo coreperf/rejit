@@ -1345,177 +1345,139 @@ void FastForwardGen::VisitSinglePeriod(Period* period) {
 
 
 void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
-  // TODO(rames): Allow more complex brackets.
-//  if (CpuFeatures::IsAvailable(SSE4_2) &&
-//      bracket->single_chars()->size() < 16 &&
-//      bracket->char_ranges()->size() < 8) {
-//
-//
-//    uint64_t single_chars_ctrl =
-//      Assembler::unsigned_bytes | Assembler::equal_any |
-//      Assembler::pol_pos | Assembler::lsi;
-//    uint64_t ranges_ctrl =
-//      Assembler::unsigned_bytes | Assembler::ranges |
-//      Assembler::pol_pos | Assembler::lsi;
-//
-//
-//    uint64_t high = 0;
-//    uint64_t low = 0;
-//
-//    // Don't assume how vector storage works...?
-//    // TODO(rames): abstract
-//    if (bracket->single_chars()->size()) {
-//      for (unsigned i = 0; i < bracket->single_chars()->size() && i < 8; i++) {
-//        low |= bracket->single_chars()->at(i) << (i * 8);
-//      }
-//      for (unsigned i = 8; i < bracket->single_chars()->size() && i < 16; i++) {
-//        high |= bracket->single_chars()->at(i) << ((i - 8) * 8);
-//      }
-//      __ movdq(xmm0, high, low);
-//    }
-//
-//    if (bracket->char_ranges()->size()) {
-//      for (unsigned i = 0; i < bracket->char_ranges()->size() && i < 4; i++) {
-//        low |= bracket->char_ranges()->at(i).low << (i * 8);
-//        low |= bracket->char_ranges()->at(i).high << (i * 8 + 8);
-//      }
-//      for (unsigned i = 4; i < bracket->char_ranges()->size() && i < 8; i++) {
-//        high |= bracket->char_ranges()->at(i).low << ((i - 4) * 8);
-//        high |= bracket->char_ranges()->at(i).high << ((i - 4) * 8 + 8);
-//      }
-//      __ movdq(xmm1, high, low);
-//    }
-//
-//
-//    Label simd_loop, p1, p2, p3, match, exit;
-//
-//    __ movq(rax, string_pointer);
-//
-//    if (bracket->single_chars()->size() && bracket->char_ranges()->size()) {
-//      UNIMPLEMENTED();
-//
-//    } else if (bracket->single_chars()->size()) {
-//    __ movdqu(xmm1, Operand(rax, 0));
-//
-//    __ bind(&simd_loop);
-//
-//    __ pcmpistri(single_chars_ctrl, xmm0, xmm1);
-//    __ movdqu(xmm2, Operand(rax, 0x10));
-//    __ j(below_equal, &p1);
-//
-//    __ pcmpistri(single_chars_ctrl, xmm0, xmm2);
-//    __ movdqu(xmm3, Operand(rax, 0x20));
-//    __ j(below_equal, &p2);
-//
-//    __ pcmpistri(single_chars_ctrl, xmm0, xmm3);
-//    __ movdqu(xmm1, Operand(rax, 0x30));
-//    __ j(below_equal, &p3);
-//    __ addq(rax, Immediate(0x30));
-//
-//    __ jmp(&simd_loop);
-//
-//    __ bind(&p3);
-//    __ addq(rax, Immediate(0x10));
-//    __ bind(&p2);
-//    __ addq(rax, Immediate(0x10));
-//    __ bind(&p1);
-//
-//    } else if (bracket->char_ranges()->size()) {
-//    __ movdqu(xmm2, Operand(rax, 0));
-//
-//    __ bind(&simd_loop);
-//
-//    __ pcmpistri(ranges_ctrl, xmm1, xmm2);
-//    __ movdqu(xmm3, Operand(rax, 0x10));
-//    __ j(below_equal, &p1);
-//
-//    __ pcmpistri(ranges_ctrl, xmm1, xmm3);
-//    __ movdqu(xmm4, Operand(rax, 0x20));
-//    __ j(below_equal, &p2);
-//
-//    __ pcmpistri(ranges_ctrl, xmm1, xmm4);
-//    __ movdqu(xmm2, Operand(rax, 0x30));
-//    __ j(below_equal, &p3);
-//    __ addq(rax, Immediate(0x30));
-//
-//    __ jmp(&simd_loop);
-//
-//    __ bind(&p3);
-//    __ addq(rax, Immediate(0x10));
-//    __ bind(&p2);
-//    __ addq(rax, Immediate(0x10));
-//    __ bind(&p1);
-//
-//    }
-//
-//
-//    __ movq(string_pointer, rax);
-//
-//    __ cmpq(rcx, Immediate(16));
-//    __ j(not_equal, &match);
-//    Label find_null;
-//    __ dec_c(string_pointer);
-//    __ bind(&find_null);
-//    __ inc_c(string_pointer);
-//    __ movb(rax, Operand(string_pointer, 0));
-//    __ cmpb_al(Immediate(0));
-//    __ j(not_zero, &find_null);
-//    __ jmp(&exit);
-//
-//    __ bind(&match);
-//    FoundState(0, bracket->entry_state());
-//    __ bind(&exit);
-//
-//
-//
-//    //__ pcmpistri(single_chars_ctrl, xmm0, xmm1);
-//    //__ addq(rax, Immediate(0x10));
-//    //__ movq(rbx, rcx);
-//    //__ setcc(below_equal, scratch1);
-//
-//    //__ pcmpistri(ranges_ctrl, xmm1, xmm2);
-//    //__ movdqu(xmm3, Operand(rax, 0));
-//    //__ setcc(below_equal, scratch1);
-//    //__ or_(scratch1, scratch2);
-//    //__ j(zero, &simd_loop);
-//
-//    //// Get the index of the first match.
-//    //__ cmpq(rcx, rbx);
-//    //__ cmovq(below, rcx, rbx);
-//
-//    //__ subq(rax, Immediate(0x10));
-//    //__ movq(string_pointer, rax);
-//
-//    //__ cmpq(rcx, Immediate(0x10));
-//    //__ j(not_equal, &match);
-//    //// Find the null char.
-//    //Label find_null;
-//    //__ dec_c(string_pointer);
-//    //__ bind(&find_null);
-//    //__ inc_c(string_pointer);
-//    //__ movb(rax, Operand(string_pointer, 0));
-//    //__ cmpb_al(Immediate(0));
-//    //__ j(not_zero, &find_null);
-//    //__ jmp(&exit);
-//
-//  } else {
-    Label loop, match, exit;
-    bool non_matching = bracket->flags() & Bracket::non_matching;
-    Label* on_matching_char = non_matching ? &loop : &match;
+  bool non_matching = bracket->flags() & Bracket::non_matching;
 
-    __ dec_c(string_pointer);
-    __ bind(&loop);
-    __ inc_c(string_pointer);
-    MatchBracket(masm_, current_char, bracket, on_matching_char, &exit);
-    if (non_matching) {
-      __ jmp(&match);
-    }
-    __ jmp(&loop);
+  Label standard_code;
+  Label match;
+  Label exit;
 
-    __ bind(&match);
-    FoundState(0, bracket->entry_state());
-    __ bind(&exit);
+  // This code is inefficient. The high density of matches makes the SIMD setup
+  // too costly.
+  //if (CpuFeatures::IsAvailable(SSE4_2) &&
+  //    bracket->single_chars()->size() < 16 &&
+  //    bracket->char_ranges()->size() < 8) {
+  //  Label align_or_finish;
+  //  Label simd_code, simd_loop;
+  //  Label simd_adjust;
+
+  //  const uint64_t ctrl_single_chars =
+  //    Assembler::unsigned_bytes | Assembler::equal_any |
+  //    Assembler::pol_pos | Assembler::lsi;
+  //  const uint64_t ctrl_ranges =
+  //    Assembler::unsigned_bytes | Assembler::ranges |
+  //    Assembler::pol_pos | Assembler::lsi;
+
+  //  // Only execute the SIMD code if the length of string to process is big
+  //  // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
+  //  // adjustment) and go through one iteration of the SIMD loop.
+  //  Register simd_max_index = scratch3;
+  //  int margin_for_simd_loop = 0xf + 0x20;
+  //  __ movq(simd_max_index, string_end);
+  //  __ subq(simd_max_index, Immediate(margin_for_simd_loop));
+
+  //  // Preload the xmm registers.
+  //  XMMRegister xmm_chars = xmm1;
+  //  XMMRegister xmm_ranges = xmm2;
+  //  uint64_t high = 0;
+  //  uint64_t low = 0;
+  //  if (bracket->single_chars()->size()) {
+  //    for (unsigned i = 0; i < bracket->single_chars()->size() && i < 8; i++) {
+  //      low |= bracket->single_chars()->at(i) << (i * 8);
+  //    }
+  //    for (unsigned i = 8; i < bracket->single_chars()->size() && i < 16; i++) {
+  //      high |= bracket->single_chars()->at(i) << ((i - 8) * 8);
+  //    }
+  //    __ movdq(xmm_chars, high, low);
+  //  }
+  //  if (bracket->char_ranges()->size()) {
+  //    for (unsigned i = 0; i < bracket->char_ranges()->size() && i < 4; i++) {
+  //      low |= bracket->char_ranges()->at(i).low << (i * 8);
+  //      low |= bracket->char_ranges()->at(i).high << (i * 8 + 8);
+  //    }
+  //    for (unsigned i = 4; i < bracket->char_ranges()->size() && i < 8; i++) {
+  //      high |= bracket->char_ranges()->at(i).low << ((i - 4) * 8);
+  //      high |= bracket->char_ranges()->at(i).high << ((i - 4) * 8 + 8);
+  //    }
+  //    __ movdq(xmm_ranges, high, low);
+  //  }
+
+  //  __ bind(&align_or_finish);
+  //  __ cmpq(string_pointer, simd_max_index);
+  //  __ j(above, &standard_code);
+
+  //  // We know there are more than 0x10 bytes to process, so we can safely use
+  //  // movdqu and pcmpistri.
+  //  // Note that we check further than is actually required to align
+  //  // string_pointer, but there is no point purposedly ignoring a match.
+  //  __ movdqu(xmm2, Operand(string_pointer, 0x0));
+  //  if (bracket->single_chars()->size()) {
+  //    __ pcmpistri(ctrl_single_chars, xmm_chars, xmm2);
+  //    __ j(below, &match);
+  //  }
+  //  if (bracket->char_ranges()->size()) {
+  //    __ pcmpistri(ctrl_ranges, xmm_ranges, xmm2);
+  //    __ j(below, &match);
+  //  }
+
+  //  // No match in the following 0x10 bytes. Align the string pointer on the
+  //  // next closest 0x10 bytes boundary.
+  //  __ and_(string_pointer, Immediate(~0xf));
+  //  __ addq(string_pointer, Immediate(0x10));
+
+
+  //  __ bind(&simd_code);
+  //  Label offset_0x0, offset_0x10;
+  //  __ bind(&simd_loop);
+  //  __ cmpq(string_pointer, simd_max_index);
+  //  __ j(above, &standard_code);
+  //  __ movdqa(xmm3, Operand(string_pointer, 0x0));
+  //  if (bracket->single_chars()->size()) {
+  //    __ pcmpistri(ctrl_single_chars, xmm_chars, xmm3);
+  //    __ j(below, &offset_0x0);
+  //  }
+  //  if (bracket->char_ranges()->size()) {
+  //    __ pcmpistri(ctrl_ranges, xmm_ranges, xmm3);
+  //    __ j(below, &offset_0x0);
+  //  }
+  //  __ movdqa(xmm4, Operand(string_pointer, 0x10));
+  //  if (bracket->single_chars()->size()) {
+  //    __ pcmpistri(ctrl_single_chars, xmm_chars, xmm4);
+  //    __ j(below, &offset_0x10);
+  //  }
+  //  if (bracket->char_ranges()->size()) {
+  //    __ pcmpistri(ctrl_ranges, xmm_ranges, xmm4);
+  //    __ j(below, &offset_0x10);
+  //  }
+  //  __ addq(string_pointer, Immediate(0x20));
+  //  __ jmp(&simd_loop);
+
+  //  __ bind(&offset_0x10);
+  //  __ addq(string_pointer, Immediate(0x10));
+  //  __ bind(&offset_0x0);
+
+  //  __ bind(&simd_adjust);
+  //  // After pcmpistri rcx contains the offset to the first potential match.
+  //  __ addq(string_pointer, rcx);
+  //  __ jmp(&match);
   //}
+
+  __ bind(&standard_code);
+
+  Label loop;
+  Label* on_matching_char = non_matching ? &loop : &match;
+
+  __ dec_c(string_pointer);
+  __ bind(&loop);
+  __ inc_c(string_pointer);
+  MatchBracket(masm_, current_char, bracket, on_matching_char, &exit);
+  if (non_matching) {
+    __ jmp(&match);
+  }
+  __ jmp(&loop);
+
+  __ bind(&match);
+  FoundState(0, bracket->entry_state());
+  __ bind(&exit);
 }
 
 
@@ -1546,7 +1508,7 @@ void FastForwardGen::VisitSingleStartOrEndOfLine(ControlRegexp* seol) {
 
     // Only execute the SIMD code if the length of string to process is big
     // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
-    // adjustment), go through one iteration of the SIMD loop.
+    // adjustment) and go through one iteration of the SIMD loop.
     Register simd_max_index = scratch3;
     int margin_for_simd_loop = 0xf + 0x20;
     __ movq(simd_max_index, string_end);
