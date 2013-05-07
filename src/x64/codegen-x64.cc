@@ -1506,6 +1506,8 @@ void FastForwardGen::VisitSingleStartOrEndOfLine(ControlRegexp* seol) {
       Assembler::unsigned_bytes | Assembler::equal_any |
       Assembler::pol_pos | Assembler::lsi;
 
+    __ movdq(xmm0, 0, ('\r' << 8) | '\n');
+
     // Only execute the SIMD code if the length of string to process is big
     // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
     // adjustment) and go through one iteration of the SIMD loop.
