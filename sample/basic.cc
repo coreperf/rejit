@@ -45,7 +45,7 @@ int main() {
 
   printf("Found %ld matches.\n", matches.size());
 
-  // Print the first 10 matches.
+  printf("Printing the first 10:\n");
   unsigned i = 0;
   vector<rejit::Match>::iterator it;
   for (it = matches.begin(); it < matches.end() && i++ < 10; it++) {
