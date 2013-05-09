@@ -1074,7 +1074,7 @@ void FastForwardGen::Generate() {
 
       Register low_index = scratch2;
       Register simd_max_index = scratch3;
-      unsigned margin_for_simd_loop = 0xf + 0x40 + min(max_n_chars, (unsigned)0x8);
+      unsigned margin_for_simd_loop = 0xf + 0x40 + 0x8;
       unsigned margin_before_eos = max(min_n_chars, margin_for_simd_loop);
       __ movq(simd_max_index, string_end);
       __ subq(simd_max_index, Immediate(margin_before_eos));
@@ -1238,9 +1238,12 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     // Only execute the SIMD code if the length of string to process is big
     // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
     // adjustment), go through one iteration of the SIMD loop, and allow for a
-    // maximum 8 bytes wide quick check in MatchMultipleChar.
+    // 8 bytes wide quick check in MatchMultipleChar.
     // If the length of the mc is greater than that we can even stop earlier.
-    int margin_for_simd_loop = 0xf + 0x20 + min(n_chars, 0x8);
+    //
+    // Note that we allow for a 8 bytes wide quick check because loading for
+    // example 7 characters without accessing further not obvious.
+    int margin_for_simd_loop = 0xf + 0x20 + 0x8;
     int margin_before_eos = max(n_chars, margin_for_simd_loop);
     __ movq(simd_max_index, string_end);
     __ subq(simd_max_index, Immediate(margin_before_eos));
