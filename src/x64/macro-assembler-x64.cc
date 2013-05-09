@@ -262,8 +262,8 @@ void MacroAssembler::cmp(unsigned width, const Operand& dst, Register src) {
   } else if (width == 4) {
     cmpl(dst, src);
   } else if (width < 8) {
-    mov(width, scratch1, dst);
-    cmpq(dst, src);
+    mov(width, scratch, dst);
+    cmpq(scratch, src);
   } else if (width >= 8) {
     cmpq(dst, src);
   }
