@@ -1292,7 +1292,6 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     // After pcmpistri rcx contains the offset to the first potential match.
     __ addq(string_pointer, rcx);
     MatchMultipleChar(masm_, kForward, mc, false, true, &align_or_finish, fixed_chars);
-    __ j(not_equal, &align_or_finish);
 
     __ jmp(&found);
   }
