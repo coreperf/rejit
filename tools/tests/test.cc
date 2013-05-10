@@ -301,6 +301,26 @@ int RunTest() {
   TEST(kMatchAll, 8, "(xxx|^|$|[ab-d])", "___ab___xxx_\n\n__");
   TEST(kMatchAll, 4, "(^|$|[^x])", "_xxx_x_");
 
+  // Special matching patterns.
+  TEST(kMatchFull, 1, "\\d", "5");
+  TEST(kMatchFull, 0, "\\d", "_");
+  TEST(kMatchFull, 0, "\\D", "5");
+  TEST(kMatchFull, 1, "\\D", "_");
+  TEST(kMatchFull, 1, "\\n", "\n");
+  TEST(kMatchFull, 0, "\\n", "\r");
+  TEST(kMatchFull, 1, "\\s", " ");
+  TEST(kMatchFull, 1, "\\s", "\t");
+  TEST(kMatchFull, 0, "\\s", "_");
+  TEST(kMatchFull, 0, "\\s", "_");
+  TEST(kMatchFull, 0, "\\S", " ");
+  TEST(kMatchFull, 0, "\\S", "\t");
+  TEST(kMatchFull, 1, "\\S", "_");
+  TEST(kMatchFull, 1, "\\S", "_");
+  TEST(kMatchFull, 1, "\\t", "\t");
+  TEST(kMatchFull, 0, "\\t", "\n");
+  TEST(kMatchFull, 1, "\\x30", "0");
+  TEST(kMatchFull, 0, "\\x30", "_");
+
   return failure;
 }
 

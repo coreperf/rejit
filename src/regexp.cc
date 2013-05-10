@@ -64,8 +64,10 @@ ostream& MultipleChar::OutputToIOStream(ostream& stream) const {  // NOLINT
 
 
 ostream& Bracket::OutputToIOStream(ostream& stream) const {  // NOLINT
-  Indent(stream) << "Bracket [ {"
-    << entry_state_ << ", " << output_state_ << "}\n";
+  Indent(stream) << "Bracket ";
+  if (flags() & non_matching)
+    stream << "(non_matching) ";
+    stream << "[ {" << entry_state_ << ", " << output_state_ << "}\n";
   { IndentScope is;
     // TODO(rames): overkill!
     vector<char>::const_iterator cit;

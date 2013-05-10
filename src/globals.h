@@ -36,6 +36,7 @@
 #include <algorithm>
 
 #include "rejit.h"
+#include "config.h"
 #include "checks.h"
 #include "flags.h"
 #include "cpu.h"

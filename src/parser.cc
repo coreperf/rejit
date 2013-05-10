@@ -21,6 +21,22 @@ namespace internal {
 
 // TODO(rames): Compliance with ERE spec.
 
+static char hex_code_from_char(char c) {
+  if ('0' <= c && c <= '9') {
+    return c - '0';
+  }
+  if ('A' <= c && c <= 'F') {
+    return c - 'A';
+  }
+  if ('a' <= c && c <= 'f') {
+    return c - 'a';
+  }
+
+  UNREACHABLE();
+  return '\0';
+}
+
+
 void Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
   regexp_info_ = rinfo;
   regexp_string_ = regexp;
@@ -54,6 +70,48 @@ void Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
           case '\\':
             PushChar(regexp_string_ + index_ + 1);
             break;
+
+#ifdef ENABLE_COMMON_ESCAPED_PATTERNS
+          case 'd': {
+          case 'D':
+            Bracket * bracket = new Bracket();
+            bracket->AddCharRange({'0', '9'});
+            rinfo->UpdateRegexpMaxLength(bracket);
+            if (lookahead == 'D') {
+              bracket->set_flag(Bracket::non_matching);
+            }
+            PushRegexp(bracket);
+            break;
+          }
+          case 'n': {
+            PushChar('\n');
+            break;
+          }
+          case 's': {
+          case 'S':
+            Bracket * bracket = new Bracket();
+            bracket->AddSingleChar(' ');
+            bracket->AddSingleChar('\t');
+            rinfo->UpdateRegexpMaxLength(bracket);
+            if (lookahead == 'S') {
+              bracket->set_flag(Bracket::non_matching);
+            }
+            PushRegexp(bracket);
+            break;
+          }
+          case 't': {
+            PushChar('\t');
+            break;
+          }
+          case 'x': {
+            advance = 4;
+            char hex_char =
+              hex_code_from_char(*(regexp_string_ + index_ + 2)) << 4 |
+              hex_code_from_char(*(regexp_string_ + index_ + 3));
+            PushChar(hex_char);
+            break;
+          }
+#endif
 
           default:
             Unexpected(index_ + 1);
