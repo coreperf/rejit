@@ -119,8 +119,9 @@ options_influencing_build_path = [
 env = Environment(variables = vars)
 
 # Grab compilation environment variables.
-env['CC'] = os.getenv('CC') or env['CC']
+env['CC'] = os.getenv('CXX') or env['CC']
 env['CXX'] = os.getenv('CXX') or env['CXX']
+env['CXXFLAGS'] = os.getenv('CXXFLAGS') or env['CXXFLAGS']
 env['CCFLAGS'] = os.getenv('CCFLAGS') or env['CCFLAGS']
 if os.getenv('LD_LIBRARY_PATH'):
   env['LIBPATH'] = os.getenv('LD_LIBRARY_PATH')
@@ -206,24 +207,21 @@ sources = [Glob(join(build_dir_src, '*.cc')),
     Glob(join(build_dir_src_arch, '*.cc')),
     join(build_dir_src, 'platform/platform-%s.cc' % env['os'])]
 
+# The rejit library.
 librejit = 'rejit'
-env.StaticLibrary(join(build_dir, 'rejit'), sources)
-basic = env.Program(join(build_dir, 'basic'), join(build_dir_sample, 'basic.cc'),
+rejit = env.StaticLibrary(join(build_dir, 'rejit'), sources)
+env.Alias('librejit.a', rejit)
+
+# The rejit test program.
+test_rejit = env.Program(join(build_dir, 'test-rejit'),
+    join(build_dir_tests, 'test.cc'),
     LIBS=[librejit])
-env.Alias('basic', basic)
-#TODO: Check for argp. Extract build to a SConscript?
-jrep_libs = [librejit]
-if env['os'] == 'macos':
-  jrep_libs += ['argp']
-jrep = env.Program(join(build_dir, 'jrep'), join(build_dir_sample, 'jrep.cc'),
-    LIBS=jrep_libs)
-env.Alias('jrep', jrep)
-regexdna = env.Program(join(build_dir, 'regexdna'), join(build_dir_sample, 'regexdna.cc'),
-    LIBS=[librejit])
-env.Alias('regexdna', regexdna)
-t_test = env.Program(join(build_dir, 'test-rejit'), join(build_dir_tests, 'test.cc'),
-    LIBS=[librejit])
-Default(basic, jrep, regexdna, t_test)
+env.Alias('test-rejit', test_rejit)
+
+SConscript('sample/SConscript', exports='env librejit')
+
+# Only build the library by default.
+Default(rejit)
 
 # Building benchmarks involve checking out and compiling third-party engines.
 # We don't want to do that by default.
