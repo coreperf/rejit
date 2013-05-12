@@ -47,12 +47,15 @@ struct arguments {
   bool print_line_number;
   bool recursive;
   int nopenfd;
+  int context_before;
+  int context_after;
 } arguments;
 
 /*
    OPTIONS.  Field 1 in ARGP.
    Order of fields: {NAME, KEY, ARG, FLAGS, DOC}.
 */
+const unsigned group_context = 1;
 static struct argp_option options[] = {
   {NULL, 'H', NULL, OPTION_ARG_OPTIONAL,
     "Print the filename with output lines."},
@@ -65,7 +68,15 @@ static struct argp_option options[] = {
   {"nopenfd", 'k', "1024", OPTION_ARG_OPTIONAL,
     "The maximum number of directories that ftw() can hold open simultaneously."
   },
-  // TODO: Add context options.
+  {"after-context", 'A', "0", OPTION_ARG_OPTIONAL,
+    "Print n lines of context after every match. See also -B and -C options.",
+    group_context},
+  {"before-context", 'B', "0", OPTION_ARG_OPTIONAL,
+    "Print n lines of context after every match. See also -A and -C options.",
+    group_context},
+  {"context", 'C', "0", OPTION_ARG_OPTIONAL,
+    "Print n lines of context before and after every match. See also -A and -B options.",
+    group_context},
   {0}
 };
 
@@ -78,8 +89,29 @@ static error_t
 parse_opt(int key, char *arg, struct argp_state *state) {
   struct arguments *arguments = reinterpret_cast<struct arguments*>(state->input);
   switch (key) {
+    case 'A':
+      if (arg) {
+        arguments->context_after = argtoi(arg);
+      }
+      break;
+    case 'B':
+      if (arg) {
+        arguments->context_before = argtoi(arg);
+      }
+      break;
+    case 'C':
+      if (arg) {
+        arguments->context_after = argtoi(arg);
+        arguments->context_before = argtoi(arg);
+      }
+      break;
     case 'H':
       arguments->print_filename = true;
+      break;
+    case 'k':
+      if (arg) {
+        arguments->nopenfd = argtoi(arg);
+      }
       break;
     case 'n':
       arguments->print_line_number = true;
@@ -88,11 +120,6 @@ parse_opt(int key, char *arg, struct argp_state *state) {
     case 'r':
       arguments->recursive = true;
       break;
-    case 'k':
-      if (arg) {
-        arguments->nopenfd = argtoi(arg);
-      }
-      break;
     case ARGP_KEY_ARG:
       switch (state->arg_num) {
         case 0:
@@ -100,7 +127,6 @@ parse_opt(int key, char *arg, struct argp_state *state) {
           break;
         default:
           arguments->filenames.push_back(arg);
-          //argp_usage(state);
       }
       break;
     case ARGP_KEY_END:
@@ -140,6 +166,19 @@ bool is_dir(const char* name) {
     exit(rc);
   }
   return file_stats.st_mode & S_IFDIR;
+}
+
+
+static void print_head(const char* filename,
+                       unsigned line,
+                       char separator=':') {
+  if (arguments.print_filename) {
+    printf("%s%c", filename, separator);
+  }
+  if (arguments.print_line_number) {
+    // Index starts at 0, but line numbering at 1.
+    printf("%d%c", line, separator);
+  }
 }
 
 
@@ -190,19 +229,26 @@ int process_file(const char* filename) {
       // line and end of the last line).
 
       // Find the sol before the next match.
-      while((*it_lines).begin <= (*it_matches).begin &&
+      while(it_lines->begin <= it_matches->begin &&
             it_lines < new_lines.end()) {
         ++it_lines;
       }
       --it_lines;
+
+      if (arguments.context_before) {
+        // Print the 'context_before'.
+        printf("--\n");
+        vector<rejit::Match>::iterator it;
+        for(it = max(it_lines - arguments.context_before, new_lines.begin());
+            it < it_lines;
+            it++) {
+          print_head(filename, (int)(1 + (it - new_lines.begin())), '-');
+          printf("%.*s", (int)((it + 1)->begin - it->begin), it->begin);
+        }
+      }
+
       // Print the filename and line number.
-      if (arguments.print_filename) {
-        printf("%s:", filename);
-      }
-      if (arguments.print_line_number) {
-        // Index starts at 0, but line numbering at 1.
-        printf("%d:", (int)(1 + (it_lines - new_lines.begin())));
-      }
+      print_head(filename, (int)(1 + (it_lines - new_lines.begin())));
 #define START_RED "\x1B[31m"
 #define END_COLOR "\x1B[0m"
       // Now print all matches starting on this line.
@@ -212,7 +258,7 @@ int process_file(const char* filename) {
         continue;
       }
       while (it_matches < matches.end() &&
-             (*it_matches).begin < (*(it_lines + 1)).begin) {
+             it_matches->begin < (it_lines + 1)->begin) {
         printf("%.*s" START_RED "%.*s" END_COLOR,
                (int)(it_matches->begin - start), start,
                (int)(it_matches->end - it_matches->begin), it_matches->begin);
@@ -227,6 +273,17 @@ int process_file(const char* filename) {
       printf("%.*s",
              (int)((it_end_lines)->end - (it_matches - 1)->end),
              (it_matches - 1)->end);
+
+      if (arguments.context_after) {
+        // Print the 'context_after'.
+        for(vector<rejit::Match>::iterator it = it_end_lines;
+            it < min(it_end_lines + arguments.context_after, new_lines.end());
+            it++) {
+          print_head(filename, (int)(1 + (it - new_lines.begin())), '-');
+          printf("%.*s", (int)((it + 1)->begin - it->begin), it->begin);
+        }
+        printf("--\n");
+      }
     }
   }
 
