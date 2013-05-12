@@ -141,66 +141,109 @@ bool is_dir(const char* name) {
 
 
 int process_file(const char* filename) {
+  int rc = EXIT_SUCCESS;
+
+  size_t file_size;
+  char *file_content;
+
   vector<rejit::Match> matches;
   struct stat file_stats;
 
   int fd = open(filename, O_RDONLY);
   if (fd < 0) {
-    printf("jrep: %s: %s\n", filename, strerror(errno));
-    return errno;
+    rc = errno;
+    errno = 0;
+    goto exit;
   }
   fstat(fd, &file_stats);
-  size_t file_size = file_stats.st_size;
-  char *file = (char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  file_size = file_stats.st_size;
+  if (file_size == 0) {
+    goto close_file;
+  }
+  file_content = (char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (errno) {
+    rc = errno;
+    errno = 0;
+    goto close_file;
+  }
 
-  re->MatchAll(file, file_size, &matches);
+  re->MatchAll(file_content, file_size, &matches);
 
   if (matches.size()) {
     // TODO: When not printing line numbers it may be faster to look for sos and
     // eos only for each match.
     vector<rejit::Match> new_lines;
-    unsigned line_index = 0;
-    rejit::MatchAll("^", file, file_size, &new_lines);
+    rejit::MatchAll("^", file_content, file_size, &new_lines);
     // Append a match for the end of the file to be able to correctly print the
     // last line.
-    new_lines.push_back({file + file_size, file + file_size});
+    new_lines.push_back({file_content + file_size, file_content + file_size});
 
-    vector<rejit::Match>::iterator it;
-    for (it = matches.begin(); it < matches.end(); it++) {
-      rejit::Match match = (*it);
+    vector<rejit::Match>::iterator it_lines = new_lines.begin();
+    vector<rejit::Match>::iterator it_matches = matches.begin();
+    while (it_lines < new_lines.end() && it_matches < matches.end()) {
+      // Accesses at the limits of the vectors look a bit dangerous but should
+      // be guaranteed because the matches are strictly included between the
+      // first and last elements of new_lines (respectively start of the first
+      // line and end of the last line).
+
+      // Find the sol before the next match.
+      while((*it_lines).begin <= (*it_matches).begin &&
+            it_lines < new_lines.end()) {
+        ++it_lines;
+      }
+      --it_lines;
+      // Print the filename and line number.
       if (arguments.print_filename) {
         printf("%s:", filename);
       }
-      while (new_lines.at(line_index).begin <= match.begin) {
-        ++line_index;
-      }
-      --line_index;
       if (arguments.print_line_number) {
-        printf("%d:", line_index + 1);  // Index starts at 0, but line numbering at 1.
+        // Index starts at 0, but line numbering at 1.
+        printf("%d:", (int)(1 + (it_lines - new_lines.begin())));
       }
 #define START_RED "\x1B[31m"
 #define END_COLOR "\x1B[0m"
-      printf("%.*s" START_RED "%.*s" END_COLOR "%.*s",
-             (int)(match.begin - new_lines.at(line_index).begin),
-             new_lines.at(line_index).begin,
-             (int)(match.end - match.begin),
-             match.begin,
-             (int)(new_lines.at(line_index + 1).begin - match.end),
-             match.end);
+      // Now print all matches starting on this line.
+      const char *start = it_lines->begin;
+      if (start == new_lines.back().begin) {
+        ++it_matches;
+        continue;
+      }
+      while (it_matches < matches.end() &&
+             (*it_matches).begin < (*(it_lines + 1)).begin) {
+        printf("%.*s" START_RED "%.*s" END_COLOR,
+               (int)(it_matches->begin - start), start,
+               (int)(it_matches->end - it_matches->begin), it_matches->begin);
+        start = it_matches->end;
+        ++it_matches;
+      }
+      // And print the rest of the line for the last match.
+      vector<rejit::Match>::iterator it_end_lines = it_lines;
+      while (it_end_lines->begin < (it_matches - 1)->end) {
+        ++it_end_lines;
+      }
+      printf("%.*s",
+             (int)((it_end_lines)->end - (it_matches - 1)->end),
+             (it_matches - 1)->end);
     }
   }
 
-  munmap(file, file_size);
+  munmap(file_content, file_size);
+close_file:
   close(fd);
-
-  return EXIT_SUCCESS;
+exit:
+  return rc;
 }
 
 
 int ftw_callback(const char *path, const struct stat *s, int typeflag) {
+  int rc;
   // The regexp and arguments are global to easily be accessed via this callback.
   if (typeflag == FTW_F) {
-    process_file(path);
+    rc = process_file(path);
+    if (rc) {
+      // Print an error message and continue.
+      printf("jrep: %s: %s\n", path, strerror(rc));
+    }
   }
   return 0;
 }
@@ -241,12 +284,6 @@ int main(int argc, char *argv[]) {
 
   if (arguments.regexp[0] == 0) {
     return EXIT_SUCCESS;
-  }
-
-  if (strcmp(arguments.regexp, "^") == 0 ||
-      strcmp(arguments.regexp, "$") == 0) {
-    printf("TODO: Handle '^' and '$'.");
-    return EXIT_FAILURE;
   }
 
   rejit::Regej re_(arguments.regexp);
