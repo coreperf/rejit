@@ -37,7 +37,9 @@ See below for further options.
 # environment as appropriate.
 options = {
     'all' : { # Unconditionally processed.
-      'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic', '-Werror'],
+      # TODO: Restore the '-Werror' option.
+      #'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic', '-Werror'],
+      'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic'],
       'CPPPATH' : map(lambda p: join(utils.dir_rejit, p), ['src/', 'include/'])
       },
 #   'build_option:value' : {
@@ -209,8 +211,11 @@ basic = env.Program(join(build_dir, 'basic'), join(build_dir_sample, 'basic.cc')
     LIBS=[librejit])
 env.Alias('basic', basic)
 #TODO: Check for argp. Extract build to a SConscript?
+jrep_libs = [librejit]
+if env['os'] == 'macos':
+  jrep_libs += ['argp']
 jrep = env.Program(join(build_dir, 'jrep'), join(build_dir_sample, 'jrep.cc'),
-    LIBS=[librejit, 'argp'])
+    LIBS=jrep_libs)
 env.Alias('jrep', jrep)
 regexdna = env.Program(join(build_dir, 'regexdna'), join(build_dir_sample, 'regexdna.cc'),
     LIBS=[librejit])

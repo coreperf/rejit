@@ -14,19 +14,18 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+
+#include <argp.h>
+
 #include <stdlib.h>
 #include <stdio.h>
-
-// Arguments handling.
-#include <argp.h>
-// For file operations.
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-// File tree traversal.
+#include <unistd.h>
 #include <ftw.h>
+#include <string.h>
 
-// To handle the list of files to process.
 #include <vector>
 #include <cerrno>
 
