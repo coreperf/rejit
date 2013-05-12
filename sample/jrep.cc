@@ -117,7 +117,10 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 static char args_doc[] = "regexp file";
 static char doc[] =
 "grep-like program powered by rejit.\n"
-"It provides only a *tiny* subset of grep features." ;
+"\n"
+"It provides only a *tiny* subset of grep features.\n"
+"One additional feature is the ability to use patterns matching over multiple\n"
+"lines (eg. \"a\\nb\").\n";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
