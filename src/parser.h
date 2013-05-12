@@ -58,6 +58,7 @@ class Parser {
   // 'Push' functions' main purpose is to push something on the stack.
   // 'Do' functions execute more complex operations.
   // TODO: Give more details for each function.
+  void PushChar(char c, bool append_to_mc_tos = true);
   void PushChar(const char* char_address);
   void PushPeriod();
   void PushAlternateBar();

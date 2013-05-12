@@ -33,14 +33,22 @@ case k##RegexpType: stream << #RegexpType; break;
 }
 
 
+MultipleChar::MultipleChar(char c) : Regexp(kMultipleChar) {
+  chars_.push_back(c);
+}
+
+
 MultipleChar::MultipleChar(const char* first_char, unsigned count)
-  : Regexp(kMultipleChar), chars_(first_char), chars_length_(count) {
+  : Regexp(kMultipleChar) {
   ASSERT(count <= kMaxNodeLength);
+  for (const char* c = first_char; c < first_char + count; c++) {
+    chars_.push_back(*c);
+  }
 }
 
 
 Regexp* MultipleChar::DeepCopy() {
-  MultipleChar* newre = new MultipleChar(chars_, chars_length_);
+  MultipleChar* newre = new MultipleChar(&chars_[0], chars_.size());
   return newre;
 }
 

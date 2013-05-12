@@ -174,38 +174,39 @@ inline ostream& operator<<(ostream& stream, const Regexp& regexp) {
 // the lifetime of the generated functions.
 class MultipleChar : public Regexp {
  public:
+  MultipleChar() : Regexp(kMultipleChar) {}
+  MultipleChar(char c);
   MultipleChar(const char* chars, unsigned count);
   virtual Regexp* DeepCopy();
 
   inline bool IsFull() {
-    ASSERT(chars_length_ <= kMaxNodeLength);
-    return chars_length_ == kMaxNodeLength;
+    ASSERT(chars_length() <= kMaxNodeLength);
+    return chars_length() == kMaxNodeLength;
   }
-  void PushChar() {
+  void PushChar(char c) {
     ASSERT(!IsFull());
-    chars_length_++;
+    chars_.push_back(c);
   }
 
   virtual unsigned MatchLength() const { return chars_length(); }
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
 
-  const char* chars() const { return chars_; }
-  unsigned chars_length() const { return chars_length_; }
+  const char* chars() const { return &chars_[0]; }
+  unsigned chars_length() const { return chars_.size(); }
 
   int64_t first_chars() const {
-    return *reinterpret_cast<const int64_t*>(chars_) &
+    return *reinterpret_cast<const int64_t*>(chars()) &
       FirstCharsMask(chars_length());
   }
 
   int64_t imm_chars() const {
-    return *reinterpret_cast<const int64_t*>(chars_) &
+    return *reinterpret_cast<const int64_t*>(chars()) &
       FirstCharsMask(chars_length());
   }
 
  protected:
-  const char* chars_;
-  unsigned chars_length_;
+  vector<char> chars_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MultipleChar);

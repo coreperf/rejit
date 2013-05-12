@@ -343,28 +343,34 @@ int Parser::ParseBrackets(const char *left_bracket) {
 }
 
 
-void Parser::PushChar(const char* char_address) {
+void Parser::PushChar(char c, bool append_to_mc_tos) {
   MultipleChar* mc;
-  char lookahead = '\0';
-  if (char_address && *char_address != '\0') {
-    lookahead = *(char_address + 1);
-  }
 
-  if (!IsRetroactiveChar(lookahead) && tos() && tos()->IsMultipleChar()) {
+  if (append_to_mc_tos && tos() && tos()->IsMultipleChar()) {
     // Append the character to the MultipleCharacter regexp on the top of the
     // stack.
     mc = reinterpret_cast<MultipleChar*>(tos());
     if (!mc->IsFull()) {
-      mc->PushChar();
+      mc->PushChar(c);
       regexp_info()->UpdateRegexpMaxLength(mc);
       return;
     }
   }
 
-  // Default behaviour.
-  mc = new MultipleChar(char_address, 1);
+  // Create a new mc.
+  mc = new MultipleChar(c);
   regexp_info()->UpdateRegexpMaxLength(mc);
   PushRegexp(mc);
+}
+
+
+void Parser::PushChar(const char* char_address) {
+  char lookahead = '\0';
+  if (char_address && *char_address != '\0') {
+    lookahead = *(char_address + 1);
+  }
+
+  PushChar(*char_address, !IsRetroactiveChar(lookahead));
 }
 
 
