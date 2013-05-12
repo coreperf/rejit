@@ -16,26 +16,17 @@
 import os
 
 Import('env librejit help_messages')
-#env['CCFLAGS'] += ['-DMOD_FLAGS']
-
-test_env = Environment()
-# Grab compilation environment variables.
-test_env['CC'] = os.getenv('CC') or test_env['CC']
-test_env['CXX'] = os.getenv('CXX') or test_env['CXX']
-test_env['CCFLAGS'] = os.getenv('CCFLAGS') or test_env['CCFLAGS']
-
-test_env['LIBPATH'] = env['LIBPATH'] + ':hg.re2/obj/:'
 
 dir_sconscript = Dir('.').srcnode().path 
 path_engine = os.path.join(dir_sconscript, 'engine')
 
 libs = [librejit]
 if 'os' in env and env['os'] == 'macos':
-  conf = Configure(test_env)
+  conf = Configure(env)
   if not conf.CheckLib('argp'):
     print help_messages['argp']
     Exit(1)
-  test_env = conf.Finish()
+  env = conf.Finish()
   libs += ['argp']
 env.Program('engine', ['engine.cc'],
     LIBS=libs)
