@@ -47,7 +47,7 @@ else:
 for simd_enabled in simd_modes:
   for mode in utils.build_options_modes:
     print "Testing (mode=%s, simd=%s)..." % (mode, simd_enabled)
-    scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs),
+    scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
         "benchtest=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
     subprocess.check_call(scons_command)
     print ''
