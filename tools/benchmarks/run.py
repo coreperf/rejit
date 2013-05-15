@@ -192,19 +192,37 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
   '''
   <tr>
     <td>
-      <div style="padding:32px">
-        <div id="%(graph_id)s" style="width:600px;height:400px"></div>
+      <div style="width:730px">
+        <div id="%(graph_id)s" style="float:left;width:600px;height:400px"></div>
+        <div id="%(graph_id)s_choices" style="float:left;"></div>
       </div>
       <script type="text/javascript">
         $(function () {
           %(data_declaration)s
           var datasets = [ %(datasets)s ];
-          var plot_%(benchmark)s = $.plot($("#%(graph_id)s"),
-                                          datasets,
-                                          plot_options_parallel
-                                         );
 
-          var previousPoint = null;
+          // Create checkboxes.
+          var choiceContainer = $("#%(graph_id)s_choices");
+          $.each(datasets, function(key, val) {
+              choiceContainer.append('<br/><input type="checkbox" name="' + key +
+                                     '" checked="checked" id="id' + key + '">' +
+                                     '<label for="id' + key + '">'
+                                      + val.label + '</label>');
+          });
+          choiceContainer.find("input").click(plotAccordingToChoices);
+
+          function plotAccordingToChoices() {
+            var data = [];
+            choiceContainer.find("input:checked").each(function () {
+              var key = $(this).attr("name");
+              if (key && datasets[key])
+              data.push(datasets[key]);
+            });
+            if (data.length > 0)
+              $.plot($("#%(graph_id)s"), data, plot_options_parallel);
+          }
+
+          plotAccordingToChoices();
           $("#%(graph_id)s").bind("plothover", plothover_func);
         });
       </script>
