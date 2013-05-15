@@ -15,46 +15,50 @@ This page is available under the Creative Commons "CC BY" licence.
   <body>
     <h1>Benchmarks</h1>
     <p>
-    Benchmarks presented here all deal with looking for matches of a regular
-    expression in a text.
-    They try to match the regexp in a text where we ensure there is no match.
-    Performance is reported in bytes per second (size of the
-    text matched divided by the time to match it).
-    That indicates at what speed the engine is able to process the text to look
-    for a match.
-    This is representative of use cases where the density of matches in the text
-    searched is low. (Example use case: grepping through files for a regexp.)
+    Benchmark results in this page present performance to search for all
+    (left-most longest) matches of a regular expression in a text.
+    <br />
+    Performance is reported in bytes per second (size of the text matched
+    divided by the time to process it). This can be seen as the speed at which
+    files of a given size can be processed. It is easier to report and understand
+    than a delay close to zero.
+    <br />
+    Benchmarks in this page deal with texts with a rather low density of
+    matches. An example representative use case would be grepping through files.
 
     <br /><br />
-    I spent most time working on the engine rather than the benchmarks, so there
-    is a lot to improve. A few notes:
-    <li>Runs for text of different sizes and engines are independent and use
-    different randomly generated texts. The number of iterations is also kept
-    relatively small to keep the benchmarks quick to run.</li>
-    <li>'best' performance graphs don't take the compilation time into account.
-    'worst' performance graphs show performance for 1 run and 1 compilation
-    (averaged). 'amortised' performance graphs show performance for 1
-    compilation and 100 runs</li>
-    <li>v8 results should be interpreted with caution. It is hard to tell what
-    the engine exactly does. Performance for benchmarks 4 and 5 is surprising
-    when comparing with performance for benchmarks 0, 1, and 2. 
-    <br />Javascript time precision is in milliseconds, so the number of runs
-    is increased to 20000 for text sizes strictly smaller than 128KiB.</li>
-    <li>Benchmarks showing performance of full regexp matching are not
-    presented. As explained above, rejit's related mechanisms are completely
-    unoptimized and the performance would not be representative.</li>
-    <li>Rejit is a prototype implementation, has not been optimized, and there are
-    many unimplemented SIMD paths. Hence there are many situations in which
-    rejit will perform badly (especially compared to SIMD paths).
-    </li>
+    I did not spend much time working on the benchmarks, so there is certainly
+    room from improvement. A few notes:
+    <ul>
+      <li>Runs for different text sizes and engines are independent and use
+      different randomly generated texts.</li>
+      <li>The number of iterations is kept small to not increase the run time
+      too much.</li>
+      <li>'best' performance graphs don't take the compilation time into
+      account.  'worst' performance graphs show performance for 1 run and 1
+      compilation.  'amortised' performance graphs show performance for 1
+      compilation and 100 runs. (except for v8. See below.)</li>
+      <li>v8 results should be interpreted with caution. Performance for
+      benchmarks 4 and 5 is surprising when comparing with performance for
+      benchmarks 0, 1, and 2. I have not investigated.</li>
+      <li>Javascript Date precision is in milliseconds. To keep decently precise
+      perfomance figures the number of iterations is multiplied by 200 for text
+      sizes strictly smaller than 128KiB.</li>
+      <li>Benchmarks showing performance of full regexp matching (does the
+      regexp match the entire string?) are not presented. Rejit should behave
+      relatively well, but very little optimization work has gone there.  </li>
+    </ul>
+    Note that other sample programs included in the sources (regexdna and jrep)
+    can be used for benchmarking.
     <br /><br />
-    Finally before showing some graphs, here are a few things where rejit is
-    still very bad at. (Eventually they should become as fast as the rest).
-    <li>Full matches.</li>
-    <li>The handling of <code>.*</code> is bad. Example slow regexp: <code>.*$</code> .</li>
-    <li>Regexp for which the fast forward mechanism choses a bracket expression
-    as its ffelement.
-    Example slow regexp: <code>(sub|regexp)[0-9az@](other|stuff?)</code></li>
+    Finally before showing some graphs, here are a few of things rejit is
+    still lacking:
+    <ul>
+      <li>Many features are missing (submatches, case insensitive match, etc.).
+      <li>The choice of the ff element could be improved.</li>
+      <li>The handling of <code>.*</code> is very poor. Example slow regexp:
+      <code>.*$</code> .</li>
+    </ul>
     </p>
 
     <script language="javascript" type="text/javascript" src="resources/bench_plot.js"></script>

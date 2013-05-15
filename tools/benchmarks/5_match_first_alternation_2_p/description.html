@@ -1,8 +1,9 @@
 <p>
-5 - <b>Regexp:</b> <code>(abcd---#|abcd___#)</code>
+(5) <b>Regexp:</b> <code>(abcd---|abcd___)</code>
 <br />
-Search for an alternation of two words sharing a common prefix.<br />
+Search for an alternation of two words sharing a common prefix.
 <br />
-Re2 spots the common prefix and uses memchr() to speed up the search.
+Re2 spots the common prefix and uses the information to speed up the search,
+probably by interpreting it as <code>abcd(---|___)</code>.
 Rejit does not do that yet.
 </p>

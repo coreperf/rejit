@@ -1,32 +1,21 @@
 <p>
-0 - <b>Regexp:</b> <code>abcdefg#</code>
+(0) <b>Regexp:</b> <code>abcdefg</code>
 <br />
 Search for a simple concatenation of characters.
 <br />
 Starting character 'a' is <b>not</b> present in the text searched.
-<br />
-The trailing '#' is not present either in the text searched. This is a trick,
-used also in later benchmarks, to ensure that there are no matches in the text.
 <br /><br />
 Re2 uses memchr() to look for the starting character.
 Its speed is particularly good when the C library provides a SIMD optimized memchr().
 The absence of the starting character in the text matched allows re2 to stay in
-the memchr() loop, yielding good performances.
-<a href="https://perf.wiki.kernel.org/index.php/Main_Page">Perf</a> traces of
-re2's execution on the first three benchmarks is rather interesting.
+the memchr() loop, yielding excellent performances.
 <br />
-Rejit currently has a SSE4.2 optimized path which performs here similarly to a
-SIMD memchr(). It falls back to non-SIMD code otherwise, which speed is also
-comparable to a non-SSE memchr().
-<br />Note that rejit is able to dynamically determine the availability of the
-CPU features (here SSE4.2), and so can use it even if the C library does not.
+Rejit generates custom code and uses SSE4.2 when available.
 <br />
-If rejit strongly outperforms re2 on this benchmarks, it is likely that your
-C library does not provide a SIMD optimized memchr(). If re2 strongly
-outperforms rejit, it is likely that your library provides a SIMD memchr(), but
-that your CPU does not support SSE4.2 and rejit cannot use it for optimized
-code. Support for previous SSE versions may come later.
-<br /><br />
-Here and for all benchmarks below, the difference between the worst and best
-case performance show that rejit compilation speed needs to be improved.
+Note that rejit is able to dynamically determine the availability of the CPU
+features (here SSE4.2), and so can use it even if the C library does not.  If
+rejit strongly outperforms re2 on this benchmarks, it is likely that the C
+library does not provide a SIMD optimized memchr(). If re2 strongly outperforms
+rejit, it is likely that your library provides a SIMD memchr(), but that your
+CPU does not support SSE4.2. Support for previous SSE versions may come later.
 </p>

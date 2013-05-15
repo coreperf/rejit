@@ -1,9 +1,7 @@
 <p>
-4 - <b>Regexp:</b> <code>(abcd---#|efgh___#)</code>
+(4) <b>Regexp:</b> <code>(abcd---|efgh___)</code>
 <br />
 Search for an alternation of two words with no substring in common.
 <br/>
-Rejit has basic SIMD support for this, which still needs optimising. Eventually
-I think the performance could look like <code>(perf for a single string)/(n of
-  alternated strings)</code>
+Rejit also uses SIMD when available.
 </p>
