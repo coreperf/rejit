@@ -192,7 +192,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
     SetStateForce(0, rinfo->entry_state());
     GenerateMatchForward(rinfo, match_type);
 
-  } else if (FLAG_use_fast_forward) {
+  } else {
     Label fast_forward;
 
     __ bind(&fast_forward);
@@ -212,10 +212,6 @@ void Codegen::Generate(RegexpInfo* rinfo,
       GenerateMatchForward(rinfo, match_type, NULL);
     }
 
-  } else {
-    // TODO(rames): need to Re-architecture after big fast forward refactoring.
-    UNIMPLEMENTED();
-    GenerateMatchForward(rinfo, match_type, NULL);
   }
 
   // Unwind the stack and return.

@@ -24,8 +24,6 @@
 /* flag_name             , release , debug mode default value */               \
 /* Emit extra code for debugging purposes. */                                  \
 M( emit_debug_code       , false   , true  )                                   \
-/* DEPRECATED */                                                               \
-M( force_ff_pre_scan     , false   , false )                                   \
 /* Show the ff elements chosen by the fast forward mechanism. */               \
 M( print_ff_elements     , false   , false )                                   \
 /* Print the list of regexps that the codegen will generate code for. */       \
@@ -37,9 +35,7 @@ M( print_state_ring_info , false   , false )                                   \
 /* For kMatchAll, print every match when registered. */                        \
 M( trace_match_all       , false   , false )                                   \
 /* Trace repetitions handling at parse time. */                                \
-M( trace_repetitions     , false   , false )                                   \
-/* Use the fast forward mechanism. */                                          \
-M( use_fast_forward      , true    , true  )
+M( trace_repetitions     , false   , false )
 
 // Declare all the flags.
 #if defined(DEBUG) || defined(MOD_FLAGS)
