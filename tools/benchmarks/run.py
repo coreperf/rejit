@@ -129,20 +129,14 @@ def write_benchmark_description(html_file, benchmark):
 def write_benchmark_latest_results(html_file, engines, benchmark):
   html_dic = {
       'benchmark': benchmark,
-      'plot_parallel': 'plot_parallel_' + benchmark,
+      'graph_id': 'plot_parallel_' + benchmark,
+      'data_declaration': '',
+      'datasets': '',
       }
-  html(html_file,
-  '''
-  <tr>
-    <td>
-      <div style="padding:32px">
-        <div id="%(plot_parallel)s" style="width:600px;height:400px"></div>
-      </div>
-      <script type="text/javascript">
-        $(function () {''' % html_dic)
 
   series = {}
 
+  # Retrieve the data for all engines.
   for engine in sorted(engines):
     data_file = open(benchmark_engine_data_path(benchmark, engine), 'r')
     data = csv.reader(data_file, delimiter=' ')
@@ -164,22 +158,18 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
         legend = ('%s_%s' %(engine, line[0])).rstrip(' \t\n\r').lstrip(' \t\n\r')
         series[legend] = line[first_perf_index::]
 
+    data_file.close()
+
+  # Build a js representation of the data.
   for legend in sorted(series):
     data_points[legend] = ''
     for i in range(0, n_l):
       # TODO: find a beter fix for that
       if series[legend][i] != '' and series[legend][i] != 'inf':
         data_points[legend] += '[%s,%s],' %(labels[i], series[legend][i])
-    html(html_file, 'var data_%s_%s = [%s];\n' %(benchmark, legend, data_points[legend]))
+    html_dic['data_declaration'] +=  'var data_%s_%s = [%s];\n' %(benchmark, legend, data_points[legend])
 
-  html(html_file,
-  '''
-    var plot_%(benchmark)s = $.plot($("#%(plot_parallel)s"),
-       [
-         ''' % html_dic)
-  
-  data_file.close()
-
+  # Create the graph content refering to the data.
   main_colors = ['#DEBD00', '#277AD9', '#00940A', '#A22EBF']
   secondary_colors = ['#E0D48D', '#94B8E0', '#72B377', '#BF6CD4']
   colors_index = -1
@@ -189,65 +179,37 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
     root = '_'.join(l_s[0:len(l_s) - 1])
     if root != prev_root:
       colors_index += 1
-    set_info = '{data: data_%s_%s, label: "%s",\n' % (benchmark, legend,
+    html_dic['datasets'] += '{data: data_%s_%s, label: "%s",\n' % (benchmark, legend,
       legend)
     if l_s[len(l_s) - 1] == 'worst' or l_s[len(l_s) - 1] == 'best':
-      set_info += 'color: "%s",\n' % (secondary_colors[colors_index])
+      html_dic['datasets'] += 'color: "%s",\n' % (secondary_colors[colors_index])
     else:
-      set_info += 'color: "%s",\n' % (main_colors[colors_index])
-    set_info += '},'
-    html(html_file, set_info)
+      html_dic['datasets'] += 'color: "%s",\n' % (main_colors[colors_index])
+    html_dic['datasets'] += '},'
     prev_root = root
+
   html(html_file,
-      '''
-       ],
-       plot_options_parallel
-       );
+  '''
+  <tr>
+    <td>
+      <div style="padding:32px">
+        <div id="%(graph_id)s" style="width:600px;height:400px"></div>
+      </div>
+      <script type="text/javascript">
+        $(function () {
+          %(data_declaration)s
+          var datasets = [ %(datasets)s ];
+          var plot_%(benchmark)s = $.plot($("#%(graph_id)s"),
+                                          datasets,
+                                          plot_options_parallel
+                                         );
 
-    function showTooltip(x, y, color, contents) {
-        $('<div id="tooltip">' + contents + '</div>').css( {
-            position: 'absolute',
-            display: 'none',
-            top: y + 5,
-            left: x + 5,
-            border: '1px solid #fdd',
-            padding: '2px',
-            'background-color': color,
-            opacity: 0.80
-        }).appendTo("body").fadeIn(200);
-    }
-
-    var previousPoint = null;
-    $("#%(plot_parallel)s").bind("plothover", function (event, pos, item) {
-        $("#x").text(pos.x.toFixed(2));
-        $("#y").text(pos.y.toFixed(2));
-
-        if (item) {
-            if (previousPoint != item.dataIndex) {
-                previousPoint = item.dataIndex;
-                
-                $("#tooltip").remove();
-                var x = item.datapoint[0].toFixed(2),
-                    y = item.datapoint[1].toFixed(2);
-                
-                showTooltip(item.pageX, item.pageY,
-                            item.series.color,
-                            item.series.label + '<br/>' +
-                            byteSF(y) + ' (' + Math.floor(y) + ' B/s)' + '<br/>' +
-                            byteF(x)  + ' (' + Math.floor(x) + ' B)');
-
-            }
-        }
-        else {
-            $("#tooltip").remove();
-            previousPoint = null;            
-        }
-    });
-
-});
-</script>
+          var previousPoint = null;
+          $("#%(graph_id)s").bind("plothover", plothover_func);
+        });
+      </script>
+    </td>
 ''' % html_dic)  # End of html
-  html(html_file, '</td>')
 
 def plot_over_time(html_file, engine, benchmark, interest_labels):
   data_file = open(benchmark_engine_data_path(benchmark, engine), 'r')
@@ -311,18 +273,6 @@ def plot_over_time(html_file, engine, benchmark, interest_labels):
                                    ],
                                    plot_options_speed_time
                                   );
-          function showTooltip(x, y, color, contents) {
-              $('<div id="tooltip">' + contents + '</div>').css( {
-                  position: 'absolute',
-                  display: 'none',
-                  top: y + 5,
-                  left: x + 5,
-                  border: '1px solid #fdd',
-                  padding: '2px',
-                  'background-color': color,
-                  opacity: 0.80
-              }).appendTo("body").fadeIn(200);
-          }
 
           var previousPoint = null;
           $("#%(id)s").bind("plothover", function (event, pos, item) {
@@ -374,7 +324,6 @@ def plot_results():
     engines = filter(lambda x: isfile(benchmark_engine_data_path(benchmark, x)), engines)
 
     write_benchmark_description(html_results, benchmark)
-
     write_benchmark_latest_results(html_results, engines, benchmark)
 
     if args.register and 'rejit' in engines:
