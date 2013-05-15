@@ -41,6 +41,15 @@ void error(const char* message) {
 const char *argp_program_version = "re2 benchmark engine 0.1";
 const char *argp_program_bug_address = "<alexandre@uop.re>";
 
+// Copied from rejit.h
+enum MatchType {
+  kMatchFull,
+  kMatchAnywhere,
+  kMatchFirst,
+  kMatchAll,
+  kNMatchTypes
+};
+
 /* This structure is used by main to communicate with parse_opt. */
 struct arguments {
   char       *args[1];  // The regexp.
@@ -49,6 +58,7 @@ struct arguments {
   unsigned   iterations;
   char       low_char;
   char       high_char;
+  MatchType  match_type;
 };
 
 /*
@@ -62,6 +72,7 @@ static struct argp_option options[] =
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
   {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
   {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
+  {"match_type" , 'm' , "all"  , OPTION_ARG_OPTIONAL , "Type of matching to perform. [all, first]."}, 
   {0}
 };
 
@@ -95,6 +106,16 @@ parse_opt(int key, char *arg, struct argp_state *state) {
     case 'h':
       arguments->high_char = arg[0];
       break;
+    case 'm':
+      if (strcmp(arg, "all") == 0) {
+        arguments->match_type = kMatchAll;
+      } else if (strcmp(arg, "first") == 0) {
+        arguments->match_type = kMatchFirst;
+      } else {
+        argp_usage(state);
+      }
+      break;
+
     case ARGP_KEY_ARG:
       if (state->arg_num >= 1) {
         argp_usage(state);
@@ -140,6 +161,7 @@ int main(int argc, char *argv[]) {
   arguments.iterations = 1000;
   arguments.low_char   = 'a';
   arguments.high_char  = 'z';
+  arguments.match_type = kMatchAll;
 
   argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
@@ -193,9 +215,17 @@ int main(int argc, char *argv[]) {
 
   { // Measure worst case speed.
     gettimeofday(&t0, NULL);
-    for (unsigned i = 0; i < arguments.iterations; i++) {
-      RE2 pattern(regexp);
-      RE2::PartialMatch(text, pattern);
+    if (arguments.match_type == kMatchAll) {
+      re2::StringPiece piece = text;
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        RE2 pattern(regexp);
+        while (RE2::FindAndConsume(&piece, pattern)) {}
+      }
+    } else {
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        RE2 pattern(regexp);
+        RE2::PartialMatch(text, pattern);
+      }
     }
     gettimeofday(&t2, NULL);
 
@@ -210,8 +240,15 @@ int main(int argc, char *argv[]) {
 
     gettimeofday(&t1, NULL);
 
-    for (unsigned i = 0; i < arguments.iterations; i++) {
-      RE2::PartialMatch(text, pattern);
+    if (arguments.match_type == kMatchAll) {
+      re2::StringPiece piece = text;
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        while (RE2::FindAndConsume(&piece, pattern)) {}
+      }
+    } else {
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        RE2::PartialMatch(text, pattern);
+      }
     }
 
     gettimeofday(&t2, NULL);

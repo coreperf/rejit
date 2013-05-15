@@ -55,6 +55,7 @@ struct arguments {
   unsigned  iterations;
   char      low_char;
   char      high_char;
+  MatchType match_type;
   // Rejit flags.
   int  rejit_flags;
 };
@@ -80,6 +81,7 @@ static struct argp_option options[] =
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
   {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
   {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
+  {"match_type" , 'm' , "all"  , OPTION_ARG_OPTIONAL , "Type of matching to perform. [all, first]."}, 
   // Convenient access to rejit flags.
 #define FLAG_OPTION(flag_name, r, d) \
   {#flag_name , flag_name##_key , FLAG_##flag_name ? "1" : "0"   , OPTION_ARG_OPTIONAL , "0 to disable, 1 to enable."},
@@ -118,6 +120,15 @@ parse_opt(int key, char *arg, struct argp_state *state) {
     case 'h':
       arguments->high_char = arg[0];
       break;
+    case 'm':
+      if (strcmp(arg, "all") == 0) {
+        arguments->match_type = kMatchAll;
+      } else if (strcmp(arg, "first") == 0) {
+        arguments->match_type = kMatchFirst;
+      } else {
+        argp_usage(state);
+      }
+      break;
 
 #define FLAG_CASE(flag_name, r, d)                                             \
     case flag_name##_key: {                                                    \
@@ -150,16 +161,7 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 }
 
 static char args_doc[] = "regexp";
-static char doc[] =
-"Benchmark rejit regular expression engine.\n"
-"--- NOTE ---------------------------------\n"
-"This utility benchmarks the speed to find the *FIRST* match of the provided "
-"regular expression. For coherent results ensure that your regexp does NOT "
-"match.\n"
-"Why so? Because this is currently what is needed for the automated bencharks, "
-"which this utility is designed for.\n"
-"Improving this tool to benchmark MatchAll is on my TODO list."
-"\n------------------------------------------\n" ;
+static char doc[] = "Benchmark rejit regular expression engine.\n";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
@@ -178,6 +180,7 @@ int main(int argc, char *argv[]) {
   arguments.iterations = 1000;
   arguments.low_char   = 'a';
   arguments.high_char  = 'z';
+  arguments.match_type = kMatchAll;
 #define SET_FLAG_DEFAULT(flag_name, r, d)                                      \
   arguments.rejit_flags |= FLAG_##flag_name << REJIT_FLAG_OFFSET(flag_name);
   arguments.rejit_flags = 0;
@@ -239,10 +242,15 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
   struct timeval t0, t1, t2;
 
   { // Measure worst case speed.
+    vector<Match> matches;
     gettimeofday(&t0, NULL);
     for (unsigned i = 0; i < arguments.iterations; i++) {
       Regej re(regexp);
-      re.MatchFirst(text, NULL);
+      if (arguments.match_type == kMatchAll) {
+        re.MatchAll(text, &matches);
+      } else {
+        re.MatchFirst(text, NULL);
+      }
     }
     gettimeofday(&t2, NULL);
 
@@ -252,15 +260,22 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
   }
 
   { // Compute best and amortised speeds.
+    vector<Match> matches;
     gettimeofday(&t0, NULL);
     Regej re(regexp);
 
-    re.Compile(kMatchFirst);
+    re.Compile(arguments.match_type);
 
     gettimeofday(&t1, NULL);
 
-    for (unsigned i = 0; i < arguments.iterations; i++) {
-      re.MatchFirst(text, NULL);
+    if (arguments.match_type == kMatchAll) {
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        re.MatchAll(text, &matches);
+      }
+    } else {
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        re.MatchFirst(text, NULL);
+      }
     }
 
     gettimeofday(&t2, NULL);
