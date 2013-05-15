@@ -34,7 +34,7 @@ import v8_utils
 from v8_utils import *
 
 if __name__ == "__main__":
-  regexp = '[aAzZ0-9](#|$)'
+  regexp = '[aAzZ0-9]'
   args = [regexp]
   results = run(args)
   for line in results:

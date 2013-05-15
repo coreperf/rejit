@@ -216,8 +216,8 @@ int main(int argc, char *argv[]) {
   { // Measure worst case speed.
     gettimeofday(&t0, NULL);
     if (arguments.match_type == kMatchAll) {
-      re2::StringPiece piece = text;
       for (unsigned i = 0; i < arguments.iterations; i++) {
+        re2::StringPiece piece = text;
         RE2 pattern(regexp);
         while (RE2::FindAndConsume(&piece, pattern)) {}
       }
@@ -241,8 +241,8 @@ int main(int argc, char *argv[]) {
     gettimeofday(&t1, NULL);
 
     if (arguments.match_type == kMatchAll) {
-      re2::StringPiece piece = text;
       for (unsigned i = 0; i < arguments.iterations; i++) {
+        re2::StringPiece piece = text;
         while (RE2::FindAndConsume(&piece, pattern)) {}
       }
     } else {

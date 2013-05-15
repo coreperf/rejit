@@ -34,7 +34,7 @@ import v8_utils
 from v8_utils import *
 
 if __name__ == "__main__":
-  regexp = 'abcdefgh#'
+  regexp = 'abcdefgh'
   args = [regexp,
       '--low_char=a',
       '--high_char=j']
