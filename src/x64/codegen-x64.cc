@@ -1049,7 +1049,9 @@ void FastForwardGen::Generate() {
     // simpler with the new code structure.
     if (CpuFeatures::IsAvailable(SSE4_2) &&
         multiple_chars_only &&
-        regexp_list_->size() < XMMRegister::kNumRegisters - 1) {
+        // xmm0-xmm8 give 8 registers minus one allocated for the string.
+        // TODO: Can we use a REX prefix to use all xmm registers?
+        regexp_list_->size() <= 7) {
       // This code is designed after VisitSingleMultipleChar().
 
       static const uint8_t pcmp_str_control =
@@ -1057,7 +1059,7 @@ void FastForwardGen::Generate() {
         Assembler::pol_pos | Assembler::lsi;
 
       // Pre-load the XMM registers for MultipleChars.
-      static const int first_free_xmm_code = 4;
+      static const int first_free_xmm_code = 1;
       unsigned min_n_chars = kMaxNodeLength, max_n_chars = 0;
       for (unsigned i = 0; i < regexp_list_->size(); i++) {
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
@@ -1098,10 +1100,6 @@ void FastForwardGen::Generate() {
 
       Label match_somewhere_0x00, match_somewhere_0x10,
             match_somewhere_0x20, match_somewhere_0x30;
-      XMMRegister xmm_s_0x00 = xmm0;
-      XMMRegister xmm_s_0x10 = xmm1;
-      XMMRegister xmm_s_0x20 = xmm2;
-      XMMRegister xmm_s_0x30 = xmm3;
 
       // This loop scans the code for eos or potential match.
       // It makes no distinction between potential matches to be able to scan as
@@ -1115,12 +1113,12 @@ void FastForwardGen::Generate() {
       for (unsigned i = 0; i < regexp_list_->size(); i++) {                    \
         if (i == 0) {                                                          \
           /* The conditional jump above ensures that the eos wasn't reached. */\
-          __ movdqa(xmm_s_##current_offset,                                    \
+          __ movdqa(xmm0,                                                      \
                     Operand(string_pointer, current_offset));                  \
         }                                                                      \
         __ pcmpistri(pcmp_str_control,                                         \
                      XMMRegister::from_code(first_free_xmm_code + i),          \
-                     xmm_s_##current_offset);                                  \
+                     xmm0);                                                    \
         __ j(below, &match_somewhere_##current_offset);                        \
       }
       // TODO: Do we need so many rounds?

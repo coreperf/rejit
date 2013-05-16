@@ -134,6 +134,8 @@ int RunTest() {
   TEST_First_unbound(1, "0123|abcd|efgh", "_abcd___", 1, 5);
   TEST_First_unbound(0, "0123|abcd|efgh", "_efgX___", 0, 0);
   TEST_First_unbound(1, "(0123|abcd)|efgh", "abcd", 0, 4);
+  TEST_First_unbound(1, "0000|1111|2222|3333|4444|5555|6666|7777|8888|9999", "_8888_", 1, 5);
+  TEST_First_unbound(0, "0000|1111|2222|3333|4444|5555|6666|7777|8888|9999", "_8__8_", 0, 0);
 
   // Alternations and ERE.
   TEST(kMatchFull, 1, ")", ")");
