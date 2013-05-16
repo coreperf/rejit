@@ -237,18 +237,6 @@ bool regexp_cmp_output_state(Regexp* r1, Regexp* r2) {
 }
 
 
-// A positive return value means that r1 is better than r2 for fast forwarding.
-int ff_phy_cmp(Regexp* r1, Regexp* r2) {
-  ASSERT(r1->IsPhysical() && r2->IsPhysical());
-  if (r1->IsMultipleChar() && r2->IsMultipleChar()) {
-    return r1->AsMultipleChar()->chars_length() -
-      r2->AsMultipleChar()->chars_length();
-  }
-
-  return r2->type() - r1->type();
-}
-
-
 bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps) {
   vector<Regexp*>::const_iterator it;
       for (it = regexps->begin(); it < regexps->end(); it++) {

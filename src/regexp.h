@@ -141,6 +141,12 @@ class Regexp {
   // ring.
   // TODO: Introduce min, and known match lengths?
   virtual unsigned MatchLength() const { return 0; }
+  // The score used to decide what regular expressions are used for fast
+  // forward. Scores were decided considering relative performance of different
+  // regexps.
+  // A lower score indicates a regexp easier to match for the ff mechanisms.
+  static const int ff_base_score = 116;
+  virtual int ff_score() const { UNREACHABLE(); return 0; }
 
   inline virtual void SetEntryState(int entry) { entry_state_ = entry; }
   inline virtual void SetOutputState(int output) { output_state_ = output; }
@@ -189,6 +195,10 @@ class MultipleChar : public Regexp {
   }
 
   virtual unsigned MatchLength() const { return chars_length(); }
+  virtual int ff_score() const {
+    return chars_length() > 1 ? ff_base_score - max(16u, chars_length())
+                              : 7 * ff_base_score + ff_base_score / 2;
+  }
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
 
@@ -220,6 +230,7 @@ class Period : public Regexp {
   Period() : Regexp(kPeriod) {}
   virtual Regexp* DeepCopy() { return new Period(); }
   virtual unsigned MatchLength() const { return 1; }
+  virtual int ff_score() const { return 20 * ff_base_score; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Period);
@@ -241,6 +252,7 @@ class Bracket : public Regexp {
 
   virtual Regexp* DeepCopy();
   virtual unsigned MatchLength() const { return 1; }
+  virtual int ff_score() const { return 15 * ff_base_score; }
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
 
@@ -279,6 +291,7 @@ class StartOfLine : public ControlRegexp {
  public:
   StartOfLine() : ControlRegexp(kStartOfLine) {}
   inline virtual Regexp* DeepCopy() { return new StartOfLine(); }
+  virtual int ff_score() const { return 2 * ff_base_score + ff_base_score / 2; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StartOfLine);
@@ -289,8 +302,7 @@ class EndOfLine : public ControlRegexp {
  public:
   EndOfLine() : ControlRegexp(kEndOfLine) {}
   inline Regexp* DeepCopy() { return new EndOfLine(); }
-
-
+  virtual int ff_score() const { return 2 * ff_base_score + ff_base_score / 2; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(EndOfLine);
@@ -559,9 +571,6 @@ class RegexpInfo {
 
 bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2);
 bool regexp_cmp_output_state(Regexp* r1, Regexp* r2);
-
-// Preferred order for fast forward selection.
-int ff_phy_cmp(Regexp* r1, Regexp* r2);
 
 bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps);
 

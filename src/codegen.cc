@@ -258,6 +258,7 @@ bool FF_finder::VisitAlternation(Alternation* alt) {
 }
 
 
+// TODO: Clean this.
 bool FF_finder::VisitConcatenation(Concatenation* concat) {
   bool res = false;
   bool cur_res;
@@ -300,23 +301,27 @@ bool FF_finder::VisitRepetition(Repetition* rep) {
 }
 
 
-// A positive return value means that p1:p2 is better than p2:p3 for
+// A positive return value means that i1:i2 is better than i2:i3 for
 // fast forwarding.
-// TODO(rames): There is a lot of potential optimization from here.
 int FF_finder::ff_cmp(size_t i1,
                       size_t i2,
                       size_t i3) {
   size_t s1 = i2 - i1;
   size_t s2 = i3 - i2;
+  int score_1 = 0, score_2 = 0;
 
+  // We need the lowest score, but we need some regexps to look for !
   if (s1 == 0) return -1;
   if (s2 == 0) return  1;
 
-  if (s1 == s2 && s1 == 1) {
-    return ff_phy_cmp(regexp_list_->at(i1), regexp_list_->at(i2));
-  } {
-    return s2 - s1;
+  for (size_t i = i1; i < i2; i++) {
+    score_1 += regexp_list_->at(i)->ff_score();
   }
+  for (size_t i = i2; i < i3; i++) {
+    score_2 += regexp_list_->at(i)->ff_score();
+  }
+
+  return score_2 - score_1;
 }
 
 
