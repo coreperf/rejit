@@ -37,7 +37,9 @@ automatically when running `$ tools/benchmarks/run.py`
 # environment as appropriate.
 options = {
     'all' : { # Unconditionally processed.
-      'CCFLAGS' : ['-Wall', '-Werror', '-pedantic'],
+      # TODO: Restore the '-Werror' option.
+      #'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic', '-Werror'],
+      'CCFLAGS' : ['-Wall', '-pedantic'],
       'CXXFLAGS' : ['-std=c++11'],
       'CPPPATH' : map(lambda p: join(utils.dir_rejit, p), ['src/', 'include/'])
       },
