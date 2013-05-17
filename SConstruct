@@ -37,9 +37,7 @@ See below for further options.
 # environment as appropriate.
 options = {
     'all' : { # Unconditionally processed.
-      # TODO: Restore the '-Werror' option.
-      #'CCFLAGS' : ['-std=c++11', '-Wall', '-pedantic', '-Werror'],
-      'CCFLAGS' : ['-Wall', '-pedantic'],
+      'CCFLAGS' : ['-Wall', '-Werror', '-pedantic'],
       'CXXFLAGS' : ['-std=c++11'],
       'CPPPATH' : map(lambda p: join(utils.dir_rejit, p), ['src/', 'include/'])
       },
