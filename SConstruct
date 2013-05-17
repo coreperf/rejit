@@ -218,17 +218,13 @@ env.Alias('test-rejit', test_rejit)
 
 SConscript('sample/SConscript', exports='env librejit')
 
-# Only build the library by default.
-Default(rejit)
-
 # Building benchmarks involve checking out and compiling third-party engines.
 # We don't want to do that by default.
-# Use a dummy top level target provided to trigger the compilation of all
-# benchmark targets. This is achieved by conditionally including the SConscript
-# below.
-benchmark = join(build_dir, 'benchmark')
-Program(benchmark, join(build_dir_tools, 'benchmarks/benchmark.c'))
-Alias('benchmark', benchmark)
-if benchmark in COMMAND_LINE_TARGETS or 'benchmark' in COMMAND_LINE_TARGETS:
+if 'benchmark' in COMMAND_LINE_TARGETS:
   help_messages = utils.help_messages
-  SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
+  benchmark = SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
+  env.Alias('benchmark', benchmark)
+  env.Alias('benchmarks', benchmark)
+
+# Only build the library by default.
+Default(rejit)
