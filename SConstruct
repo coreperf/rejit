@@ -119,7 +119,7 @@ options_influencing_build_path = [
 env = Environment(variables = vars)
 
 # Grab compilation environment variables.
-env['CC'] = os.getenv('CXX') or env['CC']
+env['CC'] = os.getenv('CC') or env['CC']
 env['CXX'] = os.getenv('CXX') or env['CXX']
 env['CXXFLAGS'] = os.getenv('CXXFLAGS') or env['CXXFLAGS']
 env['CCFLAGS'] = os.getenv('CCFLAGS') or env['CCFLAGS']
