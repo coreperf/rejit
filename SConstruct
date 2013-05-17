@@ -24,10 +24,10 @@ import utils
 #TODO(rames): Check scons AddOption()
 
 Help("""
-Simply building with
-  $ scons
-will build the rejit library in build/release.
-See below for further options.
+Build the rejit library with `$ scons`.
+Build a sample with          `$ scons sample/<name>` (eg. `$ scons sample/basic`).
+Build the benchmarks with    `$ scons benchmark`.  Note that they are built
+automatically when running `$ tools/benchmarks/run.py`
 """)
 
 # Build options ----------------------------------------------------------------
