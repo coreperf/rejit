@@ -40,7 +40,7 @@ def ensure_dir(path_name):
 # Build helpers ----------------------------------------------------------------
 build_options_modes = ['release', 'debug']
 
-build_options_archs = ['x64', 'none']
+build_options_archs = ['x64']
 def GuessArchitecture():
   id = platform.machine()
   if id == 'x86_64':

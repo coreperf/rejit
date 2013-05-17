@@ -134,6 +134,10 @@ if unknown_build_options:
   print 'Unknown build options:',  unknown_build_options.keys()
   Exit(1)
 
+if env['arch'] not in utils.build_options_archs:
+  print 'Unsupported architecture (%s)' % env['arch']
+  Exit(1)
+
 # This allows colors to be displayed when using with clang.
 env['ENV']['TERM'] = os.environ['TERM']
 
