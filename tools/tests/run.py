@@ -46,17 +46,29 @@ else:
 # coverage.
 for simd_enabled in simd_modes:
   for mode in utils.build_options_modes:
-    print "Testing (mode=%s, simd=%s)..." % (mode, simd_enabled)
+    print "Testing (mode=%s,\tsimd=%s)...\t" % (mode, simd_enabled),
+    sys.stdout.flush()  # Flush early to tell the user something is running.
     scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
         "benchtest=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
-    subprocess.check_call(scons_command)
-    print ''
-    ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit')], stdout=subprocess.PIPE)
-    test_output = ptest.communicate()[0]
-    if test_output:
-      print test_output
+    pscons = subprocess.Popen(scons_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    scons_ret = pscons.wait()
+    if scons_ret != 0:
+      print 'FAILED'
+      print 'Command:'
+      print ' '.join(scons_command)
+      print 'Output:'
+      scons_output = pscons.communicate()[0]
+      print scons_output
     else:
-      if ptest.returncode != 0:
+      ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit')], stdout=subprocess.PIPE)
+      test_ret = ptest.wait()
+      test_output = ptest.communicate()[0]
+      if test_ret != 0:
         print 'FAILED'
+        print 'Output:'
+        print test_output
       else:
-        print 'success'
+        if test_output:
+          print test_output,
+        else:
+          print 'success'
