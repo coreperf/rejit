@@ -161,7 +161,18 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 }
 
 static char args_doc[] = "regexp";
-static char doc[] = "Benchmark rejit regular expression engine.\n";
+static char doc[] =
+"\n"
+"Benchmark rejit regular expression engine.\n"
+"\n"
+"Output: processing speed in bytes/s (<size of text matched> / <time to match>)\n"
+"\t<worst speed> (1 run for 1 compilation)\n"
+"\t<amortised speed> (<--iterations=?> runs for 1 compilation)\n"
+"\t<best speed> (without considering compilation time)\n"
+"When benchmarking using --match_type=first, be careful that your regular "
+"expression does not match or you wil end up with surprising performance "
+"results!"
+"";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 

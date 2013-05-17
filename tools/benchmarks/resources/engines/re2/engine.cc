@@ -135,15 +135,17 @@ parse_opt(int key, char *arg, struct argp_state *state) {
 
 static char args_doc[] = "regexp";
 static char doc[] =
+"\n"
 "Benchmark re2 regular expression engine.\n"
-"--- NOTE ---------------------------------\n"
-"This utility benchmarks the speed to find the *FIRST* match of the provided "
-"regular expression. For coherent results ensure that your regexp does NOT "
-"match.\n"
-"Why so? Because this is currently what is needed for the automated bencharks, "
-"which this utility is designed for.\n"
-"Improving this tool to benchmark MatchAll is on my TODO list."
-"\n------------------------------------------\n" ;
+"\n"
+"Output: processing speed in bytes/s (<size of text matched> / <time to match>)\n"
+"\t<worst speed> (1 run for 1 compilation)\n"
+"\t<amortised speed> (<--iterations=?> runs for 1 compilation)\n"
+"\t<best speed> (without considering compilation time)\n"
+"When benchmarking using --match_type=first, be careful that your regular "
+"expression does not match or you wil end up with surprising performance "
+"results!"
+"";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
