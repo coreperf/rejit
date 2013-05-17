@@ -77,7 +77,7 @@ enum rejit_flags_option_keys {
 static struct argp_option options[] =
 {
   {"file"       , 'f' , ""     , OPTION_ARG_OPTIONAL , "Source file. If none provided, use a randomly generated characters."}, 
-  {"size"       , 's' , "1024" , OPTION_ARG_OPTIONAL , "Size of the text to match."},
+  {"size"       , 's' , "65536", OPTION_ARG_OPTIONAL , "Size of the text to match."},
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
   {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
   {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
   struct arguments arguments;
   // Set default values.
   arguments.file       = NULL;
-  arguments.size       = 1024;
+  arguments.size       = 65536;
   arguments.iterations = 1000;
   arguments.low_char   = 'a';
   arguments.high_char  = 'z';

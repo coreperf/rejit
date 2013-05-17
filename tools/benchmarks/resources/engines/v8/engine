@@ -21,7 +21,7 @@ import argparse
 parser = argparse.ArgumentParser(description='v8 benchmark engine.')
 parser.add_argument("regexp" , help="The regular expression to benchmark.")
 parser.add_argument("--file"       ,            default=""   , help="Source file. If none provided        , use a randomly generated characters.")
-parser.add_argument("--size"       , type=int , default=1024 , help="Size of the text to match.")
+parser.add_argument("--size"       , type=int , default=65536, help="Size of the text to match.")
 parser.add_argument("--iterations" , type=int , default=1000 , help="Number of iterations to run.")
 parser.add_argument("--low_char"   ,            default="0"  , help="When the match source is random text , the low character of the range of characters composing the matched text.")
 parser.add_argument("--high_char"  ,            default="z"  , help="When the match source is random text , the high character of the range of characters composing the matched text.")
