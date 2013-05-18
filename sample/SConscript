@@ -25,7 +25,7 @@ regexdna = env.Program('regexdna', 'regexdna.cc', LIBS=[librejit])
 env.Alias('regexdna', regexdna)
 
 jrep_libs = [librejit]
-if ('sample/jrep' in COMMAND_LINE_TARGETS or 'jrep' in COMMAND_LINE_TARGETS and 'os' in env) and env['os'] == 'macos':
+if ('sample/jrep' in COMMAND_LINE_TARGETS or 'jrep' in COMMAND_LINE_TARGETS) and 'os' in env and env['os'] == 'macos':
   conf = Configure(env)
   if not conf.CheckLib('argp'):
     print 'help argp'
