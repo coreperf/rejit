@@ -36,11 +36,11 @@ From the "[Computer Language Benchmarks Game][2]", this benchmark performs some 
 
 The table below shows performance for different input sizes, for the fastest registered single threaded implementation ([link][3]) and a single threaded rejit-powered implementation.
 ```
-input size    v8 (3.9.9)         rejit
-    50.000    0.032s             0.015s
-   500.000    0.232s             0.130s
- 5.000.000    2.211s             1.423s
-50.000.000    (out of memory)    14.805s
+input size            v8 (3.9.9)         rejit
+    50.000 (500KB)    0.032s             0.015s
+   500.000 (  5MB)    0.232s             0.130s
+ 5.000.000 ( 50MB)    2.211s             1.423s
+50.000.000 (500MB)    (out of memory)    14.805s
 ```
 
 See performance for various engines and languages for [single-core][4] and [quad-core][5] implementations.
