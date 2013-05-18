@@ -7,7 +7,7 @@ For questions, feedback, suggestions, to talk about regular expression matching,
 ## Benchmarks
 
 Below are a few sample performance results.<br />
-Benchmarks were run on a TODO
+Benchmarks were run on Fedora 17 with an Intel(R) Core(TM) i5-2400 CPU @ 3.10GHz with 4GB RAM.
 
 #### Grepping recursively through the Linux kernel sources.
 
@@ -15,18 +15,18 @@ Benchmarks were run on a TODO
 $ grep --version
 grep (GNU grep) 2.14
 $  grep -R regexp linux-3.9.2/ > /dev/null && time grep -R regexp linux-3.9.2/ > /dev/null
-real	0m0.588s
-user	0m0.362s
-sys 	0m0.221s
+real  0m0.588s
+user  0m0.362s
+sys   0m0.221s
 ```
 
  ```jrep``` is a grep-like utility powered by rejit.
 
 ```
 $ jrep -R regexp linux-3.9.2/ > /dev/null && time jrep -R regexp linux-3.9.2/ > /dev/null
-real	0m0.345s
-user	0m0.109s
-sys 	0m0.231s
+real  0m0.345s
+user  0m0.109s
+sys   0m0.231s
 
 ```
 
@@ -36,11 +36,11 @@ From the "[Computer Language Benchmarks Game][2]", this benchmark performs some 
 
 The table below shows performance for different input sizes, for the fastest registered single threaded implementation ([link][3]) and a single threaded rejit-powered implementation.
 ```
-input size		v8 (3.9.9)         rejit
-    50.000		0.032s             0.015s
-   500.000		0.232s             0.130s
- 5.000.000		2.211s             1.423s
-50.000.000		(out of memory)    14.805s
+input size    v8 (3.9.9)         rejit
+    50.000    0.032s             0.015s
+   500.000    0.232s             0.130s
+ 5.000.000    2.211s             1.423s
+50.000.000    (out of memory)    14.805s
 ```
 
 See performance for various engines and languages for [single-core][4] and [quad-core][5] implementations.
@@ -78,8 +78,8 @@ tools/benchmarks/resources/engines/v8/engine
 which you can use to report processing speeds (bytes/s) for a regular expression
 ```
 $ tools/benchmarks/resources/engines/rejit/engine "regexp"
-3.41191e+09	(worst speed)
-1.33176e+10	(amortised speed)
+3.41191e+09 (worst speed)
+1.33176e+10 (amortised speed)
 1.33856e+10 (best speed)
 ```
 Use the ```--help``` option for details.
@@ -96,13 +96,13 @@ using namespace std;
 using namespace rejit;
 
 int main() {
-	string text = "";
-	vector<Match> matches;
-	rejit::MatchAll("regexp", text, &matches);
-	for (vector<Match>::iterator it = matches.begin(); it < matches.end(); it++) {
-		// Do something.
-	}
-	return 0;
+  string text = "";
+  vector<Match> matches;
+  rejit::MatchAll("regexp", text, &matches);
+  for (vector<Match>::iterator it = matches.begin(); it < matches.end(); it++) {
+    // Do something.
+  }
+  return 0;
 }
 ```
 
