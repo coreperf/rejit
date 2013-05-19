@@ -152,13 +152,13 @@ void Codegen::Generate(RegexpInfo* rinfo,
   __ PushCalleeSavedRegisters();
 
   // Check that the base string we were passed is not null.
-  __ cmpq(rdi, Immediate(0));
+  __ testq(rdi, rdi);
   __ debug_msg(zero, "base string is NULL.\n");
   __ j(zero, &unwind_and_return);
 
   // Check the match results pointer.
   if (match_type != kMatchFull && !FLAG_benchtest) {
-    __ cmpq(rdx, Immediate(0));
+    __ testq(rdx, rdx);
     __ debug_msg(zero, "match results pointer is NULL.\n");
     __ j(zero, &unwind_and_return);
   }
@@ -439,7 +439,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
             // TOTO(rames): Merge code with CheckMatch?
             Register match = rdi;
             __ movq(match, result_matches);
-            __ cmpq(match, Immediate(0));
+            __ testq(match, match);
             __ j(zero, &keep_searching);
             __ movq(rdx, forward_match);
             __ movq(last_match_end, rdx);
@@ -542,7 +542,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
       if (match_type == kMatchFirst) {
         Register match = scratch3;
         __ movq(match, result_matches);
-        __ cmpq(match, Immediate(0));
+        __ testq(match, match);
         __ j(zero, &exit);
 
         __ movq(scratch1, backward_match);
@@ -557,7 +557,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
         // Register the match.
         // rsi: exit start.
         __ movq(match, result_matches);
-        __ cmpq(match, Immediate(0));
+        __ testq(match, match);
         __ j(zero, &keep_searching);
         // TODO(rames): should the string pointer be rdx?
         __ movq(rdx, forward_match);
