@@ -1,4 +1,5 @@
-Rejit is a regular expression JIT compiler. It currently only supports the x86_64 architecture.
+Rejit is a prototype regular expression JIT compiler. It currently only supports
+the x86_64 architecture.
 
 For more detailed information about rejit, more benchmarks and some explanation of its mechanisms please see (TODO(write and link to article)).
 
