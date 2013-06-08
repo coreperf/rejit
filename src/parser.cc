@@ -37,7 +37,7 @@ static char hex_code_from_char(char c) {
 }
 
 
-void Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
+Status Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
   regexp_info_ = rinfo;
   regexp_string_ = regexp;
   index_ = 0;
@@ -114,7 +114,7 @@ void Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
 #endif
 
           default:
-            Unexpected(index_ + 1);
+            return Unexpected(index_ + 1);
             UNREACHABLE();
         }
         break;
@@ -186,10 +186,12 @@ void Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
   DoFinish();
 
   regexp_info()->set_regexp(PopRegexp());
+
+  return RejitSuccess;
 }
 
 
-void Parser::ParseBRE(RegexpInfo* rinfo, const char* regexp) {
+Status Parser::ParseBRE(RegexpInfo* rinfo, const char* regexp) {
   regexp_info_ = rinfo;
   syntax_ = BRE;
 
@@ -297,6 +299,8 @@ void Parser::ParseBRE(RegexpInfo* rinfo, const char* regexp) {
   ALWAYS_ASSERT(stack()->size() == 1);
   // if (FLAG_trace_parser) PrintStack();
   regexp_info()->set_regexp(PopRegexp());
+
+  return RejitSuccess;
 }
 
 
@@ -583,37 +587,40 @@ void Parser::DoFinish() {
 }
 
 
-void Parser::ParseError(const char* pos, const char *format, ...) {
+Status Parser::ParseError(const char* pos, const char *format, ...) {
   unsigned index = pos - regexp_string_;
-  cout << "Error parsing at index " << index << endl;
-  cout << regexp_string_ << endl;
-  cout << string(index, ' ') << "^" << endl;
+  int written = snprintf(rejit_status_string, STATUS_STRING_SIZE,
+                         "Error parsing at index %d\n%s\n%s^ \n",
+                         index, regexp_string_, string(index, ' ').c_str());
+  --written;  // Discard the terminating character.
   va_list argptr;
   va_start(argptr, format);
-  vprintf(format, argptr);
+  vsnprintf(rejit_status_string + written, STATUS_STRING_SIZE - written,
+            format, argptr);
   va_end(argptr);
-  FATAL("Parser error.");
+  return ParserError;
 }
 
 
-void Parser::Unexpected(const char* pos) {
-  ParseError(pos, "unexpected character %c\n", *pos);
+Status Parser::Unexpected(const char* pos) {
+  return ParseError(pos, "unexpected character %c\n", *pos);
 }
 
 
-void Parser::Expected(const char* pos, const char* expected) {
-  ParseError(pos, "expected: %s\n", expected);
+Status Parser::Expected(const char* pos, const char* expected) {
+  return ParseError(pos, "expected: %s\n", expected);
 }
 
 
-void Parser::Expect(const char* c, const char *expected) {
+Status Parser::Expect(const char* c, const char *expected) {
   unsigned i = 0;
   while (*(expected + i)) {
     if (*(c + i) != *(expected + i)) {
-      Expected((c + i), (expected + i));
+      return Expected((c + i), (expected + i));
     }
     i++;
   }
+  return RejitSuccess;
 }
 
 } }  // namespace rejit::internal

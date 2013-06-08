@@ -95,11 +95,22 @@ namespace internal  {
 class RegexpInfo;
 }
 
+// Error status returned by rejit.
+// Upon error, the rejit_status_string is updated with an error message.
+enum Status {
+  RejitSuccess = 0,
+  ParserError
+};
+extern char* const rejit_status_string;
+
 class Regej {
  public:
   explicit Regej(const char* regexp);
   explicit Regej(const string& regexp);
   ~Regej();
+
+  // Error codes used to indicate the status of the Regej.
+  Status status() const { return status_; }
 
   // See related global functions above for details about the following
   // functions.
@@ -124,6 +135,7 @@ class Regej {
   char const * const regexp_;
   // This refers to internal compilation information.
   internal::RegexpInfo* rinfo_;
+  Status status_;
 };
 
 }  // namespace rejit

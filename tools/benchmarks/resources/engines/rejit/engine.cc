@@ -39,7 +39,7 @@ using namespace std;
 // TODO(rames): Merge the code for rejit and re2 engines.
 
 void error(const char* message) {
-  printf("ERROR: %s\nExiting.", message);
+  printf("ERROR: %s\nExiting.\n", message);
   exit(1);
 }
 
@@ -209,6 +209,12 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
   char *regexp = arguments.args[0];
   if (regexp[0] == 0) {
     error("Cannot test an empty regular expression.");
+  }
+
+  Regej test_regexp(regexp);
+  if (test_regexp.status()) {
+    printf("%s\n", rejit_status_string);
+    error("Invalid regular expression.\n");
   }
 
   // Prepare text to match ---------------------------------

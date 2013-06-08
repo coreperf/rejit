@@ -34,22 +34,21 @@ class Parser {
   };
 
   // Top level function to parse a regular expression.
-  inline void Parse(Syntax syntax, RegexpInfo* rinfo, const char* regexp) {
+  inline Status Parse(Syntax syntax, RegexpInfo* rinfo, const char* regexp) {
     syntax_ = syntax;
     switch(syntax) {
       case BRE:
-        ParseBRE(rinfo, regexp);
-        break;
+        return ParseBRE(rinfo, regexp);
       case ERE:
-        ParseERE(rinfo, regexp);
-        break;
+        return ParseERE(rinfo, regexp);
       default:
         UNREACHABLE();
+        return RejitSuccess;
     }
   }
 
-  void ParseERE(RegexpInfo* rinfo, const char* regexp);
-  void ParseBRE(RegexpInfo* rinfo, const char* regexp);
+  Status ParseERE(RegexpInfo* rinfo, const char* regexp);
+  Status ParseBRE(RegexpInfo* rinfo, const char* regexp);
 
   int ParseCurlyBrackets(const char* left_curly_bracket);
   int ParseBrackets(const char* left_bracket);
@@ -110,21 +109,21 @@ class Parser {
   uint32_t ParseIntegerAt(const char* pos, char** end);
 
   // Error signaling -------------------------------------------------
-  void ParseError(const char* pos, const char* format, ...);
+  Status ParseError(const char* pos, const char* format, ...);
 
-  void Unexpected(const char* pos);
+  Status Unexpected(const char* pos);
 
-  inline void Unexpected(unsigned index) {
-    Unexpected(regexp_string_ + index);
+  inline Status Unexpected(unsigned index) {
+    return Unexpected(regexp_string_ + index);
   }
 
-  void Expected(const char* pos, const char *expected);
+  Status Expected(const char* pos, const char *expected);
 
-  inline void Expected(unsigned index, const char *expected) {
-    Expected(regexp_string_ + index, expected);
+  inline Status Expected(unsigned index, const char *expected) {
+    return Expected(regexp_string_ + index, expected);
   }
 
-  void Expect(const char *c, const char* expected);
+  Status Expect(const char *c, const char* expected);
 
 
   RegexpInfo* regexp_info() { return regexp_info_; }

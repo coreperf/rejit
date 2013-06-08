@@ -14,9 +14,15 @@
 
 #include <iostream>
 
+#include "utils.h"
 #include "globals.h"
+#include "rejit.h"
 
 namespace rejit {
+
+char rejit_status_string_buf[STATUS_STRING_SIZE];
+char * const rejit_status_string = rejit_status_string_buf;
+
 namespace internal {
 
 // Indentation helpers ---------------------------------------------------------

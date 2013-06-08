@@ -24,6 +24,8 @@ using namespace std;  // NOLINT
 namespace rejit {
 namespace internal {
 
+#define STATUS_STRING_SIZE 200
+
 // Indentation helpers ---------------------------------------------------------
 extern const char* kIndentString;
 extern int kIndentLevel;

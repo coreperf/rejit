@@ -124,14 +124,17 @@ size_t ReplaceAll(const char* regexp, string& text, const string& with) {
 }
 
 
-Regej::Regej(const char* regexp) :
-  regexp_(regexp),
-  rinfo_(new RegexpInfo()) {}
+Regej::Regej(const char* regexp) : regexp_(regexp), rinfo_(new RegexpInfo()) {
+  Parser parser;
+  status_ = parser.ParseERE(rinfo_, regexp_);
+}
 
 
 Regej::Regej(const string& regexp) :
-  regexp_(regexp.c_str()),
-  rinfo_(new RegexpInfo()) {}
+  regexp_(regexp.c_str()), rinfo_(new RegexpInfo()) {
+  Parser parser;
+  status_ = parser.ParseERE(rinfo_, regexp_);
+}
 
 
 Regej::~Regej() {
@@ -224,8 +227,9 @@ size_t Regej::ReplaceAll(string& text, const string& with) {
 
 
 bool Regej::Compile(MatchType match_type) {
-  Parser parser;
-  parser.ParseERE(rinfo_, regexp_);
+  if (status() != RejitSuccess) {
+    return false;
+  }
 
   Codegen codegen;
   VirtualMemory* vmem = codegen.Compile(rinfo_, match_type);
