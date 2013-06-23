@@ -457,10 +457,8 @@ void Codegen::GenerateMatchDirection(Direction direction,
             __ subq(ff_position, scratch);
             __ CallCpp(FUNCTION_ADDR(RegisterMatch));
             ClearAllTimes();
+            __ jmp(fast_forward);
           }
-
-
-          __ jmp(fast_forward);
         }
         __ bind(&keep_searching);
 
@@ -713,7 +711,8 @@ static void MatchMultipleChar(MacroAssembler *masm_,
   // TODO: Implement a SIMD path.
 
   if (early_check_len) {
-    CheckEnoughStringLength(masm_, direction, n_chars, &done);
+    CheckEnoughStringLength(masm_, direction, n_chars,
+                            on_no_match ? on_no_match : &done);
   }
 
   // For lengths of 8 bytes or less this operats the full check. For greater
@@ -733,7 +732,8 @@ static void MatchMultipleChar(MacroAssembler *masm_,
 
   if (n_chars > 8) {
     if (late_check_len) {
-      CheckEnoughStringLength(masm_, direction, n_chars, &done);
+      CheckEnoughStringLength(masm_, direction, n_chars,
+                              on_no_match ? on_no_match : &done);
     }
     __ movq(rsi, string_pointer);
     if (direction == kForward) {
@@ -746,6 +746,9 @@ static void MatchMultipleChar(MacroAssembler *masm_,
     if (n_chars % 8 > 0) {
       __ Move(rcx, n_chars % 8);
       __ repnecmpsb();
+    }
+    if (on_no_match) {
+      __ j(not_equal, on_no_match);
     }
   }
   __ bind(&done);
@@ -1161,7 +1164,6 @@ void FastForwardGen::Generate() {
         Label no_match;
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
         MatchMultipleChar(masm_, kForward, mc, false, true, &no_match);
-        __ j(not_equal, &no_match);
         FoundState(0, mc->entry_state());
         __ jmp(&exit);
         __ bind(&no_match);
@@ -1611,7 +1613,6 @@ void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   MatchMultipleChar(masm_, kForward, mc, true, false, &no_match);
-  __ j(not_equal, &no_match);
   FoundState(0, mc->entry_state());
   __ jmp(potential_match_);
   __ bind(&no_match);
