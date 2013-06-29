@@ -15,19 +15,19 @@ Benchmarks were run on Fedora 17 with an Intel(R) Core(TM) i5-2400 CPU @ 3.10GHz
 ```
 $ grep --version
 grep (GNU grep) 2.14
-$  grep -R regexp linux-3.9.2/ > /dev/null && time grep -R regexp linux-3.9.2/ > /dev/null
-real  0m0.588s
-user  0m0.362s
-sys   0m0.221s
+$  grep -R regexp linux-3.9.8/ > /dev/null && time grep -R regexp linux-3.9.8/ > /dev/null
+real  0m0.598s
+user  0m0.374s
+sys   0m0.218s
 ```
 
  ```jrep``` is a grep-like utility powered by rejit.
 
 ```
-$ jrep -R regexp linux-3.9.2/ > /dev/null && time jrep -R regexp linux-3.9.2/ > /dev/null
-real  0m0.345s
-user  0m0.109s
-sys   0m0.231s
+$ jrep -R regexp linux-3.9.8/ > /dev/null && time jrep -R regexp linux-3.9.8/ > /dev/null
+real  0m0.348s
+user  0m0.113s
+sys   0m0.230s
 
 ```
 
