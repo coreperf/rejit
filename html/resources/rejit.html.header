@@ -8,6 +8,7 @@ This page is available under the Creative Commons "CC BY" licence.
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Rejit</title>
+    <link rel="stylesheet" href="resources/main.css">
     <script language="javascript" type="text/javascript" src="resources/flot/jquery.js"></script>
     <script language="javascript" type="text/javascript" src="resources/flot/jquery.flot.js"></script>
     <script language="javascript" type="text/javascript" src="resources/flot/jquery.flot.time.js"></script>

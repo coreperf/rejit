@@ -1,0 +1,18 @@
+
+/*******************************************************************************
+Graphs plotting (using flot.js: http://www.flotcharts.org/)
+*******************************************************************************/
+
+.flot_choices {
+  margin-left: 10px;
+}
+
+.flot_choices li > div {
+  display: inline-block;
+  margin-right: 4px;
+}
+
+.flot_choices li label {
+  margin-left: 3px;
+}
+

@@ -54,9 +54,9 @@ def benchmark_path(benchmark):
 def benchmark_description_path(benchmark):
   return join(benchmark_path(benchmark), 'description.html')
 def benchmark_engine_path(benchmark, engine):
-  return join(benchmark_path(benchmark), engine) 
+  return join(benchmark_path(benchmark), engine)
 def benchmark_engine_data_path(benchmark, engine):
-  return join(benchmark_engine_path(benchmark, engine), out_name) 
+  return join(benchmark_engine_path(benchmark, engine), out_name)
 
 # Build benchmarks in release mode ---------------------------------------------
 print "\nBuilding benchmarks..."
@@ -78,7 +78,7 @@ def run_benchs():
     out = p.communicate()[0]
     if not out:
       continue
-    
+
 
     data_path = os.path.join(os.path.dirname(run), out_name)
     empty = not os.path.exists(data_path) or not os.path.isfile(data_path) or os.path.getsize(data_path) == 0
@@ -192,38 +192,30 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
   '''
   <tr>
     <td>
-      <div style="width:730px">
+      <div>
         <div id="%(graph_id)s" style="float:left;width:600px;height:400px"></div>
-        <div id="%(graph_id)s_choices" style="float:left;"></div>
+        <div style="float:left;"> <ul id="%(graph_id)s_choices" style="list-style: none;" class="flot_choices"> </ul> </div>
       </div>
       <script type="text/javascript">
         $(function () {
           %(data_declaration)s
           var datasets = [ %(datasets)s ];
 
-          // Create checkboxes.
           var choiceContainer = $("#%(graph_id)s_choices");
           $.each(datasets, function(key, val) {
-              choiceContainer.append('<br/><input type="checkbox" name="' + key +
-                                     '" checked="checked" id="id' + key + '">' +
-                                     '<label for="id' + key + '">'
-                                      + val.label + '</label>');
+             choiceContainer.append('<li style="list-style: none;"><input type="checkbox" name="' + key +
+                                    '" checked="checked" id="id' + key + '">' +
+                                    '<label for="id' + key + '">'
+                                    + val.label + '</label></li>');
           });
-          choiceContainer.find("input").click(plotAccordingToChoices);
 
-          function plotAccordingToChoices() {
-            var data = [];
-            choiceContainer.find("input:checked").each(function () {
-              var key = $(this).attr("name");
-              if (key && datasets[key])
-              data.push(datasets[key]);
-            });
-            if (data.length > 0)
-              $.plot($("#%(graph_id)s"), data, plot_options_parallel);
-          }
-
-          plotAccordingToChoices();
+          plot_according_to_choices("%(graph_id)s", datasets, choiceContainer);
           $("#%(graph_id)s").bind("plothover", plothover_func);
+          function replot() { plot_according_to_choices("%(graph_id)s", datasets, choiceContainer); }
+          choiceContainer.find("input").change(replot);
+          $('.legendColorBox > div').each(function(i){
+                                          $(this).clone().prependTo(choiceContainer.find("li").eq(i));
+                                          });
         });
       </script>
     </td>
@@ -249,7 +241,7 @@ def plot_over_time(html_file, engine, benchmark, interest_labels):
   interest_indexes = []
   for label in interest_labels:
     if labels.index(label):
-      interest_indexes.append(labels.index(label)) 
+      interest_indexes.append(labels.index(label))
 
 
   for label in interest_labels:
@@ -296,24 +288,24 @@ def plot_over_time(html_file, engine, benchmark, interest_labels):
           $("#%(id)s").bind("plothover", function (event, pos, item) {
               $("#x").text(pos.x.toFixed(2));
               $("#y").text(pos.y.toFixed(2));
-    
+
               if (item) {
                   if (previousPoint != item.dataIndex) {
                       previousPoint = item.dataIndex;
-                      
+
                       $("#tooltip").remove();
                       var x = item.datapoint[0].toFixed(2),
                           y = item.datapoint[1].toFixed(2);
-                      
-                      showTooltip(item.pageX, item.pageY,
-                                  item.series.color,
-                                  item.series.label + '<br/>' + x + '<br/>' + y);
-    
+
+                      show_tooltip(item.pageX, item.pageY,
+                                   item.series.color,
+                                   item.series.label + '<br/>' + x + '<br/>' + y);
+
                   }
               }
               else {
                   $("#tooltip").remove();
-                  previousPoint = null;            
+                  previousPoint = null;
               }
           });
 

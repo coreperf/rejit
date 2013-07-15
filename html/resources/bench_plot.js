@@ -2,7 +2,7 @@ var kiB = 1024;
 var MiB = kiB * kiB;
 var GiB = MiB * kiB;
 
-function suffixF(val, suffix) {
+function suffix_format(val, suffix) {
   if (val > GiB)
     return (val / GiB).toFixed(1) + " G" + suffix;
   if (val > MiB)
@@ -13,10 +13,10 @@ function suffixF(val, suffix) {
     return (val / 1.0).toFixed(0) + " " + suffix;
 }
 
-function byteF(val) { return suffixF(val, "iB"); }
-function byteSF(val) { return suffixF(val, "iB/s"); }
+function byte_format(val) { return suffix_format(val, "iB"); }
+function byte_sec_format(val) { return suffix_format(val, "iB/s"); }
 
-function yFormatter(val, axis) { return byteSF(val); }
+function yFormatter(val, axis) { return byte_sec_format(val); }
 
 var plot_options_parallel = {
   series: { lines: { show: true },
@@ -39,7 +39,7 @@ var plot_options_speed_time = {
 };
 
 
-function showTooltip(x, y, color, contents) {
+function show_tooltip(x, y, color, contents) {
   $('<div id="tooltip">' + contents + '</div>').css( {
     position: 'absolute',
     display: 'none',
@@ -65,15 +65,26 @@ function plothover_func(event, pos, item) {
       var x = item.datapoint[0].toFixed(2),
           y = item.datapoint[1].toFixed(2);
 
-      showTooltip(item.pageX, item.pageY,
+      show_tooltip(item.pageX, item.pageY,
                   item.series.color,
                   item.series.label + '<br/>' +
-                  byteSF(y) + ' (' + Math.floor(y) + ' B/s)' + '<br/>' +
-                  byteF(x)  + ' (' + Math.floor(x) + ' B)');
+                  byte_sec_format(y) + ' (' + Math.floor(y) + ' B/s)' + '<br/>' +
+                  byte_format(x)  + ' (' + Math.floor(x) + ' B)');
     }
   }
   else {
     $("#tooltip").remove();
     previousPoint = null;
   }
+}
+
+function plot_according_to_choices(graph_id, data_sets, choice_container) {
+  var data = [];
+  choice_container.find("input:checked").each(function () {
+    var key = $(this).attr("name");
+    if (key && data_sets[key])
+    data.push(data_sets[key]);
+  });
+  if (data.length > 0)
+    $.plot($("#" + graph_id), data, plot_options_parallel);
 }
