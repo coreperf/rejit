@@ -4,18 +4,4 @@
 Search for a simple concatenation of characters.
 <br />
 Starting character 'a' is <b>not</b> present in the text searched.
-<br /><br />
-Re2 uses memchr() to look for the starting character.
-Its speed is particularly good when the C library provides a SIMD optimized memchr().
-The absence of the starting character in the text matched allows re2 to stay in
-the memchr() loop, yielding excellent performances.
-<br />
-Rejit generates custom code and uses SSE4.2 when available.
-<br />
-Note that rejit is able to dynamically determine the availability of the CPU
-features (here SSE4.2), and so can use it even if the C library does not.  If
-rejit strongly outperforms re2 on this benchmarks, it is likely that the C
-library does not provide a SIMD optimized memchr(). If re2 strongly outperforms
-rejit, it is likely that your library provides a SIMD memchr(), but that your
-CPU does not support SSE4.2. Support for previous SSE versions may come later.
 </p>

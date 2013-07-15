@@ -22,13 +22,10 @@ This page is available under the Creative Commons "CC BY" licence.
     divided by the time to process it). This can be seen as the speed at which
     files of a given size can be processed. It is easier to report and understand
     than a delay close to zero.
-    <br />
-    Benchmarks in this page deal with texts with a rather low density of
-    matches. An example representative use case would be grepping through files.
+    </p>
 
-    <br /><br />
-    I did not spend much time working on the benchmarks, so there is certainly
-    room from improvement. A few notes:
+    <p>
+    A few notes:
     <ul>
       <li>Runs for different text sizes and engines are independent and use
       different randomly generated texts.</li>
@@ -50,15 +47,6 @@ This page is available under the Creative Commons "CC BY" licence.
     </ul>
     Note that other sample programs included in the sources (regexdna and jrep)
     can be used for benchmarking.
-    <br /><br />
-    Finally before showing some graphs, here are a few of things rejit is
-    still lacking:
-    <ul>
-      <li>Many features are missing (submatches, case insensitive match, etc.).
-      <li>The choice of the ff element could be improved.</li>
-      <li>The handling of <code>.*</code> is very poor. Example slow regexp:
-      <code>.*$</code> .</li>
-    </ul>
     </p>
 
     <script language="javascript" type="text/javascript" src="resources/bench_plot.js"></script>
