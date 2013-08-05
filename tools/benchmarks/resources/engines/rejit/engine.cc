@@ -1,4 +1,4 @@
-// Copyright (C) 2013 Alexandre Rames <alexandre@uop.re>
+// Copyright (C) 2013 Alexandre Rames <alexandre@coreperf.com>
 
 // rejit is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ void error(const char* message) {
 
 // Argp configuration ----------------------------------------------------------
 const char *argp_program_version = "rejit benchmark engine 0.1";
-const char *argp_program_bug_address = "<alexandre@uop.re>";
+const char *argp_program_bug_address = "<alexandre@coreperf.com>";
 
 /* This structure is used by main to communicate with parse_opt. */
 struct arguments {

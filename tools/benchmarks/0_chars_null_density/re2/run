@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (C) 2013 Alexandre Rames <alexandre@uop.re>
+# Copyright (C) 2013 Alexandre Rames <alexandre@coreperf.com>
 
 # rejit is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

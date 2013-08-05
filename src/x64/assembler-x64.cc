@@ -31,7 +31,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Minor modifications have been applied to the original file.
-// Copyright (C) 2013 Alexandre Rames <alexandre@uop.re>
+// Copyright (C) 2013 Alexandre Rames <alexandre@coreperf.com>
 // rejit is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or

@@ -3,7 +3,7 @@ the x86_64 architecture.
 
 For more detailed information about rejit, more benchmarks and some explanation of its mechanisms please see (TODO(write and link to article)).
 
-For questions, feedback, suggestions, to talk about regular expression matching, optimisation, or other related topics, please use the [rejit-users][1] Google group or email me at <alexandre@uop.re> !
+For questions, feedback, suggestions, to talk about regular expression matching, optimisation, or other related topics, please use the [rejit-users][1] Google group or email me at <alexandre@coreperf.com> !
 
 ## Benchmarks
 
