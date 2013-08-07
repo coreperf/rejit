@@ -691,38 +691,30 @@ static void CheckEnoughStringLength(MacroAssembler *masm_,
 // string_pointer is not modified.
 // On output the condition flags will match equal/not_equal depending on wether
 // there is a match or not.
-// If early_check_len is true the code must check the remaining string length
-// available first to avoid accessing memory after the eos or before the sos.
-// late_check_len should be set to true when it is already known that the first
-// min(8, n_chars) bytes are accessible.
 // If provided, fixed_chars contains the min(8, n_chars) first bytes of the mc.
 static void MatchMultipleChar(MacroAssembler *masm_,
                               Direction direction,
                               MultipleChar* mc,
-                              bool early_check_len = true,
-                              bool late_check_len = false,
+                              bool eos_safe = false,
                               Label* on_no_match = NULL,
-                              // TODO: use this
                               Register fixed_chars = no_reg) {
-  ASSERT(early_check_len ^ late_check_len);
   Label done;
   unsigned n_chars = mc->chars_length();
 
   // TODO: Implement a SIMD path.
 
-  if (early_check_len) {
+  if (!eos_safe) {
     CheckEnoughStringLength(masm_, direction, n_chars,
                             on_no_match ? on_no_match : &done);
   }
 
-  // For lengths of 8 bytes or less this operats the full check. For greater
-  // lengths this serves as an quick pre-check which some slow setup.
   const Operand c = direction == kForward ?
     current_chars : Operand(string_pointer, -(n_chars - 1));
+
   if (!fixed_chars.is_valid()) {
-    __ cmp(n_chars, c, mc->imm_chars());
+    __ cmp_truncated(n_chars, c, mc->imm_chars());
   } else {
-    __ cmp(n_chars, c, fixed_chars);
+    __ cmp_truncated(n_chars, fixed_chars, c);
   }
   if (on_no_match) {
     __ j(not_equal, on_no_match);
@@ -730,11 +722,32 @@ static void MatchMultipleChar(MacroAssembler *masm_,
     __ j(not_equal, &done);
   }
 
-  if (n_chars > 8) {
-    if (late_check_len) {
-      CheckEnoughStringLength(masm_, direction, n_chars,
-                              on_no_match ? on_no_match : &done);
+
+  // Avoid performing the same check as above.
+  // Also don't perform a check for long strings: the pre-check above was enough
+  // and we can transition to the full check below.
+  if (n_chars < 8 && !IsPowerOf2(n_chars)) {
+    if (eos_safe) {
+      if (!fixed_chars.is_valid()) {
+        __ cmp(n_chars, c, mc->imm_chars());
+      } else {
+        __ cmp(n_chars, c, fixed_chars);
+      }
+    } else {
+      if (!fixed_chars.is_valid()) {
+        __ cmp_safe(n_chars, equal, c, mc->imm_chars(), on_no_match ? on_no_match : &done);
+      } else {
+        __ cmp_safe(n_chars, equal, c, fixed_chars, on_no_match ? on_no_match : &done);
+      }
     }
+    if (on_no_match) {
+      __ j(not_equal, on_no_match);
+    } else if (n_chars > 8) {
+      __ j(not_equal, &done);
+    }
+  }
+
+  if (n_chars > 8) {
     __ movq(rsi, string_pointer);
     if (direction == kForward) {
       __ Move(rdi, (uint64_t)(mc->chars()));
@@ -769,8 +782,7 @@ void Codegen::VisitMultipleChar(MultipleChar* mc) {
     __ j(below, &no_match);
   }
 
-  MatchMultipleChar(masm_, direction(), mc);
-  __ j(not_equal, &no_match);
+  MatchMultipleChar(masm_, direction(), mc, false, &no_match);
 
   DirectionSetOutputFromEntry(n_chars, mc);
   __ bind(&no_match);
@@ -1163,7 +1175,7 @@ void FastForwardGen::Generate() {
         // move from xmm registers if it is faster.
         Label no_match;
         MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
-        MatchMultipleChar(masm_, kForward, mc, false, true, &no_match);
+        MatchMultipleChar(masm_, kForward, mc, true, &no_match);
         FoundState(0, mc->entry_state());
         __ jmp(&exit);
         __ bind(&no_match);
@@ -1234,11 +1246,8 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     // Only execute the SIMD code if the length of string to process is big
     // enough to be aligned on a 0x10 bytes boundary (maximum 0xf offset
     // adjustment), go through one iteration of the SIMD loop, and allow for a
-    // 8 bytes wide quick check in MatchMultipleChar.
+    // 'eos-safe' accesses in MatchMultipleChar.
     // If the length of the mc is greater than that we can even stop earlier.
-    //
-    // Note that we allow for a 8 bytes wide quick check because loading for
-    // example 7 characters without accessing further not obvious.
     int margin_for_simd_loop = 0xf + 0x20 + 0x8;
     int margin_before_eos = max(n_chars, margin_for_simd_loop);
     __ movq(simd_max_index, string_end);
@@ -1287,7 +1296,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     __ bind(&potential_match);
     // After pcmpistri rcx contains the offset to the first potential match.
     __ addq(string_pointer, rcx);
-    MatchMultipleChar(masm_, kForward, mc, false, true, &align_or_finish, fixed_chars);
+    MatchMultipleChar(masm_, kForward, mc, true, &align_or_finish, fixed_chars);
 
     __ jmp(&found);
   }
@@ -1308,7 +1317,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   __ inc_c(string_pointer);
   __ cmpq(string_pointer, scratch2);
   __ j(above, &exit);
-  __ cmp(n_chars, current_chars, fixed_chars);
+  __ cmp_truncated(n_chars, fixed_chars, current_chars);
   __ j(not_equal, &loop);
 
   __ bind(&found);
@@ -1612,7 +1621,7 @@ void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 
 void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
-  MatchMultipleChar(masm_, kForward, mc, true, false, &no_match);
+  MatchMultipleChar(masm_, kForward, mc, false, &no_match);
   FoundState(0, mc->entry_state());
   __ jmp(potential_match_);
   __ bind(&no_match);

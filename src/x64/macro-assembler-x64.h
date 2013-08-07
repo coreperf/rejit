@@ -106,7 +106,8 @@ class MacroAssembler : public MacroAssemblerBase {
   void mov(unsigned width, Register dst, const Operand&);
   void mov_truncated(unsigned width, Register dst, const Operand&);
 
-  // TODO: Detail expectations for the truncated helpers
+  // Variable width compare.
+  // Accesses 2^log2(width) bytes at dst.
   template <class Type>
     void cmp_truncated_(unsigned width, Register dst, Type src) {
       if (width == 0) return;
@@ -127,6 +128,14 @@ class MacroAssembler : public MacroAssemblerBase {
     return cmp_truncated_<const Operand&>(width, dst, src);
   }
   void cmp_truncated(unsigned width, const Operand& dst, int64_t src);
+  // Variable width compare.
+  // Guarantees that no memory accesses from [dst + width] will occur.
+  void cmp_safe(unsigned width, Condition cond, Operand dst, int64_t src,
+                Label* on_no_match = NULL);
+  void cmp_safe(unsigned width, Condition cond, Operand dst, Register src,
+                Label* on_no_match = NULL);
+  // Variable width compare.
+  // Accesses 2^ceiling(log2(width)) bytes at dst.
   void cmp(unsigned width, const Operand& dst, int64_t src);
   void cmp(unsigned width, const Operand& dst, Register src);
 

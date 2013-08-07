@@ -222,6 +222,80 @@ void MacroAssembler::cmp_truncated(unsigned width,
 }
 
 
+void MacroAssembler::cmp_safe(unsigned width, Condition cond,
+                              Operand dst, int64_t src,
+                              Label* on_no_match) {
+  Label done;
+  if (width == 0) return;
+  if (width >= 8) {
+    cmp(8, dst, src);
+    return;
+  }
+  if (width >= 4) {
+    cmp(4, dst, src);
+    dst = Operand(dst, 4);
+    src = src >> 4 * kBitsPerChar;
+    width -= 4;
+    if (width) {
+      j(NegateCondition(cond), on_no_match ? on_no_match : &done);
+    }
+  }
+  if (width >= 2) {
+    cmp(2, dst, src);
+    dst = Operand(dst, 2);
+    src = src >> 2 * kBitsPerChar;
+    width -= 2;
+    if (width) {
+      j(NegateCondition(cond), on_no_match ? on_no_match : &done);
+    }
+  }
+  if (width >= 1) {
+    cmp(1, dst, src);
+  }
+  bind(&done);
+}
+
+
+void MacroAssembler::cmp_safe(unsigned width, Condition cond,
+                              Operand dst, Register src,
+                              Label* on_no_match) {
+  Label done;
+  if (width == 0) return;
+  if (width >= 8) {
+    cmp(8, dst, src);
+    return;
+  }
+
+  if (!IsPowerOf2(width) && !src.is(scratch3)) {
+    movq(scratch3, src);
+    src = scratch3;
+  }
+
+  if (width >= 4) {
+    cmpl(dst, src);
+    width -= 4;
+    if (width) {
+      j(NegateCondition(cond), on_no_match ? on_no_match : &done);
+      dst = Operand(dst, 4);
+      shr(src, Immediate(4 * kBitsPerChar));
+    }
+  }
+  if (width >= 2) {
+    cmpw(dst, src);
+    width -= 2;
+    if (width) {
+      j(NegateCondition(cond), on_no_match ? on_no_match : &done);
+      dst = Operand(dst, 2);
+      shr(src, Immediate(2 * kBitsPerChar));
+    }
+  }
+  if (width >= 1) {
+    cmpb(dst, src);
+  }
+  bind(&done);
+}
+
+
 void MacroAssembler::cmp(unsigned width, const Operand& dst, int64_t src) {
   if (width == 1) {
     cmpb(dst, Immediate(src & FirstBytesMask(1)));
