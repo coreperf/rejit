@@ -20,7 +20,7 @@
 #include <string>
 #include <iostream>
 
-#include <pthread.h>
+#include <thread>
 
 using namespace std;
 
@@ -55,18 +55,22 @@ const unsigned n_mers = sizeof(dna8mers) / sizeof (dna8mers[0]);
 unsigned counts[n_mers];
 string text;
 
-void* match_mer(void *i_) {
-  unsigned i = reinterpret_cast<unsigned long>(i_);
-  counts[i] = rejit::MatchAllCount(dna8mers[i], text);
-  return NULL;
+#define N_THREADS 4
+thread threads[N_THREADS];
+atomic_uint processed_mers = ATOMIC_VAR_INIT(0);
+
+
+void count_mers() {
+  unsigned index;
+  while ((index = processed_mers++) < n_mers) {
+    counts[index] = rejit::MatchAllCount(dna8mers[index], text);
+  }
 }
 
-int main() {
 
+int main() {
   char* text_raw;
   size_t text_raw_size, text_size, replaced_text_size;
-
-  pthread_t thread[n_mers];
 
   // Initialize the text.
   fseek(stdin, 0, SEEK_END);
@@ -81,18 +85,16 @@ int main() {
   text_size = text.size();
 
   // Count all dna mers in parallel.
-  for (unsigned i = 0; i < n_mers; i++) {
-    pthread_create(&thread[i], NULL, match_mer, reinterpret_cast<void*>(i));
+  for (unsigned i = 0; i < N_THREADS; i++) {
+    threads[i] = thread(count_mers);
   }
-  for (unsigned i = 0; i < n_mers; i++) {
-    pthread_join(thread[i], NULL);
+  for (unsigned i = 0; i < N_THREADS; i++) {
+    threads[i].join();
   }
   for (unsigned i = 0; i < n_mers; i++) {
     printf("%s %d\n", dna8mers[i], counts[i]);
   }
 
-  // Replace codes.
-  // The benchmark forbids us from searching for all the codes and replacing all in one pass.
   for (unsigned i = 0; i < sizeof(iub_codes) / sizeof(char*); i += 2) {
     rejit::ReplaceAll(iub_codes[i], text, iub_codes[i + 1]);
   }

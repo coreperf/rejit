@@ -46,6 +46,10 @@ options = {
 #   'build_option:value' : {
 #     'environment_key' : 'values to append'
 #     },
+    'os:macos' : {
+      'CXXFLAGS' : ['-stdlib=libc++'],
+      'LINKFLAGS' : ['-stdlib=libc++']
+      },
     'mode:debug' : {
       'CCFLAGS' : ['-g', '-DDEBUG']
       },
