@@ -18,8 +18,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
-#include <iostream>
-
 #include <thread>
 
 using namespace std;
@@ -50,17 +48,19 @@ char const * const iub_codes[] = {
   "Y", "(c|t)"
 };
 
-// Use global variables to simplify the implementation of the thread function.
-const unsigned n_mers = sizeof(dna8mers) / sizeof (dna8mers[0]);
+// Use global variables to simplify the implementation of the thread functions.
+const unsigned n_mers = sizeof(dna8mers) / sizeof(dna8mers[0]);
+const unsigned n_iub_codes = sizeof(iub_codes) / sizeof(iub_codes[0]) / 2;
 unsigned counts[n_mers];
+vector<rejit::Match> iub_codes_matches[n_iub_codes];
 string text;
 
-#define N_THREADS 4
-thread threads[N_THREADS];
+thread *threads;
 atomic_uint processed_mers = ATOMIC_VAR_INIT(0);
+atomic_uint processed_iub_codes = ATOMIC_VAR_INIT(0);
 
 
-void count_mers() {
+void thread_count_mers() {
   unsigned index;
   while ((index = processed_mers++) < n_mers) {
     counts[index] = rejit::MatchAllCount(dna8mers[index], text);
@@ -68,9 +68,27 @@ void count_mers() {
 }
 
 
+void thread_find_iub_codes() {
+  unsigned index;
+  while ((index = processed_iub_codes++) < n_iub_codes) {
+    rejit::MatchAll(iub_codes[2 * index], text, &iub_codes_matches[index]);
+  }
+}
+
+
+bool cmp_match_early(rejit::Match a, rejit::Match b) {
+  return a.begin < b.begin;
+}
+
+
 int main() {
   char* text_raw;
   size_t text_raw_size, text_size, replaced_text_size;
+
+  // Find the number of threads to use.
+  unsigned n_threads = thread::hardware_concurrency();
+  if (n_threads == 0) n_threads = 4;
+  threads = reinterpret_cast<thread*>(malloc(n_threads * sizeof(thread)));
 
   // Initialize the text.
   fseek(stdin, 0, SEEK_END);
@@ -84,26 +102,66 @@ int main() {
   rejit::ReplaceAll(">.*\n|\n", text, "");
   text_size = text.size();
 
-  // Count all dna mers in parallel.
-  for (unsigned i = 0; i < N_THREADS; i++) {
-    threads[i] = thread(count_mers);
+  // Count all mers.
+  for (unsigned i = 0; i < n_threads; i++) {
+    threads[i] = thread(thread_count_mers);
   }
-  for (unsigned i = 0; i < N_THREADS; i++) {
+  for (unsigned i = 0; i < n_threads; i++) {
     threads[i].join();
   }
   for (unsigned i = 0; i < n_mers; i++) {
     printf("%s %d\n", dna8mers[i], counts[i]);
   }
 
-  for (unsigned i = 0; i < sizeof(iub_codes) / sizeof(char*); i += 2) {
-    rejit::ReplaceAll(iub_codes[i], text, iub_codes[i + 1]);
+  // Search for all iub_codes to replace.
+  for (unsigned i = 0; i < n_threads; i++) {
+    threads[i] = thread(thread_find_iub_codes);
   }
-  replaced_text_size = text.size();
+  for (unsigned i = 0; i < n_threads; i++) {
+    threads[i].join();
+  }
+  // Merge all iub_codes matches into one vector and sort it.
+  vector<rejit::Match> *total_matches = &iub_codes_matches[0];
+  size_t total_matches_size = 0;
+  for (unsigned i = 0; i < n_iub_codes; i ++) {
+    total_matches_size += iub_codes_matches[i].size();
+  }
+  total_matches->reserve(total_matches_size);
+  for (unsigned i = 1; i < n_iub_codes; i ++) {
+    total_matches->insert(total_matches->end(),
+                          iub_codes_matches[i].begin(), iub_codes_matches[i].end());
+  }
+  sort(total_matches->begin(), total_matches->end(), cmp_match_early);
+
+  // Replace all matches, looking for the correct replacement in the array.
+  vector<rejit::Match>::iterator it;
+  string res;
+  // We reserve 6 extra characters per replaced match.
+  // The replacing strings are on average less than 7 characters, minus one
+  // character that is being replaced.
+  res.reserve(text.size() + 6 * total_matches->size());
+  const char* ptext = text.c_str();
+  for (it = total_matches->begin(); it < total_matches->end(); it++) {
+    res.append(ptext, (*it).begin - ptext);
+    ptext = (*it).end;
+    // Replace with the correct pattern.
+    for (unsigned i = 0; i < n_iub_codes; i++) {
+      if (*(it->begin) == iub_codes[2 * i][0]) {
+        res.append(iub_codes[2 * i + 1]);
+        break;
+      }
+    }
+  }
+  res.append(ptext, text.c_str() + text.size() - ptext);
+
+  replaced_text_size = res.size();
 
   printf("\n%u\n%u\n%u\n",
          (unsigned)text_raw_size,
          (unsigned)text_size,
          (unsigned)replaced_text_size);
+
+  free(threads);
 
   return EXIT_SUCCESS;
 }
