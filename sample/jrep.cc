@@ -60,22 +60,22 @@ static struct argp_option options[] = {
   {NULL, 'H', NULL, OPTION_ARG_OPTIONAL,
     "Print the filename with output lines."},
   {"line-number", 'n', NULL, OPTION_ARG_OPTIONAL,
-    "Print the line number of matches with ouptu lines."},
+    "Print the line number of matches with output lines."},
   {"recursive", 'R', NULL, OPTION_ARG_OPTIONAL,
     "Recursively search directories listed."},
-  {NULL, 'r', NULL, OPTION_ALIAS,
-    "Recursively search directories listed."},
+  {NULL, 'r', NULL, OPTION_ALIAS, NULL},
   {"nopenfd", 'k', "1024", OPTION_ARG_OPTIONAL,
     "The maximum number of directories that ftw() can hold open simultaneously."
   },
   {"after-context", 'A', "0", OPTION_ARG_OPTIONAL,
-    "Print n lines of context after every match. See also -B and -C options.",
+    "Print <n> lines of context after every match. See also -B and -C options.",
     group_context},
   {"before-context", 'B', "0", OPTION_ARG_OPTIONAL,
-    "Print n lines of context after every match. See also -A and -C options.",
+    "Print <n> lines of context after every match. See also -A and -C options.",
     group_context},
   {"context", 'C', "0", OPTION_ARG_OPTIONAL,
-    "Print n lines of context before and after every match. See also -A and -B options.",
+    "Print <n> lines of context before and after every match."
+    "See also -A and -B options.",
     group_context},
   {0}
 };
