@@ -25,13 +25,33 @@
 #include <unistd.h>
 #include <ftw.h>
 #include <string.h>
-
 #include <vector>
 #include <cerrno>
+#include <thread>
+#include <atomic>
 
 #include "rejit.h"
 
 using namespace std;
+
+// Multithreading --------------------------------------------------------------
+// If <n> regular expression processing threads are allowed, one thread
+// walks the file tree (and processes files if <n> is zero) while <n> others
+// process the files.
+
+// The names of files to process are stored in this array.
+// We use C++ string to automate the memory management.
+string *filenames;
+unsigned n_filenames;
+atomic_uint fn_written = ATOMIC_VAR_INIT(0), fn_read = ATOMIC_VAR_INIT(0);
+mutex fn_mutex;
+condition_variable fn_need_refill;
+condition_variable fn_refilled;
+volatile bool fn_done_listing = false;
+thread **threads;
+
+// Protects printing to the output.
+mutex output_mutex;
 
 
 // Argp configuration ----------------------------------------------------------
@@ -40,15 +60,15 @@ const char *argp_program_bug_address = "<alexandre@coreperf.com>";
 
 /* This structure is used by main to communicate with parse_opt. */
 struct arguments {
-  // TODO: Use a vector to store file names and allow using multiple files.
   char *regexp;
   vector<char*> filenames;
   bool print_filename;
   bool print_line_number;
   bool recursive;
-  int nopenfd;
-  int context_before;
-  int context_after;
+  unsigned jobs;
+  unsigned nopenfd;
+  unsigned context_before;
+  unsigned context_after;
 } arguments;
 
 /*
@@ -64,6 +84,11 @@ static struct argp_option options[] = {
   {"recursive", 'R', NULL, OPTION_ARG_OPTIONAL,
     "Recursively search directories listed."},
   {NULL, 'r', NULL, OPTION_ALIAS, NULL},
+  {"jobs", 'j', "0", OPTION_ARG_OPTIONAL,
+    "Specify the number <n> of regular expression processing threads to use.\n"
+    "One thread walks the file tree (and process files if <n> is zero), while"
+    "<n> others process the files."
+  },
   {"nopenfd", 'k', "1024", OPTION_ARG_OPTIONAL,
     "The maximum number of directories that ftw() can hold open simultaneously."
   },
@@ -107,6 +132,11 @@ parse_opt(int key, char *arg, struct argp_state *state) {
       break;
     case 'H':
       arguments->print_filename = true;
+      break;
+    case 'j':
+      if (arg) {
+        arguments->jobs = argtoi(arg);
+      }
       break;
     case 'k':
       if (arg) {
@@ -211,6 +241,7 @@ int process_file(const char* filename) {
 
   re->MatchAll(file_content, file_size, &matches);
 
+  output_mutex.lock();
   if (matches.size()) {
     // TODO: When not printing line numbers it may be faster to look for sos and
     // eos only for each match.
@@ -287,6 +318,7 @@ int process_file(const char* filename) {
     }
   }
 
+  output_mutex.unlock();
   munmap(file_content, file_size);
 close_file:
   close(fd);
@@ -295,27 +327,38 @@ exit:
 }
 
 
+int list_file(const char *filename) {
+  unique_lock<mutex> fn_lock(fn_mutex);
+  unsigned index;
+  if (fn_written >= fn_read + n_filenames) {
+    fn_need_refill.wait(fn_lock);
+  }
+  index = fn_written++;
+  filenames[index % n_filenames].assign(filename);
+  fn_refilled.notify_one();
+  fn_lock.unlock();
+  return 0;
+}
+
+
 int ftw_callback(const char *path, const struct stat *s, int typeflag) {
-  int rc;
-  // The regexp and arguments are global to easily be accessed via this callback.
   if (typeflag == FTW_F) {
-    rc = process_file(path);
-    if (rc) {
-      // Print an error message and continue.
-      printf("jrep: %s: %s\n", path, strerror(rc));
+    if (arguments.jobs > 0) {
+      list_file(path);
+    } else {
+      return process_file(path);
     }
   }
   return 0;
 }
 
 
-int process_directory(const char* dirname) {
-  // Use ftw to walk the file tree.
+inline int list_directory(const char* dirname) {
   return ftw(dirname, ftw_callback, arguments.nopenfd);
 }
 
 
-int process_file_or_dir(const char* name) {
+int list_file_or_dir(const char* name) {
   int rc;
   struct stat file_stats;
 
@@ -326,20 +369,47 @@ int process_file_or_dir(const char* name) {
   }
 
   if (file_stats.st_mode & S_IFDIR) {
-    return process_directory(name);
+    return list_directory(name);
   } else if (file_stats.st_mode & S_IFREG) {
-    return process_file(name);
+    return list_file(name);
   }
 
   return EXIT_SUCCESS;
 }
 
 
+void job_process_files() {
+  string filename;
+  unique_lock<mutex> fn_lock(fn_mutex, defer_lock);
+
+  while (!fn_done_listing || fn_read < fn_written) {
+    fn_lock.lock();
+    if (fn_read >= fn_written) {
+      fn_refilled.wait(fn_lock);
+    }
+    if (fn_read < fn_written) {
+      // We need to locally copy the filename, which could be overwritten in the
+      // array.
+      filename.assign(filenames[fn_read++ % n_filenames]);
+      fn_lock.unlock();
+      // Avoid waking up the listing thread if there are still enough files to
+      // process.
+      if (fn_written - fn_read < n_filenames / 2) {
+        fn_need_refill.notify_one();
+      }
+      process_file(filename.c_str());
+    } else {
+      fn_lock.unlock();
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
   int rc;
   // Arguments parsing -------------------------------------
   memset(&arguments, 0, sizeof(arguments));
   arguments.nopenfd = 1024;
+  arguments.jobs = 0;
   argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
   if (arguments.regexp[0] == 0) {
@@ -348,19 +418,49 @@ int main(int argc, char *argv[]) {
 
   rejit::Regej re_(arguments.regexp);
   re_.Compile(rejit::kMatchAll);
-
   re = &re_;
 
+  if (arguments.jobs > 1) {
+    // Initialize structures for multithreaded processing.
+    threads = reinterpret_cast<thread**>(malloc(arguments.jobs * sizeof(thread*)));
+    if (!threads) {
+      printf("jrep: %s\n", strerror(errno));
+      exit(errno);
+    }
+    n_filenames = max(arguments.nopenfd, 16 * arguments.jobs);
+    filenames = reinterpret_cast<string*>(malloc(n_filenames * sizeof(string)));
+    if (!filenames) {
+      printf("jrep: %s\n", strerror(errno));
+      exit(errno);
+    }
+    for (unsigned i = 0; i < n_filenames; i++) {
+      filenames[i] = string();
+    }
+
+    // Start the processing threads.
+    for (unsigned i = 0; i < arguments.jobs; i++) {
+      threads[i] = new thread(job_process_files);
+    }
+  }
+
+  // List files to process.
   vector<char*>::iterator it;
   for (it = arguments.filenames.begin(); it < arguments.filenames.end(); it++) {
     const char* name = *it;
     if (!arguments.recursive && is_dir(name)) {
       printf("jrep: %s: Is a directory.\n", name);
     }
-    rc = process_file_or_dir(name);
+    rc = list_file_or_dir(name);
     if (rc != EXIT_SUCCESS) {
       return rc;
     }
+  }
+  fn_done_listing = true;
+  atomic_thread_fence(memory_order_seq_cst);
+  fn_refilled.notify_one();
+
+  for (unsigned i = 0; i < arguments.jobs; i++) {
+    threads[i]->join();
   }
 
   return EXIT_SUCCESS;
