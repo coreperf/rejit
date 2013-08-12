@@ -422,7 +422,7 @@ int main(int argc, char *argv[]) {
   re_.Compile(rejit::kMatchAll);
   re = &re_;
 
-  if (arguments.jobs > 1) {
+  if (arguments.jobs > 0) {
     // Initialize structures for multithreaded processing.
     threads = reinterpret_cast<thread**>(malloc(arguments.jobs * sizeof(thread*)));
     if (!threads) {
