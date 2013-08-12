@@ -34,8 +34,10 @@ if ('sample/jrep' in COMMAND_LINE_TARGETS or 'jrep' in COMMAND_LINE_TARGETS) and
     Exit(1)
   env = conf.Finish()
   jrep_libs += ['argp']
-jrep_CXX_FLAGS = list(env['CXXFLAGS'])
+jrep_CXXFLAGS = list(env['CXXFLAGS'])
+jrep_LINKFLAGS = list(env['LINKFLAGS'])
 if env['os'] == 'linux':
-  jrep_CXX_FLAGS += ['-D_GLIBCXX_GTHREAD_USE_WEAK=0']
-jrep = env.Program('jrep', 'jrep.cc', LIBS=jrep_libs, CXXFLAGS=jrep_CXX_FLAGS)
+  jrep_CXXFLAGS += ['-D_GLIBCXX_GTHREAD_USE_WEAK=0']
+  jrep_LINKFLAGS += ['-pthread']
+jrep = env.Program('jrep', 'jrep.cc', LIBS=jrep_libs, CXXFLAGS=jrep_CXXFLAGS, LINKFLAGS=jrep_LINKFLAGS)
 env.Alias('jrep', jrep)

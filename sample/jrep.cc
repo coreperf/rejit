@@ -430,13 +430,10 @@ int main(int argc, char *argv[]) {
       exit(errno);
     }
     n_filenames = max(arguments.nopenfd, 16 * arguments.jobs);
-    filenames = reinterpret_cast<string*>(malloc(n_filenames * sizeof(string)));
+    filenames = new string[n_filenames];
     if (!filenames) {
       printf("jrep: %s\n", strerror(errno));
       exit(errno);
-    }
-    for (unsigned i = 0; i < n_filenames; i++) {
-      filenames[i] = string();
     }
 
     // Start the processing threads.
