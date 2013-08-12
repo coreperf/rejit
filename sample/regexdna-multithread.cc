@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string>
 #include <thread>
+#include <atomic>
+#include <algorithm>
 
 using namespace std;
 

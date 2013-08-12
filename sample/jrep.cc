@@ -27,8 +27,10 @@
 #include <string.h>
 #include <vector>
 #include <cerrno>
-#include <thread>
 #include <atomic>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 #include "rejit.h"
 
