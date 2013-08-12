@@ -23,7 +23,7 @@ basic = env.Program('basic', 'basic.cc', LIBS=[librejit])
 env.Alias('basic', basic)
 regexdna = env.Program('regexdna', 'regexdna.cc', LIBS=[librejit])
 env.Alias('regexdna', regexdna)
-regexdna_multithread = env.Program('regexdna-multithread', 'regexdna-multithread.cc', LIBS=[librejit, 'pthread'])
+regexdna_multithread = env.Program('regexdna-multithread', 'regexdna-multithread.cc', LIBS=[librejit])
 env.Alias('regexdna-multithread', regexdna_multithread)
 
 jrep_libs = [librejit]
