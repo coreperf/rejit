@@ -177,8 +177,9 @@ static char doc[] =
 "grep-like program powered by rejit.\n"
 "\n"
 "It provides only a *tiny* subset of grep features.\n"
-"One additional feature is the ability to use patterns matching over multiple\n"
-"lines (eg. \"a\\nb\").\n";
+"Two additional features:\n"
+"  - you can search for multi-lines patterns (eg. \"a\\nb\").\n";
+"  - there is initial support for multi-threading.\n";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 

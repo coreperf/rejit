@@ -22,11 +22,21 @@
 
 using namespace std;
 
-int main() {
+int main(int argc, char **argv) {
 
   char* text_raw;
   string text;
   size_t text_raw_size, text_size, replaced_text_size;
+
+  if (argc > 1) {
+    printf(
+        "Usage:\n"
+        "  regexdna < input.file\n"
+        "You can generate input files using the fasta program available from\n"
+        "  http://benchmarksgame.alioth.debian.org/u64/benchmark.php?test=fasta&lang=gcc&id=1&data=u64"
+        );
+    return EXIT_SUCCESS;
+  }
 
   fseek(stdin, 0, SEEK_END);
   text_raw_size = ftell(stdin);
