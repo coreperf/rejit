@@ -19,7 +19,7 @@ import gc
 
 import argparse
 help_description='''
-Benchmark re2 regular expression engine.
+Benchmark v8 regular expression engine.
 Outputs the amortised processing speed in bytes/s (<size of text matched> / <time to match>)
 considering (<--iterations=?> runs and 1 compilation).
 When benchmarking using --match_type=first, be careful that your regular
