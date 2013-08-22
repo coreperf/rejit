@@ -34,7 +34,7 @@ import rejit_utils
 from rejit_utils import *
 
 if __name__ == "__main__":
-  regexp = '(1234567|xyz)'
+  regexp = '(12345678|xyz)'
   args = [regexp]
   results = run(args)
   for line in results:

@@ -28,13 +28,13 @@ dir_tools = join(scriptpath, '../../../')
 sys.path.insert(0, dir_tools)
 import utils
 from utils import *
-dir_re2_resources = join(dir_benchmarks_engines, 're2')
-sys.path.insert(0, dir_re2_resources)
-import re2_utils
-from re2_utils import *
+dir_rejit_resources = join(dir_benchmarks_engines, 'rejit')
+sys.path.insert(0, dir_rejit_resources)
+import rejit_utils
+from rejit_utils import *
 
 if __name__ == "__main__":
-  regexp = '(abcd---|efgh___)'
+  regexp = '(12345678|abcdefghijkl)'
   args = [regexp]
   results = run(args)
   for line in results:
