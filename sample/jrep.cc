@@ -178,7 +178,7 @@ static char doc[] =
 "\n"
 "It provides only a *tiny* subset of grep features.\n"
 "Two additional features:\n"
-"  - you can search for multi-lines patterns (eg. \"a\\nb\").\n";
+"  - you can search for multi-lines patterns (eg. \"a\\nb\").\n"
 "  - there is initial support for multi-threading.\n";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
