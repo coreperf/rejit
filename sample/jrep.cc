@@ -67,6 +67,9 @@ struct arguments {
   bool print_filename;
   bool print_line_number;
   bool recursive;
+  // TODO: Automatically handle coloring. This was protected behind an option to
+  // not trash the output when redirected to a file.
+  bool color_output;
   unsigned jobs;
   unsigned nopenfd;
   unsigned context_before;
@@ -86,6 +89,8 @@ static struct argp_option options[] = {
   {"recursive", 'R', NULL, OPTION_ARG_OPTIONAL,
     "Recursively search directories listed."},
   {NULL, 'r', NULL, OPTION_ALIAS, NULL},
+  {"color_output", 'c', NULL, OPTION_ARG_OPTIONAL,
+    "Highlight matches in red."},
   {"jobs", 'j', "0", OPTION_ARG_OPTIONAL,
     "Specify the number <n> of regular expression processing threads to use.\n"
     "One thread walks the file tree (and process files if <n> is zero), while"
@@ -131,6 +136,9 @@ parse_opt(int key, char *arg, struct argp_state *state) {
         arguments->context_after = argtoi(arg);
         arguments->context_before = argtoi(arg);
       }
+      break;
+    case 'c':
+      arguments->color_output = true;
       break;
     case 'H':
       arguments->print_filename = true;
@@ -293,7 +301,7 @@ int process_file(const char* filename) {
       }
       while (it_matches < matches.end() &&
              it_matches->begin < (it_lines + 1)->begin) {
-        printf("%.*s" START_RED "%.*s" END_COLOR,
+        printf(arguments.color_output ? "%.*s" START_RED "%.*s" END_COLOR : "%.*s%.*s" ,
                (int)(it_matches->begin - start), start,
                (int)(it_matches->end - it_matches->begin), it_matches->begin);
         start = it_matches->end;
