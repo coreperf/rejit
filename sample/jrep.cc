@@ -339,16 +339,20 @@ exit:
 
 
 int list_file(const char *filename) {
-  unique_lock<mutex> fn_lock(fn_mutex);
-  unsigned index;
-  if (fn_written >= fn_read + n_filenames) {
-    fn_need_refill.wait(fn_lock);
+  if (arguments.jobs > 0) {
+    unique_lock<mutex> fn_lock(fn_mutex);
+    unsigned index;
+    if (fn_written >= fn_read + n_filenames) {
+      fn_need_refill.wait(fn_lock);
+    }
+    index = fn_written++;
+    filenames[index % n_filenames].assign(filename);
+    fn_refilled.notify_one();
+    fn_lock.unlock();
+    return 0;
+  } else {
+    return process_file(filename);
   }
-  index = fn_written++;
-  filenames[index % n_filenames].assign(filename);
-  fn_refilled.notify_one();
-  fn_lock.unlock();
-  return 0;
 }
 
 
