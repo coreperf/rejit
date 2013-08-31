@@ -89,6 +89,13 @@ def current_v8_commit():
   p3.wait()
   return p3.communicate()[0].rstrip(' \n\t')
 
+def current_pcre_commit():
+  p1 = subprocess.Popen(['svn', 'info'], cwd=join(dir_benchmarks_engines, 'pcre', 'svn.pcre'), stdout=subprocess.PIPE)
+  p2 = subprocess.Popen(["grep", 'revision'], stdout=subprocess.PIPE, stdin=p1.stdout)
+  p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
+  p3.wait()
+  return p3.communicate()[0].rstrip(' \n\t')
+
 def Error(message):
   print message
   sys.exit(1)
