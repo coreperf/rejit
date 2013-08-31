@@ -109,7 +109,6 @@ if not os.path.exists(pcre_dir) or not os.path.isdir(pcre_dir):
   for line in p.stdout.readlines():
     print line,
   p.wait()
-  print ' '.join([])
   p = subprocess.Popen(['./configure', '--prefix=' + join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
   for line in p.stdout.readlines():
     print line,
