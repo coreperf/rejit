@@ -101,16 +101,24 @@ if not os.path.exists(pcre_dir) or not os.path.isdir(pcre_dir):
     print 'Failed to clone pcre. Aborting build.'
     sys.exit(1)
   print "Building pcre. This may take some time."
+  p = subprocess.Popen(['mkdir', join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
+  for line in p.stdout.readlines():
+    print line,
+  p.wait()
   p = subprocess.Popen(['./autogen.sh'], stdout=PIPE, cwd=pcre_dir)
   for line in p.stdout.readlines():
     print line,
   p.wait()
-  print ' '.join(['./configure'])
-  p = subprocess.Popen(['./configure'], stdout=PIPE, cwd=pcre_dir)
+  print ' '.join([])
+  p = subprocess.Popen(['./configure', '--prefix=' + join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
   for line in p.stdout.readlines():
     print line,
   p.wait()
   p = subprocess.Popen(['make', '-j4'], stdout=PIPE, cwd=pcre_dir)
+  for line in p.stdout.readlines():
+    print line,
+  p.wait()
+  p = subprocess.Popen(['make', 'install'], stdout=PIPE, cwd=pcre_dir)
   for line in p.stdout.readlines():
     print line,
   p.wait()
