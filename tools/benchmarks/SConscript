@@ -109,7 +109,7 @@ if not os.path.exists(pcre_dir) or not os.path.isdir(pcre_dir):
   for line in p.stdout.readlines():
     print line,
   p.wait()
-  p = subprocess.Popen(['./configure', '--prefix=' + join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
+  p = subprocess.Popen(['./configure', '--disable-shared', '--prefix=' + join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
   for line in p.stdout.readlines():
     print line,
   p.wait()
@@ -118,6 +118,10 @@ if not os.path.exists(pcre_dir) or not os.path.isdir(pcre_dir):
     print line,
   p.wait()
   p = subprocess.Popen(['make', 'install'], stdout=PIPE, cwd=pcre_dir)
+  for line in p.stdout.readlines():
+    print line,
+  p.wait()
+  p = subprocess.Popen(['cp', join(pcre_dir, 'build', 'lib', 'libpcre.a'), pcre_dir], stdout=PIPE, cwd=pcre_dir)
   for line in p.stdout.readlines():
     print line,
   p.wait()
