@@ -87,55 +87,14 @@ if not os.path.exists(v8_dir) or not os.path.isdir(v8_dir):
 else:
   print "ok."
 
-print "Checking for pcre... ",
-pcre_svn = 'svn://vcs.exim.org/pcre/code/trunk'
-pcre_dir = join(utils.dir_benchmarks_engines, 'pcre/svn.pcre')
-if not os.path.exists(pcre_dir) or not os.path.isdir(pcre_dir):
-  print "not found."
-  print "Cloning pcre."
-  p = subprocess.Popen(['svn', 'checkout', pcre_svn, pcre_dir], stdout=PIPE)
-  for line in p.stdout.readlines():
-    print line,
-  ret = p.wait()
-  if ret != 0:
-    print 'Failed to clone pcre. Aborting build.'
-    sys.exit(1)
-  print "Building pcre. This may take some time."
-  p = subprocess.Popen(['mkdir', join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  p = subprocess.Popen(['./autogen.sh'], stdout=PIPE, cwd=pcre_dir)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  p = subprocess.Popen(['./configure', '--disable-shared', '--prefix=' + join(pcre_dir, 'build/')], stdout=PIPE, cwd=pcre_dir)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  p = subprocess.Popen(['make', '-j4'], stdout=PIPE, cwd=pcre_dir)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  p = subprocess.Popen(['make', 'install'], stdout=PIPE, cwd=pcre_dir)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  p = subprocess.Popen(['cp', join(pcre_dir, 'build', 'lib', 'libpcre.a'), pcre_dir], stdout=PIPE, cwd=pcre_dir)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  if ret != 0:
-    print 'Failed to build pcre. Aborting build.'
-    sys.exit(1)
-else:
-  print "ok."
 
 # Find SConscript files in the benchmarks directory, except the current one.
 # Limit the recursion to avoid SConscript files from third party repositories.
 # TODO(rames): Relocat third party repositories.
 p = subprocess.Popen(["find", ".", "-maxdepth", "4", "-name", "SConscript"], stdout=subprocess.PIPE)
 sconscript_files = [f for f in p.communicate()[0].split() if f not in ['./SConscript', 'SConscript']]
+if './resources/engines/pcre/SConscript' in sconscript_files:
+  sconscript_files.remove('./resources/engines/pcre/SConscript')
 
 # Build all SConscript files found.
 SConscript(sconscript_files, exports='env librejit help_messages')
