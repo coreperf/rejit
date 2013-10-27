@@ -19,6 +19,18 @@ Import('env librejit help_messages')
 
 # TODO: Move third party requirement check to their respective scripts.
 
+p = subprocess.Popen(['which', 'git'], stdout=PIPE)
+ret = p.wait()
+if ret != 0:
+  print "Cannot find 'git'. Is it installed?"
+  sys.exit(ret)
+
+p = subprocess.Popen(['which', 'hg'], stdout=PIPE)
+ret = p.wait()
+if ret != 0:
+  print "Cannot find 'hg'. Is mercurial installed?"
+  sys.exit(ret)
+
 # Check third party requirements.
 print "Checking for javascript flot... ",
 flot_git = 'git://github.com/flot/flot.git'
@@ -37,6 +49,7 @@ re2_hg = 'https://re2.googlecode.com/hg'
 re2_dir = join(utils.dir_benchmarks_engines, 're2/hg.re2')
 if not os.path.exists(re2_dir) or not os.path.isdir(re2_dir):
   print "not found."
+
   print "Cloning re2."
   p = subprocess.Popen(['hg', 'clone', re2_hg, re2_dir], stdout=PIPE)
   for line in p.stdout.readlines():
