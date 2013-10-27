@@ -72,11 +72,7 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
     gettimeofday(&t0, NULL);
     for (unsigned i = 0; i < arguments.iterations; i++) {
       Regej re(regexp);
-      if (arguments.match_type == kMatchAll) {
-        re.MatchAll(text.c_str(), size, &matches);
-      } else {
-        re.MatchFirst(text.c_str(), size, NULL);
-      }
+      re.MatchAll(text.c_str(), size, &matches);
     }
     gettimeofday(&t2, NULL);
 
@@ -90,18 +86,12 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
     gettimeofday(&t0, NULL);
     Regej re(regexp);
 
-    re.Compile(arguments.match_type);
+    re.Compile(kMatchAll);
 
     gettimeofday(&t1, NULL);
 
-    if (arguments.match_type == kMatchAll) {
-      for (unsigned i = 0; i < arguments.iterations; i++) {
-        re.MatchAll(text.c_str(), size, &matches);
-      }
-    } else {
-      for (unsigned i = 0; i < arguments.iterations; i++) {
-        re.MatchFirst(text.c_str(), size, NULL);
-      }
+    for (unsigned i = 0; i < arguments.iterations; i++) {
+      re.MatchAll(text.c_str(), size, &matches);
     }
 
     gettimeofday(&t2, NULL);

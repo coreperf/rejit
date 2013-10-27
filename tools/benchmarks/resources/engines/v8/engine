@@ -22,9 +22,6 @@ help_description='''
 Benchmark v8 regular expression engine.
 Outputs the amortised processing speed in bytes/s (<size of text matched> / <time to match>)
 considering (<--iterations=?> runs and 1 compilation).
-When benchmarking using --match_type=first, be careful that your regular
-expression does not match or you wil end up with surprising performance
-results!"
 '''
 parser = argparse.ArgumentParser(description=help_description)
 parser.add_argument("regexp" , help="The regular expression to benchmark.")
@@ -33,7 +30,6 @@ parser.add_argument("--size"       , type=int , default=65536, help="Size of the
 parser.add_argument("--iterations" , type=int , default=1000 , help="Number of iterations to run.")
 parser.add_argument("--low_char"   ,            default="0"  , help="When the match source is random text , the low character of the range of characters composing the matched text.")
 parser.add_argument("--high_char"  ,            default="z"  , help="When the match source is random text , the high character of the range of characters composing the matched text.")
-parser.add_argument("--match_type" ,            default="all", help="Type of matching to perform. [all, first].")
 
 path_d8 = join(dir_benchmarks_engines, 'v8/git.v8/out/native/d8')
 
@@ -63,7 +59,7 @@ def run():
       'regexp': args.regexp,
       'size': args.size,
       'iterations': args.iterations,
-      'modifier': 'g' if args.match_type == 'all' else ''}
+      'modifier': 'g'}
   run_file_path = join(dir_testfiles, 'run.js')
   run_file = open(run_file_path, 'w')
   run_file.write('''

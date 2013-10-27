@@ -33,17 +33,6 @@ using namespace rejit;
 using namespace std;
 
 
-#ifndef BENCH_ENGINE_REJIT
-// Copied from rejit.h
-enum MatchType {
-  kMatchFull,
-  kMatchAnywhere,
-  kMatchFirst,
-  kMatchAll,
-  kNMatchTypes
-};
-#endif
-
 #ifdef BENCH_ENGINE_REJIT
 // Start the enum from the latest argp key used.
 enum rejit_flags_option_keys {
@@ -64,7 +53,6 @@ struct arguments {
   unsigned  iterations;
   char      low_char;
   char      high_char;
-  MatchType match_type;
 #ifdef BENCH_ENGINE_REJIT
   int  rejit_flags;
 #endif

@@ -50,17 +50,10 @@ int main(int argc, char *argv[]) {
 
   { // Measure worst case speed.
     gettimeofday(&t0, NULL);
-    if (arguments.match_type == kMatchAll) {
-      for (unsigned i = 0; i < arguments.iterations; i++) {
-        re2::StringPiece piece = text;
-        RE2 pattern(regexp);
-        while (RE2::FindAndConsume(&piece, pattern)) {}
-      }
-    } else {
-      for (unsigned i = 0; i < arguments.iterations; i++) {
-        RE2 pattern(regexp);
-        RE2::PartialMatch(text, pattern);
-      }
+    for (unsigned i = 0; i < arguments.iterations; i++) {
+      re2::StringPiece piece = text;
+      RE2 pattern(regexp);
+      while (RE2::FindAndConsume(&piece, pattern)) {}
     }
     gettimeofday(&t2, NULL);
 
@@ -75,15 +68,9 @@ int main(int argc, char *argv[]) {
 
     gettimeofday(&t1, NULL);
 
-    if (arguments.match_type == kMatchAll) {
-      for (unsigned i = 0; i < arguments.iterations; i++) {
-        re2::StringPiece piece = text;
-        while (RE2::FindAndConsume(&piece, pattern)) {}
-      }
-    } else {
-      for (unsigned i = 0; i < arguments.iterations; i++) {
-        RE2::PartialMatch(text, pattern);
-      }
+    for (unsigned i = 0; i < arguments.iterations; i++) {
+      re2::StringPiece piece = text;
+      while (RE2::FindAndConsume(&piece, pattern)) {}
     }
 
     gettimeofday(&t2, NULL);

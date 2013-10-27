@@ -14,7 +14,6 @@ struct argp_option options[] =
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
   {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
   {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
-  {"match_type" , 'm' , "all"  , OPTION_ARG_OPTIONAL , "Type of matching to perform. [all, first]."}, 
 #ifdef BENCH_ENGINE_REJIT
   // Convenient access to rejit flags.
 #define FLAG_OPTION(flag_name, r, d) \
@@ -32,10 +31,7 @@ char doc[] =
 "Output: processing speed in bytes/s (<size of text matched> / <time to match>)\n"
 "\t<worst speed> (1 run for 1 compilation)\n"
 "\t<amortised speed> (<--iterations=?> runs for 1 compilation)\n"
-"\t<best speed> (without considering compilation time)\n"
-"When benchmarking using --match_type=first, be careful that your regular "
-"expression does not match or you wil end up with surprising performance "
-"results!";
+"\t<best speed> (without considering compilation time)\n";
 
 char args_doc[] = "regexp";
 
@@ -67,15 +63,6 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
       break;
     case 'h':
       arguments->high_char = arg[0];
-      break;
-    case 'm':
-      if (strcmp(arg, "all") == 0) {
-        arguments->match_type = kMatchAll;
-      } else if (strcmp(arg, "first") == 0) {
-        arguments->match_type = kMatchFirst;
-      } else {
-        argp_usage(state);
-      }
       break;
 
 #ifdef BENCH_ENGINE_REJIT
@@ -120,7 +107,6 @@ void handle_arguments(struct arguments *arguments,
   arguments->iterations = 1000;
   arguments->low_char   = 'a';
   arguments->high_char  = 'z';
-  arguments->match_type = kMatchAll;
 
 #ifdef BENCH_ENGINE_REJIT
 #define SET_FLAG_DEFAULT(flag_name, r, d)                                      \
