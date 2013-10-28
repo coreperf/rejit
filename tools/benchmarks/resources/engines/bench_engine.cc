@@ -183,11 +183,29 @@ void prepare_text(struct arguments *arguments, string *text) {
 void print_results(vector<bench_res> *results)
 {
   vector<bench_res>::iterator it;
+  unsigned max_width = strlen("text_size");
+
+  for (it = results->begin(); it < results->end(); it++) {
+    unsigned width = 0;
+    size_t n = (*it).text_size;
+    while (n) {
+      n /= 10;
+      ++width;
+    }
+    max_width = max(max_width, width);
+  }
+
+  cout <<
+    setw(max_width) << "text_size" <<
+    setw(16) << "worse" <<
+    setw(16) << "amortised" <<
+    setw(16) << "best" << endl;
   for (it = results->begin(); it < results->end(); it++) {
   cout <<
-    (*it).worse << endl <<
-    (*it).amortised << endl <<
-    (*it).best << endl;
+    setw(max_width) << (*it).text_size <<
+    setw(16) << (*it).worse <<
+    setw(16) << (*it).amortised <<
+    setw(16) << (*it).best << endl;
   }
 }
 
