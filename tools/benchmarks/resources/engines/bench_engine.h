@@ -49,7 +49,7 @@ enum rejit_flags_option_keys {
 struct arguments {
   char      *args[1];  // The regexp.
   char      *file;
-  size_t    size;
+  vector<size_t> sizes;
   unsigned  iterations;
   char      low_char;
   char      high_char;
@@ -73,9 +73,18 @@ void handle_arguments(struct arguments *arguments,
 
 void prepare_text(struct arguments *arguments, string *text);
 
+struct bench_res {
+  size_t text_size;
+  double worse;
+  double amortised;
+  double best;
+};
+
+void print_results(vector<bench_res> *results);
+
+double speed(struct timeval *t0, struct timeval *t1, size_t text_size, unsigned times);
 
 void error(const char* message, int rc = 1);
 
-void print_speed(int64_t sec, int64_t usec, size_t file_size, unsigned times);
 
 #endif

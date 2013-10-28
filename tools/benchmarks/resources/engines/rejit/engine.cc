@@ -64,47 +64,48 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
 
   // Run ---------------------------------------------------
 
-  size_t size = arguments.size;
-  struct timeval t0, t1, t2;
+  vector<bench_res> results;
 
-  { // Measure worst case speed.
-    vector<Match> matches;
-    gettimeofday(&t0, NULL);
-    for (unsigned i = 0; i < arguments.iterations; i++) {
+  for (unsigned i = 0; i < arguments.sizes.size(); i++) {
+    struct timeval t0, t1, t2;
+    bench_res res;
+    size_t size = res.text_size = arguments.sizes.at(i);
+
+    { // Measure worst case speed.
+      vector<Match> matches;
+      gettimeofday(&t0, NULL);
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        Regej re(regexp);
+        re.MatchAll(text.c_str(), size, &matches);
+      }
+      gettimeofday(&t1, NULL);
+
+      res.worse = speed(&t0, &t1, size, arguments.iterations);
+    }
+
+    { // Compute best and amortised speeds.
+      vector<Match> matches;
+      gettimeofday(&t0, NULL);
       Regej re(regexp);
-      re.MatchAll(text.c_str(), size, &matches);
-    }
-    gettimeofday(&t2, NULL);
 
-    print_speed(t2.tv_sec - t0.tv_sec,
-                t2.tv_usec - t0.tv_usec,
-                size, arguments.iterations);
+      re.Compile(kMatchAll);
+
+      gettimeofday(&t1, NULL);
+
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        re.MatchAll(text.c_str(), size, &matches);
+      }
+
+      gettimeofday(&t2, NULL);
+
+      res.amortised = speed(&t0, &t2, size, arguments.iterations);
+      res.best = speed(&t1, &t2, size, arguments.iterations);
+
+      results.push_back(res);
+    }
   }
 
-  { // Compute best and amortised speeds.
-    vector<Match> matches;
-    gettimeofday(&t0, NULL);
-    Regej re(regexp);
-
-    re.Compile(kMatchAll);
-
-    gettimeofday(&t1, NULL);
-
-    for (unsigned i = 0; i < arguments.iterations; i++) {
-      re.MatchAll(text.c_str(), size, &matches);
-    }
-
-    gettimeofday(&t2, NULL);
-
-    // Amortised speed.
-    print_speed(t2.tv_sec - t0.tv_sec,
-                t2.tv_usec - t0.tv_usec,
-                size, arguments.iterations);
-    // Best speed.
-    print_speed(t2.tv_sec - t1.tv_sec,
-                t2.tv_usec - t1.tv_usec,
-                size, arguments.iterations);
-  }
+  print_results(&results);
 
   return 0;
 }

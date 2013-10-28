@@ -45,45 +45,47 @@ int main(int argc, char *argv[]) {
 
   // Run ---------------------------------------------------
 
-  size_t size = arguments.size;
-  struct timeval t0, t1, t2;
+  vector<bench_res> results;
 
-  { // Measure worst case speed.
-    gettimeofday(&t0, NULL);
-    for (unsigned i = 0; i < arguments.iterations; i++) {
-      re2::StringPiece piece = text;
+  for (unsigned i = 0; i < arguments.sizes.size(); i++) {
+    bench_res res;
+    struct timeval t0, t1, t2;
+    size_t size = res.text_size = arguments.sizes.at(i);
+    text.resize(size)
+
+    { // Measure worst case speed.
+      gettimeofday(&t0, NULL);
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        re2::StringPiece piece = text;
+        RE2 pattern(regexp);
+        while (RE2::FindAndConsume(&piece, pattern)) {}
+      }
+      gettimeofday(&t1, NULL);
+
+      res.worse = speed(&t0, &t1, size, arguments.iterations);
+    }
+
+    { // Compute best and amortised speeds.
+      gettimeofday(&t0, NULL);
       RE2 pattern(regexp);
-      while (RE2::FindAndConsume(&piece, pattern)) {}
-    }
-    gettimeofday(&t2, NULL);
 
-    print_speed(t2.tv_sec - t0.tv_sec,
-                t2.tv_usec - t0.tv_usec,
-                size, arguments.iterations);
+      gettimeofday(&t1, NULL);
+
+      for (unsigned i = 0; i < arguments.iterations; i++) {
+        re2::StringPiece piece = text;
+        while (RE2::FindAndConsume(&piece, pattern)) {}
+      }
+
+      gettimeofday(&t2, NULL);
+
+      res.amortised = speed(&t0, &t2, size, arguments.iterations);
+      res.best = speed(&t1, &t2, size, arguments.iterations);
+
+      results.push_back(res);
+    }
   }
 
-  { // Compute best and amortised speeds.
-    gettimeofday(&t0, NULL);
-    RE2 pattern(regexp);
-
-    gettimeofday(&t1, NULL);
-
-    for (unsigned i = 0; i < arguments.iterations; i++) {
-      re2::StringPiece piece = text;
-      while (RE2::FindAndConsume(&piece, pattern)) {}
-    }
-
-    gettimeofday(&t2, NULL);
-
-    // Amortised speed.
-    print_speed(t2.tv_sec - t0.tv_sec,
-                t2.tv_usec - t0.tv_usec,
-                size, arguments.iterations);
-    // Best speed.
-    print_speed(t2.tv_sec - t1.tv_sec,
-                t2.tv_usec - t1.tv_usec,
-                size, arguments.iterations);
-  }
+  print_results(&results);
 
   return 0;
 }

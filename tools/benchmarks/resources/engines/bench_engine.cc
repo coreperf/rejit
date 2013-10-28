@@ -1,6 +1,9 @@
 #include "bench_engine.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <iostream>
+#include <string>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -10,7 +13,7 @@
 struct argp_option options[] =
 {
   {"file"       , 'f' , ""     , OPTION_ARG_OPTIONAL , "Source file. If none provided, use a randomly generated characters."}, 
-  {"size"       , 's' , "65536", OPTION_ARG_OPTIONAL , "Size of the text to match."},
+  {"size"       , 's' , "65536", OPTION_ARG_OPTIONAL , "Comma-separated list of text sizes."},
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
   {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
   {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
@@ -46,10 +49,24 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
     case 'f':
       arguments->file = arg;
       break;
-    case 's':
-      if (arg)
-        arguments->size = stoll(arg);
+    case 's': {
+      size_t pos;
+      size_t val;
+      if (!arg)
+        break;
+      while (arg[0] != '\0') {
+        val = stoll(arg, &pos);
+        if (pos == 0)
+          break;
+        arguments->sizes.push_back(val);
+        arg += pos + (arg[pos] == ',');
+      }
+
+      if (arguments->sizes.size() == 0 || arg[0] != '\0')
+        error("Invalid sizes arguments.");
+
       break;
+    }
     case 'i':
       if (arg) {
         arguments->iterations = stol(arg);
@@ -103,7 +120,6 @@ void handle_arguments(struct arguments *arguments,
                       int argc,
                       char *argv[]) {
   arguments->file       = NULL;
-  arguments->size       = 65536;
   arguments->iterations = 1000;
   arguments->low_char   = 'a';
   arguments->high_char  = 'z';
@@ -121,11 +137,17 @@ void handle_arguments(struct arguments *arguments,
   if (arguments->args[0] == '\0') {
     error("Cannot test an empty regular expression.");
   }
+
+
+  if (arguments->sizes.size() == 0)
+    arguments->sizes.push_back(65536);
+  else
+    sort(arguments->sizes.begin(), arguments->sizes.end());
 }
 
 
 void prepare_text(struct arguments *arguments, string *text) {
-  size_t max_text_size = arguments->size;
+  size_t max_text_size = arguments->sizes.back();
   if (arguments->file) {
     // Use the content of the specified file to fill text. If the file is
     // smaller than the requested test size, copy it multiple times.
@@ -158,9 +180,23 @@ void prepare_text(struct arguments *arguments, string *text) {
 }
 
 
-void print_speed(int64_t sec, int64_t usec, size_t file_size, unsigned times) {
+void print_results(vector<bench_res> *results)
+{
+  vector<bench_res>::iterator it;
+  for (it = results->begin(); it < results->end(); it++) {
+  cout <<
+    (*it).worse << endl <<
+    (*it).amortised << endl <<
+    (*it).best << endl;
+  }
+}
+
+
+double speed(struct timeval *t0, struct timeval *t1, size_t text_size, unsigned times) {
+  int64_t sec = t1->tv_sec - t0->tv_sec;
+  int64_t usec = t1->tv_usec - t0->tv_usec;
   double time_usec = (double)usec + (double)sec * 1000000.0;
-  cout << ((double)file_size / time_usec) * 1000000.0 * (double)times << endl;
+  return ((double)text_size / time_usec) * 1000000.0 * (double)times;
 }
 
 
