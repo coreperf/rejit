@@ -66,7 +66,7 @@ class Engine:
       printed_run_command = [
           self.exec_path,
           '"' + benchmark.regexp(self.syntax) + '"',
-          '--iterations=' + str(utils.default_n_iterations),
+          '--iterations=' + str(args.iterations),
           '--size=' + ','.join(map(lambda x: str(x), sizes)),
           '--low_char=' + benchmark.low_char,
           '--high_char=' + benchmark.high_char
@@ -77,7 +77,7 @@ class Engine:
     run_command = [
         self.exec_path,
         benchmark.regexp(self.syntax),
-        '--iterations=' + str(utils.default_n_iterations),
+        '--iterations=' + str(args.iterations),
         '--size=' + ','.join(map(lambda x: str(x), sizes)),
         '--low_char=' + benchmark.low_char,
         '--high_char=' + benchmark.high_char
@@ -100,6 +100,58 @@ engine_rejit = Engine('rejit', join(dir_benchmarks_engines, 'rejit/engine'), ERE
 engine_re2 =   Engine('re2',   join(dir_benchmarks_engines, 're2/engine'),   ERE)
 engines = [engine_rejit, engine_re2]
 engines_names=map(lambda e: e.name, engines)
+
+
+
+# Arguments handling -----------------------------------------------------------
+
+import argparse
+
+rejit_description = '''
+Run rejit benchmarks.
+Once run, you can find html graphs of the results in <rejit>/html/rejit.html.'''
+
+parser = argparse.ArgumentParser(description=rejit_description)
+
+parser.add_argument('--engines', action='store', nargs='+',
+    choices=engines_names, default=engines_names,
+    help='List of engines to benchmark.')
+parser.add_argument('--sizes', type=int, action='store', nargs='+',
+    default=map(lambda x: 1 << x, range(3, 24)),
+    help='List of text sizes to benchmark.')
+parser.add_argument('--slow_size_factor', action='store_true',
+    default=3,
+    help="For slow benchmarks, do not benchmark the <n> bigger text sizes.")
+parser.add_argument('--iterations', type=int, action="store",
+    default=100,
+    help="Number of iterations to run benchmarks for.")
+parser.add_argument('--nosimd', action='store_true',
+    help='Disable SIMD usage.')
+parser.add_argument('--nobuild', action='store_true',
+    help="Do not build before running.")
+parser.add_argument('-j', '--jobs', default=1, type=int,
+    help='Number of jobs to run simultaneously for the *build* commands')
+parser.add_argument('--display', action='store_true',
+    help='Display benchmarks results as they execute.')
+parser.add_argument('-v', '--verbose', action='store_true',
+    help='Print extra information.')
+
+args = parser.parse_args()
+
+# Use the engines specified on the command line.
+engines = [engine for engine in engines if engine.name in args.engines]
+
+# Build benchmarks in release mode.
+# TODO: We should only build the engines required on the command line.
+if not args.nobuild:
+  print "\nBuilding benchmarks..."
+  scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"]
+  if args.nosimd:
+    scons_command += ['simd=off']
+  subprocess.call(scons_command)
+
+
+
 
 
 
@@ -231,7 +283,7 @@ results = []
 class Benchmark:
   # Used to generate identifiers in the html code.
   bench_id = 1
-  def __init__(self, regexp_BRE, regexp_ERE = None, low_char='0', high_char='z', html_description=None):
+  def __init__(self, regexp_BRE, regexp_ERE = None, low_char='0', high_char='z', html_description=None, sizes=args.sizes):
     self.bench_id = Benchmark.bench_id
     Benchmark.bench_id = Benchmark.bench_id + 1
     self.regexps = {}
@@ -243,6 +295,7 @@ class Benchmark:
     self.low_char = low_char
     self.high_char = high_char
     self.html_description = html_description
+    self.sizes = sizes
 
   def list_regexps(self):
     print self.regexps
@@ -257,61 +310,22 @@ class Benchmark:
   def run(self, engines):
     res = ResultSet(self)
     for engine in engines:
-      res.add_result(engine, engine.run(self, default_run_sizes))
+      res.add_result(engine, engine.run(self, self.sizes))
     return res
+
 
 
 benchmarks = [
     Benchmark("abcdefgh", low_char='b', high_char='z'),
     Benchmark("abcdefgh"),
     Benchmark("abcdefgh", low_char='a', high_char='j'),
-    Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)"),
-    Benchmark("(12345678|abcdefghijkl)"),
-    Benchmark("(12345678|xyz)"),
+    Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(12345678|abcdefghijkl)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(12345678|xyz)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(abcd--|abcd____)"),
     ]
 
 
-
-
-
-# Arguments handling -----------------------------------------------------------
-
-import argparse
-
-rejit_description = '''
-Run rejit benchmarks.
-Once run, you can find html graphs of the results in <rejit>/html/rejit.html.'''
-
-parser = argparse.ArgumentParser(description=rejit_description)
-
-parser.add_argument('--engines', action='store', nargs='+',
-    choices=engines_names, default=engines_names,
-    help='List of engines to benchmark.')
-parser.add_argument('--nosimd', action='store_true',
-    help='Disable SIMD usage.')
-parser.add_argument('--nobuild', action='store_true',
-    help="Do not build before running.")
-parser.add_argument('-j', '--jobs', default=1, type=int,
-    help='Number of jobs to run simultaneously for the *build* commands')
-parser.add_argument('--display', action='store_true',
-    help='Display benchmarks results as they execute.')
-parser.add_argument('-v', '--verbose', action='store_true',
-    help='Print extra information.')
-
-args = parser.parse_args()
-
-# Use the engines specified on the command line.
-engines = [engine for engine in engines if engine.name in args.engines]
-
-# Build benchmarks in release mode.
-# TODO: We should only build the engines required on the command line.
-if not args.nobuild:
-  print "\nBuilding benchmarks..."
-  scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"]
-  if args.nosimd:
-    scons_command += ['simd=off']
-  subprocess.call(scons_command)
 
 
 
