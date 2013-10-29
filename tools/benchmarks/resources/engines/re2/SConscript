@@ -41,7 +41,8 @@ if 'os' in env and env['os'] == 'macos':
     Exit(1)
   local_env = conf.Finish()
   libs += ['argp']
-local_env.Program('engine', ['engine.cc'],
+
+local_env.Program('engine', ['engine.cc', '../bench_engine.cc'],
     LIBS=libs, CPPPATH='hg.re2/')
 
 BUILD_TARGETS.append(path_engine)
