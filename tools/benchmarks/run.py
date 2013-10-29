@@ -31,165 +31,154 @@ sys.path.insert(0, join(dir_rejit, 'tools'))
 import utils
 from utils import *
 
-# Arguments handling -----------------------------------------------------------
-import argparse
-parser = argparse.ArgumentParser(description='Run rejit benchmarks')
-parser.add_argument('-j', '--jobs', default=1, type=int,
-    help='Number of jobs to run simultaneously for the *build* commands')
-parser.add_argument('--register',
-    help="Register benchmarks results and plot performance over time.",
-    action="store_true")
-parser.add_argument('--plot',
-    help="Don't run the benchmark, only plot the results.",
-    action="store_true")
-parser.add_argument('--nosimd', action='store_true',
-    help='Disable SIMD usage.')
-args = parser.parse_args()
-
-out_name = 'data.register' if args.register else 'data.temp'
-
-# Path helpers.
-def benchmark_path(benchmark):
-  return join(dir_benchmarks, benchmark)
-def benchmark_description_path(benchmark):
-  return join(benchmark_path(benchmark), 'description.html')
-def benchmark_engine_path(benchmark, engine):
-  return join(benchmark_path(benchmark), engine)
-def benchmark_engine_data_path(benchmark, engine):
-  return join(benchmark_engine_path(benchmark, engine), out_name)
-
-# Build benchmarks in release mode ---------------------------------------------
-print "\nBuilding benchmarks..."
-scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"]
-if args.nosimd:
-  scons_command += ['simd=off']
-subprocess.call(scons_command)
-
-# Run the benchmarks -----------------------------------------------------------
-def run_benchs():
-  print "\nRunning benchmarks..."
-  p_runs = subprocess.Popen(["find", dir_benchmarks, "-name", "run"], stdout=subprocess.PIPE)
-  runs = p_runs.communicate()[0].split()
-
-  for run in runs:
-    print "Running " + run
-    p = subprocess.Popen([run], stdout=subprocess.PIPE)
-    p.wait()
-    out = p.communicate()[0]
-    if not out:
-      continue
 
 
-    data_path = os.path.join(os.path.dirname(run), out_name)
-    empty = not os.path.exists(data_path) or not os.path.isfile(data_path) or os.path.getsize(data_path) == 0
-    if empty or not args.register:
-      data = open(data_path, 'w+')
-      data.write(out)
-      data.close()
-    else:
-      data = open(data_path, 'r')
-      labels = data.readline().rstrip(' \n\t')
-      data.close()
-      out_s = out.split('\n')
-      current_labels = out_s[0].rstrip(' \t')
-      if labels != current_labels:
-        print "ERROR: labels line does not match in " + data_path
-        print labels
-        print current_labels
-        print "exiting"
-        sys.exit(1)
-      else:
-        data = open(data_path, 'a')
-        for i in range(1, len(out_s)):
-          data.write(out_s[i].rstrip(' \t'))
-          data.write('\n')
-        data.close()
-# End of run_benchs()
+# Declare the arguments that will be built by the parser.
+args = None
+
+def verbose(message):
+  if args.verbose:
+    print(message)
 
 
-# Plot the benchmarks results --------------------------------------------------
+# Engines ----------------------------------------------------------------------
 
-def html(html_file, string):
-  html_file.write(string)
+BRE = 'BRE'
+ERE = 'ERE'
+RE_syntaxes = [BRE, ERE]
 
-def write_benchmark_description(html_file, benchmark):
-  description_file = open(join(benchmark_path(benchmark), 'description.html'), 'r')
-  description = description_file.read()
-  description_file.close()
-  html(html_file,
-  '''
+class Engine:
+  def __init__(self, name, exec_path, syntax):
+    self.name = name
+
+    self.exec_path = exec_path
+    if not os.path.exists(self.exec_path):
+      error("Could not find: %s" % self.exec_path)
+
+    self.syntax = syntax
+    if self.syntax not in RE_syntaxes:
+      error("ERROR: Invalid syntax '%s'" % self.syntax)
+
+  def run(self, benchmark, sizes):
+
+    if verbose:
+      # The regexp is enclosed with quotes.
+      printed_run_command = [
+          self.exec_path,
+          '"' + benchmark.regexp(self.syntax) + '"',
+          '--iterations=' + str(utils.default_n_iterations),
+          '--size=' + ','.join(map(lambda x: str(x), sizes)),
+          '--low_char=' + benchmark.low_char,
+          '--high_char=' + benchmark.high_char
+          ]
+      verbose("Benchmarking %s for regexp \"%s\"" %(self.name, '"' + benchmark.regexp(self.syntax) + '"'))
+      verbose("Command: %s" % (' '.join(printed_run_command)))
+
+    run_command = [
+        self.exec_path,
+        benchmark.regexp(self.syntax),
+        '--iterations=' + str(utils.default_n_iterations),
+        '--size=' + ','.join(map(lambda x: str(x), sizes)),
+        '--low_char=' + benchmark.low_char,
+        '--high_char=' + benchmark.high_char
+        ]
+
+    p = subprocess.Popen(run_command, stdout=subprocess.PIPE)
+    rc = p.wait()
+    if rc != 0:
+      print("Failed to run:\n%s" % (' '.join(run_command)))
+      print("Output:\n%s" % (p.communicate()[0]))
+      error("Failed to run benchmark.")
+
+    output = p.communicate()[0]
+    if args.display:
+      print output
+    return output
+
+
+engine_rejit = Engine('rejit', join(dir_benchmarks_engines, 'rejit/engine'), ERE)
+engine_re2 =   Engine('re2',   join(dir_benchmarks_engines, 're2/engine'),   ERE)
+engines = [engine_rejit, engine_re2]
+engines_names=map(lambda e: e.name, engines)
+
+
+
+# Benchmarks -------------------------------------------------------------------
+
+class ResultSet:
+  def __init__(self, benchmark):
+    self.benchmark = benchmark
+    self.data = {}
+    self.time = str(math.floor(time.time() * 1000))
+
+
+  def add_result(self, engine, output):
+    if engine.name in self.data:
+      error("Results for engine %s already registered." % engine.name)
+    data_engine = {}
+    outs = output.split('\n')
+
+    # The first line must be the labels.
+    labels = outs[0].split()
+    if not 'text_size' in labels:
+      error("Expected labels line.")
+    for label in labels:
+      if label != "text_size":
+        data_engine[label] = {}
+    for raw_line in outs[1:]:
+      line = raw_line.split()
+      for i, val in enumerate(line[1:], start=1):
+        # We want the dictionary to be indexed by integers for correct sorting.
+        data_engine[labels[i]][int(line[0])] = val
+
+    self.data[engine.name] = data_engine
+
+
+  def plot_description(self):
+    res = '''
   <tr>
     <td>
-      <div style="padding-left: 5em;"> %(description)s </div>
-    </td>
+      <div style="padding-left: 5em;"> <code><pre>regexp: %s     range: ['%s','%s']</pre></code> </div>
+    </td>''' % (self.benchmark.regexp(ERE), self.benchmark.low_char, self.benchmark.high_char)
+    if self.benchmark.html_description:
+      res += '''
+    <td>
+      <div style="padding-left: 5em;"> %s </div>
+    </td>''' % self.benchmark.html_description
+    res += '''
   </tr>
-  ''' % { 'description': description }
-     )
+'''
+    return res
 
-def write_benchmark_latest_results(html_file, engines, benchmark):
-  html_dic = {
-      'benchmark': benchmark,
-      'graph_id': 'plot_parallel_' + benchmark,
-      'data_declaration': '',
-      'datasets': '',
-      }
+  plot_colors = [('#DEBD00','#E0D48D'), ('#277AD9','#94B8E0'), ('#00940A','#72B377'), ('#A22EBF','#BF6CD4')]
 
-  series = {}
+  def plot_data(self):
+    res = ''
+    html_dic = {
+        'bench_name': str(self.benchmark.bench_id),
+        'graph_id': 'plot_parallel_' + str(self.benchmark.bench_id),
+        'datasets_declaration': None,
+        'datasets_definition': None,
+        }
 
-  # Retrieve the data for all engines.
-  for engine in sorted(engines):
-    data_file = open(benchmark_engine_data_path(benchmark, engine), 'r')
-    data = csv.reader(data_file, delimiter=' ')
+    def dataset_id(engine, label):
+      return 'data_%s_%s_%s' % (self.benchmark.bench_id, engine, label)
 
-    # Performance points have numerical indexes.
-    first_perf_index = 0
-    labels_all = data.next()
-    if '' in labels_all:
-      labels_all.remove('')
-    while not is_number(labels_all[first_perf_index]):
-      first_perf_index += 1
+    datasets_declaration = ''
+    datasets_definition = ''
 
-    labels = labels_all[first_perf_index::]
-    n_l = len(labels)
-    data_points = {}
-    for line in data:
-      if line != []:
-        # TODO: this does not guarantee the latest data.
-        legend = ('%s_%s' %(engine, line[0])).rstrip(' \t\n\r').lstrip(' \t\n\r')
-        series[legend] = line[first_perf_index::]
+    for engine_index, engine in enumerate(self.data):
+      data_engine = self.data[engine]
+      for i, label in enumerate(data_engine):
+        datapoints_string = ','.join(map(lambda x: '[%s,%s]' % (x, data_engine[label][x]), sorted(data_engine[label])))
+        datasets_declaration += 'var %s = [%s];\n' % (dataset_id(engine, label), datapoints_string)
+        datasets_definition += "{data: %(dataset_id)s, label: \"%(label)s\", color:\"%(color)s\"},\n" % {'dataset_id':dataset_id(engine, label), 'label':engine + ' ' + label, 'color':ResultSet.plot_colors[engine_index][0 if label == 'amortised' else 1]}
 
-    data_file.close()
+    html_dic['datasets_declaration'] = datasets_declaration
+    html_dic['datasets_definition'] = datasets_definition
 
-  # Build a js representation of the data.
-  for legend in sorted(series):
-    data_points[legend] = ''
-    for i in range(0, n_l):
-      # TODO: find a beter fix for that
-      if series[legend][i] != '' and series[legend][i] != 'inf':
-        data_points[legend] += '[%s,%s],' %(labels[i], series[legend][i])
-    html_dic['data_declaration'] +=  'var data_%s_%s = [%s];\n' %(benchmark, legend, data_points[legend])
 
-  # Create the graph content refering to the data.
-  main_colors = ['#DEBD00', '#277AD9', '#00940A', '#A22EBF']
-  secondary_colors = ['#E0D48D', '#94B8E0', '#72B377', '#BF6CD4']
-  colors_index = -1
-  prev_root = ''
-  for legend in sorted(series):
-    l_s = legend.split('_')
-    root = '_'.join(l_s[0:len(l_s) - 1])
-    if root != prev_root:
-      colors_index += 1
-    html_dic['datasets'] += '{data: data_%s_%s, label: "%s",\n' % (benchmark, legend,
-      legend)
-    if l_s[len(l_s) - 1] == 'worst' or l_s[len(l_s) - 1] == 'best':
-      html_dic['datasets'] += 'color: "%s",\n' % (secondary_colors[colors_index])
-    else:
-      html_dic['datasets'] += 'color: "%s",\n' % (main_colors[colors_index])
-    html_dic['datasets'] += '},'
-    prev_root = root
-
-  html(html_file,
-  '''
+    res = '''
   <tr>
     <td>
       <div>
@@ -198,8 +187,8 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
       </div>
       <script type="text/javascript">
         $(function () {
-          %(data_declaration)s
-          var datasets = [ %(datasets)s ];
+          %(datasets_declaration)s
+          var datasets = [ %(datasets_definition)s ];
 
           var choiceContainer = $("#%(graph_id)s_choices");
           $.each(datasets, function(key, val) {
@@ -219,148 +208,138 @@ def write_benchmark_latest_results(html_file, engines, benchmark):
         });
       </script>
     </td>
-''' % html_dic)  # End of html
+''' % html_dic
 
-def plot_over_time(html_file, engine, benchmark, interest_labels):
-  data_file = open(benchmark_engine_data_path(benchmark, engine), 'r')
-  csv_data = csv.reader(data_file, delimiter=' ')
-  # Copy the csv data to a list, which is more convenient to work with.
-  data = []
-  for line in csv_data:
-    data.append(line)
-  data_file.close()
+    return res
 
-  labels = data[0]
-  date_index = labels.index('date')
-  commit_index = labels.index('commit')
-  if not date_index or not commit_index:
-    Error('Incorrectly formatted labels.')
+  def plot(self):
+    verbose("Plotting results for benchmark \"%s\" (range [%s,%s])" % (self.benchmark.regexp(ERE), self.benchmark.low_char, self.benchmark.high_char))
+    res = ''
+    res += self.plot_description()
+    res += self.plot_data()
 
-  # We want the performance for the following file sizes.
-  interest_labels = ['8', '2048', '1048576']
-  interest_indexes = []
-  for label in interest_labels:
-    if labels.index(label):
-      interest_indexes.append(labels.index(label))
+    return res
+
+    for engine in engines:
+      if not engine.name in self.data:
+        error("Could not find benchmark results for engine %s for regexp \"%s\"." % (engine.name, self.benchmark.regexp(engine.syntax)))
 
 
-  for label in interest_labels:
-    data_points = {}
-    # Create the data points from the data file.
-    # Don't forget to skip the labels line.
-    for line in data[1::]:
-      if line == []:
-        continue
-      legend = ('%s_%s_%s' %(engine, label, line[0])).rstrip(' \t\n\r').lstrip(' \t\n\r')
-      if not legend in data_points:
-        data_points[legend] = ''
-      data_points[legend] += '[%s,%s],' %(line[date_index], line[labels.index(label)])
+results = []
 
-    html_dic = { 'id': benchmark + '_' + labels[labels.index(label)] }
 
-    html(html_file, '''
-    <td>
-      <div style="padding:32px"><div id="%(id)s" style="width:600px;height:400px"></div></div>
-      <script type="text/javascript">
-        $(function () {''' % html_dic
-        )
-    for legend in sorted(data_points):
-      html(html_file, '''
-          var data_%s_%s_%s = [%s];\n''' %(benchmark, legend, labels[labels.index(label)], data_points[legend])
-          )
+class Benchmark:
+  # Used to generate identifiers in the html code.
+  bench_id = 1
+  def __init__(self, regexp_BRE, regexp_ERE = None, low_char='0', high_char='z', html_description=None):
+    self.bench_id = Benchmark.bench_id
+    Benchmark.bench_id = Benchmark.bench_id + 1
+    self.regexps = {}
+    self.regexps[BRE] = regexp_BRE
+    if regexp_ERE is None:
+      self.regexps[ERE] = self.regexps[BRE]
+    else:
+      self.regexps[ERE] = regexp_ERE
+    self.low_char = low_char
+    self.high_char = high_char
+    self.html_description = html_description
 
-    html(html_file, '''
-          var plot_%(id)s = $.plot($("#%(id)s"),
-                                   [''' % html_dic
-        )
+  def list_regexps(self):
+    print self.regexps
 
-    for legend in sorted(data_points):
-      html(html_file, '''
-                                     {data: data_%s_%s_%s, label: "%s"},''' %(benchmark, legend, labels[labels.index(label)], legend)
-          )
+  def regexp(self, syntax):
+    if not syntax in self.regexps:
+      print("This benchmark does not provide a regexp for syntax '%s'" % syntax)
+      list_regexps()
+      error("Unavailable syntax.")
+    return self.regexps[syntax]
 
-    html(html_file, '''
-                                   ],
-                                   plot_options_speed_time
-                                  );
+  def run(self, engines):
+    res = ResultSet(self)
+    for engine in engines:
+      res.add_result(engine, engine.run(self, default_run_sizes))
+    return res
 
-          var previousPoint = null;
-          $("#%(id)s").bind("plothover", function (event, pos, item) {
-              $("#x").text(pos.x.toFixed(2));
-              $("#y").text(pos.y.toFixed(2));
 
-              if (item) {
-                  if (previousPoint != item.dataIndex) {
-                      previousPoint = item.dataIndex;
+benchmarks = [
+    Benchmark("abcdefgh", low_char='b', high_char='z'),
+    Benchmark("abcdefgh"),
+    Benchmark("abcdefgh", low_char='a', high_char='j'),
+    Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)"),
+    Benchmark("(12345678|abcdefghijkl)"),
+    Benchmark("(12345678|xyz)"),
+    Benchmark("(abcd--|abcd____)"),
+    ]
 
-                      $("#tooltip").remove();
-                      var x = item.datapoint[0].toFixed(2),
-                          y = item.datapoint[1].toFixed(2);
 
-                      show_tooltip(item.pageX, item.pageY,
-                                   item.series.color,
-                                   item.series.label + '<br/>' + x + '<br/>' + y);
 
-                  }
-              }
-              else {
-                  $("#tooltip").remove();
-                  previousPoint = null;
-              }
-          });
 
-        });
-      </script>
-    </td>
-    ''' % html_dic
-        )
 
+# Arguments handling -----------------------------------------------------------
+
+import argparse
+
+rejit_description = '''
+Run rejit benchmarks.
+Once run, you can find html graphs of the results in <rejit>/html/rejit.html.'''
+
+parser = argparse.ArgumentParser(description=rejit_description)
+
+parser.add_argument('--engines', action='store', nargs='+',
+    choices=engines_names, default=engines_names,
+    help='List of engines to benchmark.')
+parser.add_argument('--nosimd', action='store_true',
+    help='Disable SIMD usage.')
+parser.add_argument('--nobuild', action='store_true',
+    help="Do not build before running.")
+parser.add_argument('-j', '--jobs', default=1, type=int,
+    help='Number of jobs to run simultaneously for the *build* commands')
+parser.add_argument('--display', action='store_true',
+    help='Display benchmarks results as they execute.')
+parser.add_argument('-v', '--verbose', action='store_true',
+    help='Print extra information.')
+
+args = parser.parse_args()
+
+# Use the engines specified on the command line.
+engines = [engine for engine in engines if engine.name in args.engines]
+
+# Build benchmarks in release mode.
+# TODO: We should only build the engines required on the command line.
+if not args.nobuild:
+  print "\nBuilding benchmarks..."
+  scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"]
+  if args.nosimd:
+    scons_command += ['simd=off']
+  subprocess.call(scons_command)
+
+
+
+def run_benchmarks():
+  for bench in benchmarks:
+    results.append(bench.run(engines))
 
 def plot_results():
-  print "\nPlotting results"
+  verbose("Plotting results.")
 
-  html_results = open(join(utils.dir_html, 'rejit.html'), 'w')
-  html_header = open(join(utils.dir_html_resources, 'rejit.html.header'), 'r')
-  html_footer = open(join(utils.dir_html_resources, 'rejit.html.footer'), 'r')
+  html_file_results = open(join(utils.dir_html, 'rejit.html'), 'w')
 
-  html_results.write(html_header.read())
+  html_file_header = open(join(utils.dir_html_resources, 'rejit.html.header'), 'r')
+  html_file_results.write(html_file_header.read())
+  html_file_header.close()
 
-  graphs_list = []
+  html_file_results.write('<table>\n')
+  for res in results:
+    html_file_results.write(res.plot())
+  html_file_results.write('</table>\n')
 
-  def write_benchmark_data(benchmark):
+  html_file_footer = open(join(utils.dir_html_resources, 'rejit.html.footer'), 'r')
+  html_file_results.write(html_file_footer.read())
+  html_file_footer.close()
 
-    p_engines = subprocess.Popen(["ls", benchmark_path(benchmark)], stdout=subprocess.PIPE)
-    engines = p_engines.communicate()[0].split()
-    engines = filter(lambda x: isfile(benchmark_engine_data_path(benchmark, x)), engines)
+  html_file_results.close()
 
-    write_benchmark_description(html_results, benchmark)
-    write_benchmark_latest_results(html_results, engines, benchmark)
 
-    if args.register and 'rejit' in engines:
-      plot_over_time(html_results, 'rejit', benchmark, ['8', '2048'])
 
-    html(html_results, '</tr>')
-
-  # End of write_benchmark_data
-
-  html(html_results, '<table>')
-  p_benchmarks = subprocess.Popen(["ls", dir_benchmarks], stdout=subprocess.PIPE)
-  benchmarks = p_benchmarks.communicate()[0].split()
-  benchmarks = filter(lambda x: isfile(benchmark_description_path(x)), benchmarks)
-  for benchmark in sorted(benchmarks):
-    write_benchmark_data(benchmark)
-
-  html(html_results, '</table>')
-  html(html_results, html_footer.read())
-
-  html_results.close()
-  html_header.close()
-  html_footer.close()
-# End of plot_results()
-
-# Main -------------------------------------------------------------------------
-if args.plot:
-  plot_results()
-else:
-  run_benchs()
-  plot_results()
+run_benchmarks()
+plot_results()

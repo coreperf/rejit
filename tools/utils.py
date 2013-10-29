@@ -58,6 +58,11 @@ def GuessOS():
   else:
     return None
 
+def error(message, rc = 1):
+  print 'ERROR: ' + message
+  sys.exit(rc)
+
+
 
 # Misc Helpers -----------------------------------------------------------------
 def is_number(s):
@@ -103,7 +108,7 @@ def Error(message):
 
 # Benchmarks helpers -----------------------------------------------------------
 # From 8B to 16MiB.
-default_run_sizes = map(lambda x: 1 << x, range(3, 25))
+default_run_sizes = map(lambda x: 1 << x, range(3, 22))
 # Number of iterations to run benchmarks for by default.
 default_n_iterations = 100
 # For v8 and small text sizes, multiply the number of iterations by a factor to

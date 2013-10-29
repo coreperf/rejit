@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
     bench_res res;
     struct timeval t0, t1, t2;
     size_t size = res.text_size = arguments.sizes.at(i);
-    text.resize(size)
+    text.resize(size);
 
     { // Measure worst case speed.
       gettimeofday(&t0, NULL);
