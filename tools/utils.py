@@ -64,48 +64,6 @@ def error(message, rc = 1):
 
 
 
-# Misc Helpers -----------------------------------------------------------------
-def is_number(s):
-  try:
-    float(s)
-    return True
-  except ValueError:
-    return False
-
-
-def current_rejit_commit():
-  p1 = subprocess.Popen(['git', 'log', '-n1'], stdout=subprocess.PIPE)
-  p2 = subprocess.Popen(["head", '-n1'], stdout=subprocess.PIPE, stdin=p1.stdout)
-  p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
-  p3.wait()
-  return p3.communicate()[0].rstrip(' \n\t')
-
-def current_re2_commit():
-  p1 = subprocess.Popen(['hg', 'head'], cwd=join(dir_benchmarks_engines, 're2', 'hg.re2'), stdout=subprocess.PIPE)
-  p2 = subprocess.Popen(["grep", 'changeset'], stdout=subprocess.PIPE, stdin=p1.stdout)
-  p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
-  p3.wait()
-  return p3.communicate()[0].rstrip(' \n\t')
-
-def current_v8_commit():
-  p1 = subprocess.Popen(['git', 'log', '-n1'], cwd=join(dir_benchmarks_engines, 'v8', 'git.v8'), stdout=subprocess.PIPE)
-  p2 = subprocess.Popen(["grep", 'changeset'], stdout=subprocess.PIPE, stdin=p1.stdout)
-  p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
-  p3.wait()
-  return p3.communicate()[0].rstrip(' \n\t')
-
-def current_pcre_commit():
-  p1 = subprocess.Popen(['svn', 'info'], cwd=join(dir_benchmarks_engines, 'pcre', 'svn.pcre'), stdout=subprocess.PIPE)
-  p2 = subprocess.Popen(["grep", 'revision'], stdout=subprocess.PIPE, stdin=p1.stdout)
-  p3 = subprocess.Popen(["awk", '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
-  p3.wait()
-  return p3.communicate()[0].rstrip(' \n\t')
-
-def Error(message):
-  print message
-  sys.exit(1)
-
-
 # Benchmarks helpers -----------------------------------------------------------
 # For v8 and small text sizes, multiply the number of iterations by a factor to
 # obtain a decent average.
