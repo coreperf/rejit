@@ -14,6 +14,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -47,10 +48,13 @@ int main(int argc, char *argv[]) {
 
   vector<bench_res> results;
 
-  for (unsigned i = 0; i < arguments.sizes.size(); i++) {
+  sort(arguments.sizes.begin(), arguments.sizes.end());
+
+  vector<size_t>::reverse_iterator rit;
+  for (rit = arguments.sizes.rbegin(); rit < arguments.sizes.rend(); ++rit) {
     bench_res res;
     struct timeval t0, t1, t2;
-    size_t size = res.text_size = arguments.sizes.at(i);
+    size_t size = res.text_size = *rit;
     text.resize(size);
 
     { // Measure worst case speed.
@@ -85,6 +89,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  reverse(results.begin(), results.end());
   print_results(&results);
 
   return 0;
