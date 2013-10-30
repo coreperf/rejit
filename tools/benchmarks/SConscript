@@ -16,19 +16,18 @@ import utils
 # files.
 Import('env librejit')
 
+flot_remote = 'git://github.com/flot/flot.git'
+flot_dir = join(utils.dir_html_resources, 'flot')
+def flot_js_checkout(target, source, env):
+  print "Checking for javascript flot... ",
+  if os.path.exists(flot_dir) and os.path.isdir(flot_dir):
+    print "ok."
+  else:
+    print "not found."
+    utils.command_assert(['git', 'clone', flot_remote, flot_dir], "Failed to clone flot. Aborting build.")
+flot_js = env.Command(flot_dir, '', flot_js_checkout)
+env.Alias('flot_js', flot_js)
+
 
 SConscript('resources/engines/re2/SConscript', exports='env')
 SConscript('resources/engines/rejit/SConscript', exports='env librejit')
-
-
-# TODO: Move third party requirement check to their respective scripts.
-
-# Check third party requirements.
-print "Checking for javascript flot... ",
-flot_git = 'git://github.com/flot/flot.git'
-flot_dir = join(utils.dir_html_resources, 'flot')
-if os.path.exists(flot_dir) and os.path.isdir(flot_dir):
-  print "ok."
-else:
-  print "not found."
-  utils.command_assert(['git', 'clone', flot_git, flot_dir], "Failed to clone flot. Aborting build.")

@@ -335,6 +335,8 @@ def run_benchmarks():
     results.append(bench.run(engines))
 
 def plot_results():
+  utils.command_assert(['scons', '-C', utils.dir_rejit, 'flot_js'])
+
   verbose("Plotting results.")
 
   html_file_results = open(join(utils.dir_html, 'rejit.html'), 'w')
