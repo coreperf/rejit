@@ -14,10 +14,10 @@
 
 import sys
 import os
-from os.path import join, dirname
+from os.path import join
 import subprocess
 
-dir_root = dirname(File('SConstruct').rfile().abspath)
+dir_root = os.path.dirname(File('SConstruct').rfile().abspath)
 sys.path.insert(0, join(dir_root, 'tools'))
 import utils
 
@@ -224,8 +224,7 @@ env.Alias('test-rejit', test_rejit)
 
 SConscript('sample/SConscript', exports='env librejit')
 
-help_messages = utils.help_messages
-SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
+SConscript('tools/benchmarks/SConscript', exports='env librejit')
 
 # Only build the library by default.
 Default(rejit)

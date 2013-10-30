@@ -14,10 +14,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from os.path import join
 import sys
 import subprocess
-from subprocess import PIPE
+
+from os.path import join
 
 dir_re2 = os.path.realpath('.')
 # Import rejit utils.
@@ -29,7 +29,7 @@ import utils
 
 
 # Import the environment to check for the os.
-Import('env help_messages')
+Import('env')
 
 # We don't reuse the rejit environment to build third party engines.
 local_env = Environment()
@@ -80,7 +80,7 @@ libs = ['re2', 'pthread']
 if 'os' in env and env['os'] == 'macos':
   conf = Configure(local_env)
   if not conf.CheckLib('argp'):
-    error(help_messages['argp'])
+    error(utils.help_messages['argp'])
   local_env = conf.Finish()
   libs += ['argp']
 

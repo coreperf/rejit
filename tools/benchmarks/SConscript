@@ -14,11 +14,11 @@ import utils
 
 # These are exported from SConstruct and further passed down to SConscript
 # files.
-Import('env librejit help_messages')
+Import('env librejit')
 
 
-SConscript('resources/engines/re2/SConscript', exports='env help_messages')
-SConscript('resources/engines/rejit/SConscript', exports='env librejit help_messages')
+SConscript('resources/engines/re2/SConscript', exports='env')
+SConscript('resources/engines/rejit/SConscript', exports='env librejit')
 
 
 # TODO: Move third party requirement check to their respective scripts.
@@ -27,11 +27,8 @@ SConscript('resources/engines/rejit/SConscript', exports='env librejit help_mess
 print "Checking for javascript flot... ",
 flot_git = 'git://github.com/flot/flot.git'
 flot_dir = join(utils.dir_html_resources, 'flot')
-if not os.path.exists(flot_dir) or not os.path.isdir(flot_dir):
-  print "not found."
-  ret = subprocess.check_call(['git', 'clone', flot_git, flot_dir])
-  if ret != 0:
-    print 'Failed to clone flot. Aborting build.'
-    sys.exit(1)
-else:
+if os.path.exists(flot_dir) and os.path.isdir(flot_dir):
   print "ok."
+else:
+  print "not found."
+  utils.command_assert(['git', 'clone', flot_git, flot_dir], "Failed to clone flot. Aborting build.")

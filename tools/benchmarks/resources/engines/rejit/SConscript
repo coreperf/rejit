@@ -14,8 +14,20 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 
-Import('env librejit help_messages')
+from os.path import join
+
+dir_rejit = os.path.realpath('.')
+# Import rejit utils.
+dir_root = dir_rejit
+while 'SConstruct' not in os.listdir(dir_root):
+  dir_root = os.path.realpath(join(dir_root, '..'))
+sys.path.insert(0, join(dir_root, 'tools'))
+import utils
+
+
+Import('env librejit')
 
 dir_sconscript = Dir('.').srcnode().path 
 path_engine = os.path.join(dir_sconscript, 'engine')
