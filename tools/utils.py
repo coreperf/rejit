@@ -15,8 +15,22 @@
 import platform
 import sys
 import os
-from os.path import join
 import subprocess
+
+from os.path import join
+
+
+def error_message(msg):
+  print "ERROR: %s" % msg
+
+def error(msg, rc = 1):
+  error_message(msg)
+  sys.exit(rc)
+
+def check_rc(rc, message):
+  if rc != 0:
+    error(message, rc)
+
 
 # Path helpers -----------------------------------------------------------------
 dir_tools = os.path.dirname(os.path.realpath(__file__))
@@ -58,9 +72,22 @@ def GuessOS():
   else:
     return None
 
-def error(message, rc = 1):
-  print 'ERROR: ' + message
-  sys.exit(rc)
+def assert_available(command):
+  p = subprocess.Popen(['which', command], stdout=subprocess.PIPE)
+  rc = p.wait()
+  if rc != 0:
+    "Command not available: %s" % command
+    sys.exit(rc)
+
+def command_assert(command, failure_message = None):
+  p = subprocess.Popen(command, stdout=subprocess.PIPE)
+  for line in p.stdout.readlines():
+    print line,
+  rc = p.wait()
+  if rc != 0:
+    if failure_message:
+      error_message(failure_message, rc)
+    error("Failed command: %s" % ' '.join(command))
 
 
 

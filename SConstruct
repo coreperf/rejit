@@ -24,10 +24,13 @@ import utils
 #TODO(rames): Check scons AddOption()
 
 Help("""
-Build the rejit library with `$ scons`.
-Build a sample with          `$ scons sample/<name>` (eg. `$ scons sample/basic`).
-Build the benchmarks with    `$ scons benchmark`.  Note that they are built
-automatically when running `$ tools/benchmarks/run.py`
+Build the rejit library with        `$ scons`.
+Build a sample with                 `$ scons sample/<name>`
+                                    (eg. `$ scons sample/basic`).
+Build the benchmark engines with    `$ scons <name>_engine`.
+                                    (eg. `$ scons re2_engine`).
+Note that they are built automatically when running
+                                    `$ tools/benchmarks/run.py`
 """)
 
 # Build options ----------------------------------------------------------------
@@ -157,13 +160,6 @@ if 'all' in options:
     else:
       env[var] = options['all'][var]
 
-# TODO: Clean this
-# The benchmarks require modifiable flags. But this needs to be set before we
-# compute the build dir path.
-if 'benchmark' in COMMAND_LINE_TARGETS:
-  env['modifiable_flags'] = 'on'
-  env['benchtest'] = 'on'
-
 # Other build options must match 'option:value'
 dict = env.Dictionary()
 keys = dict.keys()
@@ -228,13 +224,8 @@ env.Alias('test-rejit', test_rejit)
 
 SConscript('sample/SConscript', exports='env librejit')
 
-# Building benchmarks involve checking out and compiling third-party engines.
-# We don't want to do that by default.
-if 'benchmark' in COMMAND_LINE_TARGETS:
-  help_messages = utils.help_messages
-  benchmark = SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
-  env.Alias('benchmark', benchmark)
-  env.Alias('benchmarks', benchmark)
+help_messages = utils.help_messages
+SConscript('tools/benchmarks/SConscript', exports='env librejit help_messages')
 
 # Only build the library by default.
 Default(rejit)

@@ -29,7 +29,7 @@ if 'os' in env and env['os'] == 'macos':
   env = conf.Finish()
   libs += ['argp']
 
-env['CCFLAGS'] += ['-DBENCH_ENGINE_REJIT']
+env['CCFLAGS'] += ['-DBENCH_ENGINE_REJIT', '-DMOD_FLAGS']
 bench_engine_CCFLAGS = env['CCFLAGS']
 bench_engine_CPPPATH = env['CPPPATH']
 bench_engine_obj_rejit = Object(source='../bench_engine.cc',
@@ -37,7 +37,5 @@ bench_engine_obj_rejit = Object(source='../bench_engine.cc',
                                 CCFLAGS=bench_engine_CCFLAGS,
                                 CPPPATH=bench_engine_CPPPATH)
 
-env.Program('engine', ['engine.cc', bench_engine_obj_rejit],
-    LIBS=libs)
-
-BUILD_TARGETS.append(path_engine)
+rejit_engine = env.Program('engine', ['engine.cc', bench_engine_obj_rejit], LIBS=libs)
+env.Alias('rejit_engine', rejit_engine)

@@ -17,19 +17,11 @@ import utils
 Import('env librejit help_messages')
 
 
+SConscript('resources/engines/re2/SConscript', exports='env help_messages')
+SConscript('resources/engines/rejit/SConscript', exports='env librejit help_messages')
+
+
 # TODO: Move third party requirement check to their respective scripts.
-
-p = subprocess.Popen(['which', 'git'], stdout=PIPE)
-ret = p.wait()
-if ret != 0:
-  print "Cannot find 'git'. Is it installed?"
-  sys.exit(ret)
-
-p = subprocess.Popen(['which', 'hg'], stdout=PIPE)
-ret = p.wait()
-if ret != 0:
-  print "Cannot find 'hg'. Is mercurial installed?"
-  sys.exit(ret)
 
 # Check third party requirements.
 print "Checking for javascript flot... ",
@@ -43,41 +35,3 @@ if not os.path.exists(flot_dir) or not os.path.isdir(flot_dir):
     sys.exit(1)
 else:
   print "ok."
-
-print "Checking for re2... ",
-re2_hg = 'https://re2.googlecode.com/hg'
-re2_dir = join(utils.dir_benchmarks_engines, 're2/hg.re2')
-if not os.path.exists(re2_dir) or not os.path.isdir(re2_dir):
-  print "not found."
-
-  print "Cloning re2."
-  p = subprocess.Popen(['hg', 'clone', re2_hg, re2_dir], stdout=PIPE)
-  for line in p.stdout.readlines():
-    print line,
-  ret = p.wait()
-  if ret != 0:
-    print 'Failed to clone re2. Aborting build.'
-    sys.exit(1)
-  print "Building re2. This may take some time."
-  p = subprocess.Popen(['make', '-C', re2_dir, '-j5'], stdout=PIPE)
-  for line in p.stdout.readlines():
-    print line,
-  p.wait()
-  if ret != 0:
-    print 'Failed to build re2. Aborting build.'
-    sys.exit(1)
-else:
-  print "ok."
-
-
-
-# Find SConscript files in the benchmarks directory, except the current one.
-# Limit the recursion to avoid SConscript files from third party repositories.
-# TODO(rames): Relocat third party repositories.
-p = subprocess.Popen(["find", ".", "-maxdepth", "4", "-name", "SConscript"], stdout=subprocess.PIPE)
-sconscript_files = [f for f in p.communicate()[0].split() if f not in ['./SConscript', 'SConscript']]
-if './resources/engines/pcre/SConscript' in sconscript_files:
-  sconscript_files.remove('./resources/engines/pcre/SConscript')
-
-# Build all SConscript files found.
-SConscript(sconscript_files, exports='env librejit help_messages')

@@ -142,13 +142,13 @@ args = parser.parse_args()
 engines = [engine for engine in engines if engine.name in args.engines]
 
 # Build benchmarks in release mode.
-# TODO: We should only build the engines required on the command line.
 if not args.nobuild:
-  print "\nBuilding benchmarks..."
-  scons_command = ["scons", "-C", dir_rejit, '-j', str(args.jobs), 'benchmark', "benchtest=on"]
-  if args.nosimd:
-    scons_command += ['simd=off']
-  subprocess.call(scons_command)
+  verbose("Building benchmarks...")
+  for engine in engines:
+    build_command = ['scons', '-C', utils.dir_rejit, engine.name + '_engine', '-j', str(args.jobs), "benchtest=on"]
+    if args.nosimd:
+      scons_command += ['simd=off']
+    utils.command_assert(build_command)
 
 
 
@@ -330,6 +330,7 @@ benchmarks = [
 
 
 def run_benchmarks():
+  verbose("Running benchmarks...")
   for bench in benchmarks:
     results.append(bench.run(engines))
 

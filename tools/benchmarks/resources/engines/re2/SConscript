@@ -14,35 +14,79 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from os.path import join
+import sys
+import subprocess
+from subprocess import PIPE
 
 dir_re2 = os.path.realpath('.')
+# Import rejit utils.
+dir_root = dir_re2
+while 'SConstruct' not in os.listdir(dir_root):
+  dir_root = os.path.realpath(join(dir_root, '..'))
+sys.path.insert(0, join(dir_root, 'tools'))
+import utils
+
 
 # Import the environment to check for the os.
 Import('env help_messages')
+
 # We don't reuse the rejit environment to build third party engines.
 local_env = Environment()
+
+re2_dir = join(utils.dir_benchmarks_engines, 're2/hg.re2')
+re2_hg_dir = join(re2_dir, '.hg')
+re2_lib_path = join(re2_dir, 'obj/libre2.a')
+
+def re2_checkout(target, source, env):
+  utils.assert_available('hg')
+  re2_remote = "https://re2.googlecode.com/hg"
+
+  print "Checking for re2... ",
+  if os.path.exists(re2_hg_dir) and os.path.isdir(re2_hg_dir):
+    print "ok."
+  else:
+    print "not found."
+
+    utils.command_assert(['rm', '-rf', re2_dir])
+
+    print "Cloning re2."
+    utils.command_assert(['hg', 'clone', re2_remote, re2_dir],
+                         "Failed to clone re2. Aborting build.")
+
+def re2_build(target, source, env):
+  print "Building re2. This may take some time."
+  print ' '.join(['make', '-C', re2_dir, '-j5'])
+  utils.command_assert(['make', '-C', re2_dir, '-j5'],
+                       "Failed to build re2. Aborting build.")
+
+re2_repo = local_env.Command(re2_hg_dir, '', re2_checkout)
+re2_lib = local_env.Command(re2_lib_path, re2_repo, re2_build)
+
+
 
 # Grab compilation environment variables.
 local_env['CC'] = os.getenv('CC') or local_env['CC']
 local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
 local_env['CCFLAGS'] = os.getenv('CCFLAGS') or local_env['CCFLAGS']
 
-local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(dir_re2, 'hg.re2/obj/') + ':'
+local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(re2_dir, 'obj') + ':'
 
 
-dir_sconscript = Dir('.').srcnode().path 
+dir_sconscript = Dir('.').srcnode().path
 path_engine = os.path.join(dir_sconscript, 'engine')
 
 libs = ['re2', 'pthread']
 if 'os' in env and env['os'] == 'macos':
   conf = Configure(local_env)
   if not conf.CheckLib('argp'):
-    print help_messages['argp']
-    Exit(1)
+    error(help_messages['argp'])
   local_env = conf.Finish()
   libs += ['argp']
 
-local_env.Program('engine', ['engine.cc', '../bench_engine.cc'],
-    LIBS=libs, CPPPATH='hg.re2/')
-
-BUILD_TARGETS.append(path_engine)
+re2_engine_obj = local_env.Object('engine.cc', CPPPATH='hg.re2/')
+Depends(re2_engine_obj, re2_lib)
+re2_engine = local_env.Program('engine',
+                               [re2_engine_obj, '../bench_engine.cc'],
+                               LIBS=libs, CPPPATH='hg.re2/')
+local_env.Alias('re2_engine', re2_engine)
