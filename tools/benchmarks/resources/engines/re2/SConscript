@@ -68,7 +68,8 @@ re2_lib = local_env.Command(re2_lib_path, re2_repo, re2_build)
 # Grab compilation environment variables.
 local_env['CC'] = os.getenv('CC') or local_env['CC']
 local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
-local_env['CCFLAGS'] = os.getenv('CCFLAGS') or local_env['CCFLAGS']
+local_env['CCFLAGS'] = ['-Wall', '-pedantic', '-DBENCHTEST', '-O3']
+local_env['CXXFLAGS'] = ['-std=c++11']
 
 local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(re2_dir, 'obj') + ':'
 

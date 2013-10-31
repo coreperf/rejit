@@ -43,10 +43,12 @@ if 'os' in env and env['os'] == 'macos':
 
 env['CCFLAGS'] += ['-DBENCH_ENGINE_REJIT', '-DMOD_FLAGS']
 bench_engine_CCFLAGS = env['CCFLAGS']
+bench_engine_CXXFLAGS = env['CXXFLAGS']
 bench_engine_CPPPATH = env['CPPPATH']
 bench_engine_obj_rejit = Object(source='../bench_engine.cc',
                                 target='bench_engine_rejit.o',
                                 CCFLAGS=bench_engine_CCFLAGS,
+                                CXXFLAGS=bench_engine_CXXFLAGS,
                                 CPPPATH=bench_engine_CPPPATH)
 
 rejit_engine = env.Program('engine', ['engine.cc', bench_engine_obj_rejit], LIBS=libs)

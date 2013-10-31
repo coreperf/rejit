@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 
+#include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -23,8 +24,8 @@ struct argp_option options[] =
   {#flag_name , flag_name##_key , FLAG_##flag_name ? "1" : "0"   , OPTION_ARG_OPTIONAL , "0 to disable, 1 to enable."},
   REJIT_FLAGS_LIST(FLAG_OPTION)
 #undef FLAG_OPTION
-  {0}
 #endif
+  {0}
 };
 
 char doc[] =
