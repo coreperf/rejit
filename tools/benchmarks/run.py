@@ -52,14 +52,14 @@ class Engine:
     self.name = name
 
     self.exec_path = exec_path
-    if not os.path.exists(self.exec_path):
-      error("Could not find: %s" % self.exec_path)
 
     self.syntax = syntax
     if self.syntax not in RE_syntaxes:
       error("ERROR: Invalid syntax '%s'" % self.syntax)
 
   def run(self, benchmark, sizes):
+    if not os.path.exists(self.exec_path):
+      error("Could not find: %s" % self.exec_path)
 
     if verbose:
       # The regexp is enclosed with quotes.
