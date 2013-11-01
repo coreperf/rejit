@@ -143,7 +143,7 @@ engines = [engine for engine in engines if engine.name in args.engines]
 
 # Build benchmarks in release mode.
 if not args.nobuild:
-  verbose("Building benchmarks...")
+  print("Building benchmarks...")
   for engine in engines:
     build_command = ['scons', '-C', utils.dir_rejit, engine.name + '_engine', '-j', str(args.jobs), "benchtest=on"]
     if args.nosimd:
@@ -330,14 +330,14 @@ benchmarks = [
 
 
 def run_benchmarks():
-  verbose("Running benchmarks...")
+  print("Running benchmarks...%s" % (" (Use `--verbose` and/or `--display` for more information)" if not args.verbose and not args.display else ""))
   for bench in benchmarks:
     results.append(bench.run(engines))
 
 def plot_results():
   utils.command_assert(['scons', '-C', utils.dir_rejit, 'flot_js'])
 
-  verbose("Plotting results.")
+  print("Plotting results...")
 
   html_file_results = open(join(utils.dir_html, 'rejit.html'), 'w')
 
