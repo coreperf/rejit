@@ -19,35 +19,9 @@ This page is available under the Creative Commons "CC BY" licence.
     Benchmark results in this page present performance to search for all
     (left-most longest) matches of a regular expression in a text.
     <br />
-    Performance is reported in bytes per second (size of the text matched
-    divided by the time to process it). This can be seen as the speed at which
-    files of a given size can be processed. It is easier to report and understand
-    than a delay close to zero.
-    </p>
-
-    <p>
-    A few notes:
-    <ul>
-      <li>Runs for different text sizes and engines are independent and use
-      different randomly generated texts.</li>
-      <li>The number of iterations is kept small to not increase the run time
-      too much.</li>
-      <li>'best' performance graphs don't take the compilation time into
-      account.  'worst' performance graphs show performance for 1 run and 1
-      compilation.  'amortised' performance graphs show performance for 1
-      compilation and 100 runs. (except for v8. See below.)</li>
-      <li>v8 results should be interpreted with caution. Performance for
-      benchmarks 4 and 5 is surprising when comparing with performance for
-      benchmarks 0, 1, and 2. I have not investigated.</li>
-      <li>Javascript Date precision is in milliseconds. To keep decently precise
-      perfomance figures the number of iterations is multiplied by 200 for text
-      sizes strictly smaller than 128KiB.</li>
-      <li>Benchmarks showing performance of full regexp matching (does the
-      regexp match the entire string?) are not presented. Rejit should behave
-      relatively well, but very little optimization work has gone there.  </li>
-    </ul>
-    Note that other sample programs included in the sources (regexdna and jrep)
-    can be used for benchmarking.
+    Performance is reported in bytes per second: the size of the text matched
+    divided by the time to process it. This can be interpreted as speeds at
+    which files of given sizes can be processed.
     </p>
 
     <script language="javascript" type="text/javascript" src="resources/bench_plot.js"></script>
