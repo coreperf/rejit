@@ -93,6 +93,12 @@ def command_assert(command, failure_message = None):
 
 # Benchmarks helpers -----------------------------------------------------------
 
+def rejit_commit():
+  return subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip('\n')
+
+def re2_commit():
+  return subprocess.check_output(['hg', 'id'], cwd=join(dir_benchmarks_engines, 're2', 'hg.re2')).strip('\n')
+
 
 
 # Help messages ----------------------------------------------------------------

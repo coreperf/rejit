@@ -47,8 +47,14 @@ BRE = 'BRE'
 ERE = 'ERE'
 RE_syntaxes = [BRE, ERE]
 
+
+def default_commit_id():
+  return '<unknown>'
+
+
 class Engine:
-  def __init__(self, name, exec_path, syntax):
+  def __init__(self, name, exec_path, syntax,
+               commit_id = default_commit_id):
     self.name = name
 
     self.exec_path = exec_path
@@ -56,6 +62,8 @@ class Engine:
     self.syntax = syntax
     if self.syntax not in RE_syntaxes:
       error("ERROR: Invalid syntax '%s'" % self.syntax)
+
+    self.commit_id = commit_id
 
   def run(self, benchmark, sizes):
     if not os.path.exists(self.exec_path):
@@ -96,8 +104,10 @@ class Engine:
     return output
 
 
-engine_rejit = Engine('rejit', join(dir_benchmarks_engines, 'rejit/engine'), ERE)
-engine_re2 =   Engine('re2',   join(dir_benchmarks_engines, 're2/engine'),   ERE)
+engine_rejit = Engine('rejit', join(dir_benchmarks_engines, 'rejit/engine'), ERE,
+                      utils.rejit_commit)
+engine_re2 =   Engine('re2',   join(dir_benchmarks_engines, 're2/engine'),   ERE,
+                      utils.re2_commit)
 engines = [engine_rejit, engine_re2]
 engines_names=map(lambda e: e.name, engines)
 
@@ -331,6 +341,11 @@ benchmarks = [
 
 def run_benchmarks():
   print("Running benchmarks...%s" % (" (Use `--verbose` and/or `--display` for more information)" if not args.verbose and not args.display else ""))
+  if args.verbose:
+    verbose('Engine versions:')
+    for engine in engines:
+      verbose('\t%s:\t%s' % (engine.name, engine.commit_id()))
+
   for bench in benchmarks:
     results.append(bench.run(engines))
 
@@ -344,6 +359,15 @@ def plot_results():
   html_file_header = open(join(utils.dir_html_resources, 'rejit.html.header'), 'r')
   html_file_results.write(html_file_header.read())
   html_file_header.close()
+
+  html_file_results.write('<table style="text-align:right;">\n')
+  html_file_results.write('<tr><td>engine</td><td style="padding-left:50px;">commit</td></tr>')
+  for engine in engines:
+    html_file_results.write('<tr>\n')
+    html_file_results.write('  <td>%s</td><td style="padding-left:50px;"><pre style="padding:0 0 0 0;margin:0 0 0 0;">%s</pre></td>\n' % (engine.name, engine.commit_id()))
+    html_file_results.write('</tr>\n')
+
+  html_file_results.write('</table>\n')
 
   html_file_results.write('<table>\n')
   for res in results:
