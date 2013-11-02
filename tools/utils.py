@@ -92,10 +92,6 @@ def command_assert(command, failure_message = None):
 
 
 # Benchmarks helpers -----------------------------------------------------------
-# For v8 and small text sizes, multiply the number of iterations by a factor to
-# obtain a decent average.
-max_small_size = 128 * 1024
-small_sizes_iteration_factor = 200
 
 
 
