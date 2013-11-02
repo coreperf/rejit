@@ -85,9 +85,17 @@ if 'os' in env and env['os'] == 'macos':
   local_env = conf.Finish()
   libs += ['argp']
 
+bench_engine_CCFLAGS = env['CCFLAGS']
+bench_engine_CXXFLAGS = env['CXXFLAGS']
+bench_engine_CPPPATH = env['CPPPATH']
+bench_engine_obj_re2 = Object(source='../bench_engine.cc',
+                              target='bench_engine_re2.o',
+                              CCFLAGS=bench_engine_CCFLAGS,
+                              CXXFLAGS=bench_engine_CXXFLAGS,
+                              CPPPATH=bench_engine_CPPPATH)
 re2_engine_obj = local_env.Object('engine.cc', CPPPATH='hg.re2/')
 Depends(re2_engine_obj, re2_lib)
 re2_engine = local_env.Program('engine',
-                               [re2_engine_obj, '../bench_engine.cc'],
+                               [re2_engine_obj, bench_engine_obj_re2],
                                LIBS=libs, CPPPATH='hg.re2/')
 local_env.Alias('re2_engine', re2_engine)

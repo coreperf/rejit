@@ -106,9 +106,11 @@ class Engine:
 
 engine_rejit = Engine('rejit', join(dir_benchmarks_engines, 'rejit/engine'), ERE,
                       utils.rejit_commit)
-engine_re2 =   Engine('re2',   join(dir_benchmarks_engines, 're2/engine'),   ERE,
+engine_re2   = Engine('re2',   join(dir_benchmarks_engines, 're2/engine'),   ERE,
                       utils.re2_commit)
-engines = [engine_rejit, engine_re2]
+engine_pcre  = Engine('pcre',   join(dir_benchmarks_engines, 'pcre/engine'),   ERE,
+                      utils.pcre_commit)
+engines = [engine_rejit, engine_re2, engine_pcre]
 engines_names=map(lambda e: e.name, engines)
 
 

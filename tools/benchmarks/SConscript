@@ -29,5 +29,6 @@ flot_js = env.Command(flot_dir, '', flot_js_checkout)
 env.Alias('flot_js', flot_js)
 
 
+SConscript('resources/engines/pcre/SConscript', exports='env')
 SConscript('resources/engines/re2/SConscript', exports='env')
 SConscript('resources/engines/rejit/SConscript', exports='env librejit')

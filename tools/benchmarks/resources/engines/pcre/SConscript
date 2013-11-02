@@ -1,0 +1,108 @@
+# Copyright (C) 2013 Alexandre Rames <alexandre@coreperf.com>
+
+# rejit is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+import sys
+import subprocess
+
+from os.path import join
+
+dir_pcre = os.path.realpath('.')
+# Import rejit utils.
+dir_root = dir_pcre
+while 'SConstruct' not in os.listdir(dir_root):
+  dir_root = os.path.realpath(join(dir_root, '..'))
+sys.path.insert(0, join(dir_root, 'tools'))
+import utils
+
+
+# Import the environment to check for the os.
+Import('env')
+
+# We don't reuse the rejit environment to build third party engines.
+local_env = Environment()
+
+pcre_dir = join(utils.dir_benchmarks_engines, 'pcre/svn.pcre')
+pcre_svn_dir = join(pcre_dir, '.svn')
+pcre_build_dir = join(pcre_dir, 'build')
+pcre_lib_path = join(pcre_build_dir, 'lib', 'libpcre.a')
+
+def pcre_checkout(target, source, env):
+  utils.assert_available('svn')
+  pcre_remote = "svn://vcs.exim.org/pcre/code/trunk"
+
+  print "Checking for pcre... ",
+  if os.path.exists(pcre_svn_dir) and os.path.isdir(pcre_svn_dir):
+    print "ok."
+  else:
+    print "not found."
+
+    utils.command_assert(['rm', '-rf', pcre_dir])
+
+    print "Cloning pcre."
+    utils.command_assert(['svn', 'checkout', pcre_remote, pcre_dir],
+                         "Failed to clone pcre. Aborting build.")
+
+def pcre_build_configure_fn(target, source, env):
+  utils.command_assert(cwd_=pcre_dir, command=['./autogen.sh'])
+
+def pcre_build_makefile_fn(target, source, env):
+  utils.command_assert(cwd_=pcre_dir, command=['./configure', '--enable-jit', '--disable-shared', '--prefix=' + pcre_build_dir])
+
+def pcre_build_lib_fn(target, source, env):
+  print "Building pcre. This may take some time."
+  utils.command_assert(cwd_=pcre_dir, command=['make', '-j4'])
+
+pcre_repo = local_env.Command(pcre_svn_dir, '', pcre_checkout)
+pcre_build_configure = local_env.Command(join(pcre_dir, 'configure'), pcre_repo, pcre_build_configure_fn)
+pcre_build_makefile = local_env.Command(join(pcre_dir, 'Makefile'), pcre_build_configure, pcre_build_makefile_fn)
+pcre_build_lib = local_env.Command(pcre_lib_path, pcre_build_makefile, pcre_build_lib_fn)
+
+
+
+# Grab compilation environment variables.
+local_env['CC'] = os.getenv('CC') or local_env['CC']
+local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
+local_env['CCFLAGS'] = ['-Wall', '-pedantic', '-DBENCHTEST', '-O3']
+local_env['CXXFLAGS'] = ['-std=c++11']
+
+local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(pcre_dir, 'obj') + ':'
+
+
+dir_sconscript = Dir('.').srcnode().path
+path_engine = os.path.join(dir_sconscript, 'engine')
+
+libs = ['pcre', 'pthread']
+if 'os' in env and env['os'] == 'macos':
+  conf = Configure(local_env)
+  if not conf.CheckLib('argp'):
+    error(utils.help_messages['argp'])
+  local_env = conf.Finish()
+  libs += ['argp']
+
+bench_engine_CCFLAGS = env['CCFLAGS']
+bench_engine_CXXFLAGS = env['CXXFLAGS']
+bench_engine_CPPPATH = env['CPPPATH']
+bench_engine_obj_pcre = Object(source='../bench_engine.cc',
+                               target='bench_engine_pcre.o',
+                               CCFLAGS=bench_engine_CCFLAGS,
+                               CXXFLAGS=bench_engine_CXXFLAGS,
+                               CPPPATH=bench_engine_CPPPATH)
+pcre_engine_obj = local_env.Object('engine.cc', CPPPATH='svn.pcre/')
+Depends(pcre_engine_obj, pcre_build_lib)
+pcre_engine = local_env.Program('engine',
+                               [pcre_engine_obj, bench_engine_obj_pcre],
+                               LIBS=libs, CPPPATH='svn.pcre/')
+local_env.Alias('pcre_engine', pcre_engine)

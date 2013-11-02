@@ -79,8 +79,9 @@ def assert_available(command):
     "Command not available: %s" % command
     sys.exit(rc)
 
-def command_assert(command, failure_message = None):
-  p = subprocess.Popen(command, stdout=subprocess.PIPE)
+# TODO: Find out how to pass on 'cwd' instead of 'cwd_'
+def command_assert(command, failure_message = None, cwd_ = None):
+  p = subprocess.Popen(command, stdout=subprocess.PIPE, cwd=cwd_)
   for line in p.stdout.readlines():
     print line,
   rc = p.wait()
@@ -98,6 +99,12 @@ def rejit_commit():
 
 def re2_commit():
   return subprocess.check_output(['hg', 'id'], cwd=join(dir_benchmarks_engines, 're2', 'hg.re2')).strip('\n')
+
+def pcre_commit():
+  p1 = subprocess.Popen(['svn', 'info'], cwd=join(dir_benchmarks_engines, 'pcre', 'svn.pcre'), stdout=subprocess.PIPE)
+  p2 = subprocess.Popen(['grep', '-i', 'revision'], stdout=subprocess.PIPE, stdin=p1.stdout)
+  p3 = subprocess.Popen(['awk', '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
+  return p3.communicate()[0].rstrip(' \n\t')
 
 
 
