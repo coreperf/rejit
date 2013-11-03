@@ -339,10 +339,13 @@ benchmarks = [
     Benchmark("abcdefgh"),
     Benchmark("abcdefgh", low_char='a', high_char='j'),
     Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(12345678|abcdefghijkl)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(12345678|xyz)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(abcd--|abcd____)"),
-    Benchmark("(...abcd.|.abcd.)"),
+    Benchmark("(alternation|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(alternation|of|more|than|two|different|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(rather_long_string|min)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(prefix abcd|prefix 1234)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(abcd suffix|1234 suffix)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(abcdefgh anywhere xyz|01 anywhere 56789)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(some|[stuff])((other|regexps)? bla root blah | (abcdefgh boot{3,3} xyz | 00 foot 5678))", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     ]
 
 
