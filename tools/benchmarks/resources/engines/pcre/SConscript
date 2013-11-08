@@ -37,7 +37,8 @@ local_env = Environment()
 pcre_dir = join(utils.dir_benchmarks_engines, 'pcre/svn.pcre')
 pcre_svn_dir = join(pcre_dir, '.svn')
 pcre_build_dir = join(pcre_dir, 'build')
-pcre_lib_path = join(pcre_build_dir, 'lib', 'libpcre.a')
+pcre_lib_location_path = join(pcre_build_dir, 'lib')
+pcre_lib_path = join(pcre_lib_location_path, 'libpcre.a')
 
 def pcre_checkout(target, source, env):
   utils.assert_available('svn')
@@ -78,7 +79,7 @@ local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
 local_env['CCFLAGS'] = ['-Wall', '-pedantic', '-DBENCHTEST', '-O3']
 local_env['CXXFLAGS'] = ['-std=c++11']
 
-local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(pcre_dir, 'obj') + ':'
+local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(pcre_dir, 'obj') + ':' + pcre_lib_location_path + ':'
 
 
 dir_sconscript = Dir('.').srcnode().path
