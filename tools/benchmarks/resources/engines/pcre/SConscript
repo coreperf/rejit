@@ -63,7 +63,7 @@ def pcre_build_makefile_fn(target, source, env):
 
 def pcre_build_lib_fn(target, source, env):
   print "Building pcre. This may take some time."
-  utils.command_assert(cwd_=pcre_dir, command=['make', '-j4'])
+  utils.command_assert(cwd_=pcre_dir, command=['make', '-j4', 'install'])
 
 pcre_repo = local_env.Command(pcre_svn_dir, '', pcre_checkout)
 pcre_build_configure = local_env.Command(join(pcre_dir, 'configure'), pcre_repo, pcre_build_configure_fn)
