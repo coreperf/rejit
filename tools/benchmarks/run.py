@@ -21,6 +21,7 @@ import subprocess
 import csv
 import math
 import time
+import datetime
 
 # Import rejit utils.
 dir_benchmarks = dirname(os.path.realpath(__file__))
@@ -361,6 +362,7 @@ def plot_results():
   html_file_results.write(html_file_header.read())
   html_file_header.close()
 
+  html_file_results.write('%s\n' % datetime.datetime.now().strftime("%Y/%m/%d %H:%M"))
   html_file_results.write('<table style="text-align:right;">\n')
   html_file_results.write('<tr><td>engine</td><td style="padding-left:50px;">commit</td></tr>')
   for engine in engines:
