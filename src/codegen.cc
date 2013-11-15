@@ -15,6 +15,8 @@
 #include "codegen.h"
 #include "macro-assembler.h"
 
+#include "suffix_trees.h"
+
 
 namespace rejit {
 namespace internal {
@@ -292,8 +294,19 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
 }
 
 
+void FF_finder::FindFFElements() {
+  if (Visit(rinfo_->regexp())) {
+    if (FLAG_use_ff_reduce) {
+      size_t start = 0, end = regexp_list_->size();
+      ff_alternation_reduce(&start, &end);
+    }
+  } else {
+    rinfo_->ff_list()->clear();
+  }
+}
+
+
 bool FF_finder::VisitAlternation(Alternation* alt) {
-  // TODO(rames): Try to find common substrings to reduce
   bool res = true;
   vector<Regexp*>::iterator it;
   for (it = alt->sub_regexps()->begin();
@@ -325,7 +338,9 @@ bool FF_finder::VisitConcatenation(Concatenation* concat) {
       // No sub-regexp has been visited successfully yet.
       cur_end = regexp_list_->size();
     }
-    if (ff_cmp(cur_start, cur_end, regexp_list_->size()) >= 0) {
+
+    // Chose between the two blocks of regexps.
+    if (ff_reduce_cmp(&cur_start, &cur_end) >= 0) {
       regexp_list_->erase(regexp_list_->begin() + cur_end, regexp_list_->end());
     } else {
       regexp_list_->erase(regexp_list_->begin() + cur_start,
@@ -347,24 +362,164 @@ bool FF_finder::VisitRepetition(Repetition* rep) {
   return true;
 }
 
+void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
+  vector<Regexp*>::iterator it;
+  if (*end - *start <= 1) {
+    return;
+  }
 
-// A positive return value means that i1:i2 is better than i2:i3 for
-// fast forwarding.
-int FF_finder::ff_cmp(size_t i1,
-                      size_t i2,
-                      size_t i3) {
-  size_t s1 = i2 - i1;
-  size_t s2 = i3 - i2;
+  // Build a suffix tree for the mcs involved.
+  vector<Regexp*> mcs(regexp_list_->size());
+  it = copy_if(regexp_list_->begin() + *start, regexp_list_->begin() + *end,
+               mcs.begin(),
+               [](Regexp* re) { return re->IsMultipleChar(); });
+  mcs.resize(distance(mcs.begin(), it));
+  if (mcs.size() < 2) {
+    return;
+  }
+  SuffixTreeBuilder st_builder;
+  for (Regexp *re : mcs) {
+    st_builder.append_mc(re->AsMultipleChar());
+  }
+  SuffixTree *root = st_builder.root();
+
+  // Traverse the tree to compute the best substring.
+  // TODO: We currently retrieve one substring. Ideally we should get the best
+  // partition of substrings.
+  const SuffixTree *best = lowest_common_ancestor(root, mcs.size());
+  if (!best || !best->str()) {
+    return;
+  }
+  string longest_substring = string(best->str(),
+                                    best->str_end() - best->active_length(),
+                                    best->active_length());
+  // Now see if this string would be more efficient than the alternation as a
+  // fast-forward element.
+  int mcs_score = 0;
+  for (Regexp *re : mcs) {
+    mcs_score += re->AsMultipleChar()->ff_score();
+  }
+  if (mcs_score < MultipleChar::ff_score(longest_substring.length())) {
+    return;
+  }
+
+  // Create a new mc for the substring.
+  MultipleChar *substring_mc = new MultipleChar(longest_substring);
+  int last_state = rinfo_->last_state();
+  int substring_entry_state = last_state + 1;
+  int substring_output_state = last_state + 2;
+  substring_mc->SetEntryState(substring_entry_state);
+  substring_mc->SetOutputState(substring_output_state);
+  rinfo_->set_last_state(last_state + 2);
+  rinfo_->extra_allocated()->push_back(substring_mc);
+  // Note that this new mc is *not* added to the gen_list. This would create
+  // incorrect transitions.
+
+  // Remove the elements replaced by the new mc.
+  vector<Regexp*>::iterator it_mcs;
+  for (it_mcs = mcs.begin(); it_mcs < mcs.end(); ++it_mcs) {
+    for (it = regexp_list_->begin() + *start; it < regexp_list_->begin() + *end; ++it) {
+      if (*it == *it_mcs) {
+        regexp_list_->erase(it);
+        --(*end);
+        break;
+      }
+    }
+  }
+  regexp_list_->insert(regexp_list_->begin() + *start, substring_mc);
+  ++(*end);
+
+  if (FLAG_print_ff_reduce) {
+    cout << "Fast-forward elements reduction ------------{{{" << endl;
+    cout << "The following ff-elements:" << endl;
+    { IndentScope is(4);
+      for (Regexp *re : mcs) {
+        Indent(cout) << *re << endl;
+      }
+    }
+    cout << "are being replaced by the ff-element:" << endl;
+    { IndentScope is(4);
+      Indent(cout) << *substring_mc << endl;
+    }
+    cout << "and the following linking regexps:" << endl;
+  }
+
+  // Insert the regexps linking the new ff-element to their respective
+  // associated regexps.
+  for (it_mcs = mcs.begin(); it_mcs < mcs.end(); ++it_mcs) {
+    MultipleChar *mc = (*it_mcs)->AsMultipleChar();
+
+    string mc_string = string(mc->chars(), mc->chars_length());
+    size_t substring_offset = mc_string.find(longest_substring);
+    ASSERT(substring_offset != string::npos);
+    Regexp *re_in, *re_out;
+
+    if (substring_offset != 0) {
+      MultipleChar *linking_mc_in = new MultipleChar(mc->chars(),
+                                                     substring_offset);
+      linking_mc_in->SetEntryState(mc->entry_state());
+      linking_mc_in->SetOutputState(substring_entry_state);
+      rinfo_->extra_allocated()->push_back(linking_mc_in);
+      rinfo_->gen_list()->push_back(linking_mc_in);
+      re_in = linking_mc_in;
+    } else {
+      Epsilon *epsilon = new Epsilon(mc->entry_state(), substring_entry_state);
+      rinfo_->extra_allocated()->push_back(epsilon);
+      rinfo_->gen_list()->push_back(epsilon);
+      re_in = epsilon;
+    }
+
+    if (substring_offset + longest_substring.length() != mc_string.length()) {
+      MultipleChar *linking_mc_out =
+        new MultipleChar(mc->chars() + substring_offset + longest_substring.length());
+      linking_mc_out->SetEntryState(substring_output_state);
+      linking_mc_out->SetOutputState(mc->output_state());
+      rinfo_->extra_allocated()->push_back(linking_mc_out);
+      rinfo_->gen_list()->push_back(linking_mc_out);
+      re_out = linking_mc_out;
+    } else {
+      Epsilon *epsilon = new Epsilon(substring_output_state, mc->output_state());
+      rinfo_->extra_allocated()->push_back(epsilon);
+      rinfo_->gen_list()->push_back(epsilon);
+      re_out = epsilon;
+    }
+
+    if (FLAG_print_ff_reduce) {
+      { IndentScope is(2);
+        Indent(cout) << "(for " << *mc << " :)" << endl;
+      }
+      { IndentScope is(4);
+        Indent(cout) << *re_in << endl;
+        Indent(cout) << *re_out << endl;
+      }
+    }
+  }
+  if (FLAG_print_ff_reduce) {
+    cout << "}}}----- End of fast-forward elements reduction" << endl;
+  }
+  rinfo_->set_ff_reduced(true);
+}
+
+int FF_finder::ff_reduce_cmp(size_t *i1, size_t *i2) {
+  size_t list_size = regexp_list_->size();
+  size_t s1 = *i2 - *i1;
+  size_t s2 = list_size - *i2;
   int score_1 = 0, score_2 = 0;
 
   // We need the lowest score, but we need some regexps to look for !
   if (s1 == 0) return -1;
   if (s2 == 0) return  1;
 
-  for (size_t i = i1; i < i2; i++) {
+  if (FLAG_use_ff_reduce) {
+    ff_alternation_reduce(i1, i2);
+    list_size = regexp_list_->size();
+    ff_alternation_reduce(i2, &list_size);
+  }
+
+  for (size_t i = *i1; i < *i2; i++) {
     score_1 += regexp_list_->at(i)->ff_score();
   }
-  for (size_t i = i2; i < i3; i++) {
+  for (size_t i = *i2; i < list_size; i++) {
     score_2 += regexp_list_->at(i)->ff_score();
   }
 
@@ -373,6 +528,17 @@ int FF_finder::ff_cmp(size_t i1,
 
 
 // Codegen ---------------------------------------------------------------------
+
+static void print_re_list(RegexpInfo* rinfo) {
+  vector<Regexp*>* gen_list = rinfo->gen_list();
+  vector<Regexp*>::const_iterator it;
+  cout << "Regexp list --------------------------------{{{" << endl;
+  for (it = gen_list->begin(); it < gen_list->end(); it++) {
+    cout << **it << endl;
+  }
+  cout << "}}}------------------------- End of regexp list" << endl;
+}
+
 
 VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   rinfo_ = rinfo;
@@ -386,10 +552,14 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
     Indent(cout) << *root << endl;
     cout << "}}}------------------------- End of regexp tree" << endl;
   }
-  RegexpLister lister(rinfo_, rinfo_->gen_list());
+
+  RegexpLister lister(rinfo_, rinfo->gen_list());
   lister.Visit(root);
 
-  int n_states = rinfo_->last_state() + 1;
+  FF_finder fff(rinfo);
+  fff.FindFFElements();
+
+  int n_states = rinfo->last_state() + 1;
 
   // Align size with cache line size?
   state_ring_time_size_ = kPointerSize * n_states;
@@ -419,6 +589,9 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
     cout << "}}}--------------------- End of state ring info" << endl;
   }
 
+    if (FLAG_print_re_list) {
+      print_re_list(rinfo);
+    }
 
   Generate();
 

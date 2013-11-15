@@ -32,10 +32,11 @@ ostream& SuffixTree::OutputToIOStream(ostream& stream) const {
     Indent(stream) << string(str_, str_start_, str_end_ - str_start_);
   }
 
-  if (terminated_strings_.size()) {
-    cout << "\t(terminates strings:";
-    for (const char *s : terminated_strings_) {
-      cout << " \"" << s << "\"";
+  cout << "\t(" << suffixed_mcs_.size()<< ")";
+  if (terminated_mcs_.size()) {
+    cout << "\t(terminates mcs:";
+    for (const MultipleChar *mc : terminated_mcs_) {
+      cout << " \"" << *mc << "\"";
     }
     cout << ")";
   }
@@ -55,6 +56,30 @@ ostream& SuffixTree::OutputToIOStream(ostream& stream) const {
 // This cannot be declared inline as the '<<' operator has not been overloaded
 // before the declaration site.
 void SuffixTree::print() { cout << *this; }
+
+
+const SuffixTree *lowest_common_ancestor(SuffixTree *root,
+                                         unsigned n_mcs) {
+  const SuffixTree *n = NULL, *lowest = NULL;
+  for (auto edge : *root->suffixes()) {
+    n = lowest_common_ancestor(edge.second, n_mcs);
+    if (n && (!lowest || n->active_length() > lowest->active_length())) {
+      lowest = n;
+    }
+    root->suffixed_mcs()->insert(edge.second->suffixed_mcs()->begin(),
+                                 edge.second->suffixed_mcs()->end());
+  }
+  if (lowest) {
+    return lowest;
+  }
+  for (auto mc : *root->terminated_mcs()) {
+    root->suffixed_mcs()->insert(mc);
+  }
+  if (root->suffixed_mcs()->size() == n_mcs) {
+    lowest = root;
+  }
+  return lowest;
+}
 
 
 // TODO: Is there no standard library function for this?!
@@ -98,8 +123,11 @@ int SuffixTreeBuilder::walk_down(const char *str) {
 }
 
 
-SuffixTree *SuffixTreeBuilder::append_string(const char *str) {
-  size_t str_len = strlen(str);
+SuffixTree *SuffixTreeBuilder::append_mc(const MultipleChar *mc) {
+  string *str_ = new string(mc->chars(), mc->chars_length());
+  allocated_strings_.push_back(str_);
+  const char *str = str_->c_str();
+  size_t str_len = str_->length();
   size_t offset;
 
   for (int i = 0; i < str_len; i++) {
@@ -136,21 +164,21 @@ SuffixTree *SuffixTreeBuilder::append_string(const char *str) {
           new SuffixTree(str, i + active_length_ + offset, str_len,
                          active_length_);
         middle_node->suffixes_[str[i + active_length_ + offset]] = new_node;
-        new_node->terminated_strings_.insert(str);
+        new_node->terminated_mcs_.insert(mc);
       } else {
         // The string ends on this middle node.
-        middle_node->terminated_strings_.insert(str);
+        middle_node->terminated_mcs_.insert(mc);
       }
 
     } else {
       if (i + active_length_ == str_len) {
         // No more characters to add.
-        active_node_->terminated_strings_.insert(str);
+        active_node_->terminated_mcs_.insert(mc);
       } else {
         SuffixTree *new_node =
           new SuffixTree(str, i + active_length_, str_len, active_length_);
         active_node_->suffixes_[str[i + active_length_]] = new_node;
-        new_node->terminated_strings_.insert(str);
+        new_node->terminated_mcs_.insert(mc);
       }
     }
 

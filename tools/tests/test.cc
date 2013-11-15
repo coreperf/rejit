@@ -507,6 +507,7 @@ static int Test(MatchType match_type, unsigned expected,
     SET_FLAG(print_re_tree, true);
     SET_FLAG(print_re_list, true);
     SET_FLAG(print_ff_elements, true);
+    SET_FLAG(print_ff_reduce, true);
     SET_FLAG(print_state_ring_info, true);
     try {
       Regej re(regexp);
@@ -535,6 +536,7 @@ static int Test(MatchType match_type, unsigned expected,
     SET_FLAG(print_re_tree, false);
     SET_FLAG(print_re_list, false);
     SET_FLAG(print_ff_elements, false);
+    SET_FLAG(print_ff_reduce, false);
     SET_FLAG(print_state_ring_info, false);
     cout << "------------------------------------------------------------------------------------\n\n" << endl;
   }

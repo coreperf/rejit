@@ -60,6 +60,10 @@ class SuffixTree {
   const int str_end() const { return str_end_; }
 
   inline const map<char,SuffixTree*> *suffixes() const { return &suffixes_; }
+  inline const set<const MultipleChar*> *terminated_mcs() const {
+    return &terminated_mcs_;
+  }
+  inline set<const MultipleChar*> *suffixed_mcs() { return &suffixed_mcs_; }
   inline const int active_length() const { return active_length_; }
 
  private:
@@ -70,12 +74,19 @@ class SuffixTree {
   int str_start_;
   int str_end_;
   // The set of strings fow which this node is a suffix.
-  set<const char*> terminated_strings_;
+  set<const MultipleChar*> terminated_mcs_;
+  set<const MultipleChar*> suffixed_mcs_;
 
   int active_length_;
 
   friend class SuffixTreeBuilder;
 };
+
+
+// Find the lowest common ancestors for mcs in this tree.
+// `n_mcs` is passed explicitly to avoid depending on the builder.
+const SuffixTree *lowest_common_ancestor(SuffixTree *root,
+                                         unsigned n_mcs);
 
 
 // Overload the '<<' operator to allow convenient printing to an iostream.
@@ -91,7 +102,12 @@ class SuffixTreeBuilder {
       root_(new SuffixTree()), active_length_(0) {
     active_node_ = root_;
   }
-  ~SuffixTreeBuilder() { delete root_; }
+  ~SuffixTreeBuilder() {
+    delete root_;
+    for (string *s : allocated_strings_) {
+      delete s;
+    }
+  }
 
   // From the active node, walk toward the node at which we must perform the
   // next suffix insertion (which will become the new active node).
@@ -99,14 +115,16 @@ class SuffixTreeBuilder {
   int walk_down(const char *str);
 
   // Build the suffixes for this string into the existing suffix tree.
-  SuffixTree *append_string(const char *str);
+  SuffixTree *append_mc(const MultipleChar *mc);
 
-  inline const SuffixTree *root() const { return root_; }
+  inline SuffixTree *root() const { return root_; }
 
  private:
   SuffixTree *root_;
   SuffixTree *active_node_;
   int active_length_;
+
+  vector<string*> allocated_strings_;
 };
 
 

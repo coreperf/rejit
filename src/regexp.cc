@@ -38,6 +38,15 @@ MultipleChar::MultipleChar(char c) : Regexp(kMultipleChar) {
 }
 
 
+MultipleChar::MultipleChar(const string& str)
+  : Regexp(kMultipleChar) {
+  ASSERT(str.length() <= kMaxNodeLength);
+  for (size_t i = 0; i < str.length(); i++) {
+    chars_.push_back(str[i]);
+  }
+}
+
+
 MultipleChar::MultipleChar(const char* first_char, unsigned count)
   : Regexp(kMultipleChar) {
   ASSERT(count <= kMaxNodeLength);

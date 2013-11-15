@@ -37,7 +37,10 @@ M( trace_match_all       , false   , false )                                   \
 /* Trace repetitions handling at parse time. */                                \
 M( trace_repetitions     , false   , false )                                   \
 /* Use the fast-forwarding mechanisms. */                                      \
-M( use_fast_forward      , true    , true  )
+M( use_fast_forward      , true    , true  )                                   \
+/* Use / trace reduction of fast-forward elements (substring extraction). */   \
+M( use_ff_reduce         , true    , true  )                                   \
+M( print_ff_reduce       , false   , false )
 
 // Declare all the flags.
 #if defined(DEBUG) || defined(MOD_FLAGS)

@@ -104,17 +104,6 @@ void Codegen::Generate() {
   Label unwind_and_return;
   unwind_and_return_ = &unwind_and_return;
 
-  vector<Regexp*>::const_iterator it;
-  vector<Regexp*>* gen_list = rinfo_->gen_list();
-
-  if (FLAG_print_re_list) {
-    cout << "Regexp list --------------------------------{{{" << endl;
-    for (it = gen_list->begin(); it < gen_list->end(); it++) {
-      cout << **it << endl;
-    }
-    cout << "}}}------------------------- End of regexp list" << endl;
-  }
-
   __ PushCalleeSavedRegisters();
 
   // Check that the base string we were passed is not null.
@@ -301,38 +290,39 @@ void Codegen::CheckTimeFlow(Direction direction,
 
 bool Codegen::GenerateFastForward() {
   vector<Regexp*>* fflist = rinfo_->ff_list();
-  FF_finder fff(rinfo_);
-  bool ff_success = fff.Visit(rinfo_->regexp());
 
   if (FLAG_print_ff_elements) {
     cout << "Fast forward elements ----------------------{{{" << endl;
     { IndentScope indent;
-      if (ff_success) {
+      if (fflist->empty()) {
+        Indent(cout) << "ff failed" << endl;
+      } else {
         vector<Regexp*>::iterator ffit;
         for (ffit = fflist->begin(); ffit < fflist->end(); ffit++) {
           cout << *(*ffit) << endl;
         }
-      } else {
-        Indent(cout) << "ff failed" << endl;
       }
     }
     cout << "}}}--------------- End of fast forward elements" << endl;
   }
 
-  if (ff_success) {
-    FastForwardGen ffgen(this, rinfo_->ff_list());
-    // TODO: Do we need to increment here? It seems we are compensating
-    // everywhere by decrementing.
-    __ movq(string_pointer, ff_position);
-    __ inc_c(string_pointer);
-    // Clear the temporary matches.
-    __ movq(backward_match, Immediate(0));
-    __ movq(forward_match,  Immediate(0));
-    __ movq(last_match_end, Immediate(0));
-    ffgen.Generate();
-    __ movq(ff_position, string_pointer);
+  if (fflist->empty()) {
+    return false;
   }
-  return ff_success;
+
+  FastForwardGen ffgen(this, rinfo_->ff_list());
+  // TODO: Do we need to increment here? It seems we are compensating
+  // everywhere by decrementing.
+  __ movq(string_pointer, ff_position);
+  __ inc_c(string_pointer);
+  // Clear the temporary matches.
+  __ movq(backward_match, Immediate(0));
+  __ movq(forward_match,  Immediate(0));
+  __ movq(last_match_end, Immediate(0));
+  ffgen.Generate();
+  __ movq(ff_position, string_pointer);
+
+  return true;
 }
 
 

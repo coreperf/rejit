@@ -182,6 +182,7 @@ class MultipleChar : public Regexp {
  public:
   MultipleChar() : Regexp(kMultipleChar) {}
   MultipleChar(char c);
+  MultipleChar(const string&);
   MultipleChar(const char* chars, unsigned count);
   virtual Regexp* DeepCopy();
 
@@ -195,9 +196,12 @@ class MultipleChar : public Regexp {
   }
 
   virtual unsigned MatchLength() const { return chars_length(); }
-  virtual int ff_score() const {
-    return chars_length() > 1 ? ff_base_score - max(16u, chars_length())
+  static inline int ff_score(unsigned string_length) {
+    return string_length > 1 ? ff_base_score - max(16u, string_length)
                               : 7 * ff_base_score + ff_base_score / 2;
+  }
+  virtual int ff_score() const {
+    return ff_score(chars_length());
   }
 
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
@@ -502,6 +506,7 @@ class RegexpInfo {
     : regexp_(NULL),
       entry_state_(-1), output_state_(-1), last_state_(0),
       regexp_max_length_(0),
+      ff_reduced_(false),
       match_full_(NULL),
       match_anywhere_(NULL),
       match_first_(NULL),
@@ -521,7 +526,7 @@ class RegexpInfo {
   inline bool ff_requires_full_forward_matching() {
     // TODO: Eventually this can be improved. This is for example not required
     // if the fast-forward eleements cannot match simultaneously.
-    return ff_list_.size() > 1;
+    return ff_list_.size() > 1 || ff_reduced_;
   }
 
 
@@ -542,6 +547,9 @@ class RegexpInfo {
   vector<Regexp*>* gen_list() { return &gen_list_; }
   vector<Regexp*>* extra_allocated() { return &extra_allocated_; }
 
+  inline bool ff_reduced() const { return ff_reduced_; }
+  inline void set_ff_reduced(bool ff_reduced) { ff_reduced_ = ff_reduced; }
+
  private:
   Regexp* regexp_;
   int entry_state_;
@@ -554,6 +562,8 @@ class RegexpInfo {
   // This is used to store regexp allocated later than parsing time, and hence
   // not present in the regexp tree (which root is regexp_).
   vector<Regexp*> extra_allocated_;
+
+  bool ff_reduced_;
 
  private:
   // The compiled functions.

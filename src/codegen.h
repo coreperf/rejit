@@ -119,6 +119,8 @@ class FF_finder : public RealRegexpVisitor<bool> {
       regexp_list_ = rinfo_->ff_list();
     }
 
+  void FindFFElements();
+
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual bool Visit##RegexpType(RegexpType* r);
   LIST_FLOW_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
@@ -141,9 +143,14 @@ class FF_finder : public RealRegexpVisitor<bool> {
     return false;
   }
 
-  int ff_cmp(size_t i1,
-             size_t i2,
-             size_t i3);
+  // Try to reduce the block of regular expressions to more efficient fast
+  // forward elements.
+  void ff_alternation_reduce(size_t *start, size_t *end);
+  // Reduce the two blocks of regular expressions [i1:i2] and
+  // [i2:regexp_list_->size()] and chose the most efficient of the two.
+  // A positive return value indicates that [i1:i2] is more efficient than
+  // [i2:regexp_list_->size()].
+  int ff_reduce_cmp(size_t *i1, size_t *i2);
 
  private:
   RegexpInfo *rinfo_;

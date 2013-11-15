@@ -42,6 +42,9 @@ parser.add_argument('--simd', choices=['on', 'off', 'both'], action='store',
 parser.add_argument('--use_fast_forward', action='store',
                     choices=['on', 'off', 'both'], default='both',
                     help='Test with the fast-forward mechanisms for the specified configurations.')
+parser.add_argument('--use_ff_reduce', action='store',
+                    choices=['on', 'off', 'both'], default='both',
+                    help='Test with common substring extraction mechanisms for fast-forward elements.')
 args = parser.parse_args()
 
 
@@ -68,45 +71,52 @@ if args.use_fast_forward == 'both':
 else:
   use_fast_forward_modes = [args.use_fast_forward]
 
+if args.use_ff_reduce == 'both':
+  use_ff_reduce_modes = ['on', 'off']
+else:
+  use_ff_reduce_modes = [args.use_ff_reduce]
+
 # Build and run tests in all modes.
 # The automated tests test both with SIMD enabled and disabled for maximum
 # coverage.
 testing_str = "Testing ("
 testing_str += "mode={:<" + str(max(map(lambda s: len(s), build_modes))) + "}, " 
 testing_str += "simd={:<" + str(max(map(lambda s: len(s), simd_modes)) )+ "}, " 
-testing_str += "use_fast_forward={:<" + str(max(map(lambda s: len(s), use_fast_forward_modes))) + "}" 
+testing_str += "use_fast_forward={:<" + str(max(map(lambda s: len(s), use_fast_forward_modes))) + "}, " 
+testing_str += "use_ff_reduce={:<" + str(max(map(lambda s: len(s), use_ff_reduce_modes))) + "}" 
 testing_str += ")...\t"
 for mode in build_modes:
   for simd_enabled in simd_modes:
     for ff_enabled in use_fast_forward_modes:
-      print testing_str.format(mode, simd_enabled, ff_enabled),
-      sys.stdout.flush()  # Flush early to tell the user something is running.
-      scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
-          "benchtest=on", "modifiable_flags=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
-      pscons = subprocess.Popen(scons_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-      scons_ret = pscons.wait()
-      if scons_ret != 0:
-        print 'FAILED'
-        print 'Command:'
-        print ' '.join(scons_command)
-        print 'Output:'
-        scons_output = pscons.communicate()[0]
-        print scons_output
-      else:
-        if ff_enabled == 'on':
-          use_fast_forward = 1
-        else:
-          use_fast_forward = 0
-        ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=%d' % use_fast_forward], stdout=subprocess.PIPE)
-        test_output = ''
-        test_ret = ptest.poll()
-        while test_ret is None:
-          test_output += ptest.communicate()[0]
-          test_ret = ptest.poll()
-        if test_ret != 0:
+      for ff_reduce in use_ff_reduce_modes:
+        print testing_str.format(mode, simd_enabled, ff_enabled, ff_reduce),
+        sys.stdout.flush()  # Flush early to tell the user something is running.
+        scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
+            "benchtest=on", "modifiable_flags=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
+        pscons = subprocess.Popen(scons_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        scons_ret = pscons.wait()
+        if scons_ret != 0:
           print 'FAILED'
+          print 'Command:'
+          print ' '.join(scons_command)
           print 'Output:'
-          print test_output
+          scons_output = pscons.communicate()[0]
+          print scons_output
         else:
-          if test_output:
-            print test_output,
+          if ff_enabled == 'on':
+            use_fast_forward = 1
+          else:
+            use_fast_forward = 0
+          ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=%d' % use_fast_forward], stdout=subprocess.PIPE)
+          test_output = ''
+          test_ret = ptest.poll()
+          while test_ret is None:
+            test_output += ptest.communicate()[0]
+            test_ret = ptest.poll()
+          if test_ret != 0:
+            print 'FAILED'
+            print 'Output:'
+            print test_output
+          else:
+            if test_output:
+              print test_output,
