@@ -27,18 +27,22 @@ namespace internal {
 #define STATUS_STRING_SIZE 200
 
 // Indentation helpers ---------------------------------------------------------
-extern const char* kIndentString;
-extern int kIndentLevel;
+extern int IndentationLevel;
 
 class IndentScope {
  public:
-  IndentScope() { kIndentLevel++; }
-  ~IndentScope() { kIndentLevel--; }
+  IndentScope(int _indent = 1) : indent(_indent) {
+    IndentationLevel = max(0, IndentationLevel + indent);
+  }
+  ~IndentScope() {
+    IndentationLevel = max(0, IndentationLevel - indent);
+  }
+ private:
+  int indent;
 };
 
-inline ostream& Indent(ostream& stream) {  // NOLINT
-  for (int i = 0; i < kIndentLevel; i++) stream << kIndentString;
-  return stream;
+inline ostream& Indent(ostream& stream) {
+  return stream << string(IndentationLevel, ' ');
 }
 
 

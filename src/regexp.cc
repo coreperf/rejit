@@ -68,7 +68,7 @@ ostream& Bracket::OutputToIOStream(ostream& stream) const {  // NOLINT
   if (flags() & non_matching)
     stream << "(non_matching) ";
     stream << "[ {" << entry_state_ << ", " << output_state_ << "}\n";
-  { IndentScope is;
+  { IndentScope is(2);
     // TODO(rames): overkill!
     vector<char>::const_iterator cit;
     Indent(stream);
@@ -125,7 +125,7 @@ Regexp* Concatenation::DeepCopy() {
 ostream& Concatenation::OutputToIOStream(ostream& stream) const {  // NOLINT
   stream << "Concatenation [ {"
     << entry_state_ << ", " << output_state_ << "}\n";
-  { IndentScope is;
+  { IndentScope is(2);
     vector<Regexp*>::const_iterator it;
     for (it = sub_regexps_.begin(); it < sub_regexps_.end(); it++) {
       stream << **it << endl;
@@ -160,7 +160,7 @@ ostream& Alternation::OutputToIOStream(ostream& stream) const {  // NOLINT
                  << entry_state_ << ", " << output_state_ << "}\n";
   {
     vector<Regexp*>::const_iterator it;
-    IndentScope is;
+    IndentScope is(2);
     for (it = sub_regexps_.begin(); it < sub_regexps_.end(); it++) {
       Indent(stream) << **it << endl;
     }
@@ -199,7 +199,7 @@ ostream& Repetition::OutputToIOStream(ostream& stream) const {  // NOLINT
                    << entry_state_ << ", " << output_state_ << "}\n";
   }
   {
-    IndentScope is;
+    IndentScope is(2);
     stream << *sub_regexp_ << endl;
   }
   Indent(stream) << "]";

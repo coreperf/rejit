@@ -25,9 +25,7 @@ char * const rejit_status_string = rejit_status_string_buf;
 
 namespace internal {
 
-// Indentation helpers ---------------------------------------------------------
-const char* kIndentString = "  ";
-int kIndentLevel = 0;
+int IndentationLevel = 0;
 
 
 uint64_t FirstBytesMask(int n) {
