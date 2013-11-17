@@ -69,6 +69,8 @@ class Engine:
     if not os.path.exists(self.exec_path):
       utils.error("Could not find: %s" % self.exec_path)
 
+    if verbose or args.display:
+      print("Benchmarking %s for regexp \"%s\"" %(self.name, '"' + benchmark.regexp(self.syntax) + '"'))
     if verbose:
       # The regexp is enclosed with quotes.
       printed_run_command = [
@@ -79,7 +81,6 @@ class Engine:
           '--low_char=' + benchmark.low_char,
           '--high_char=' + benchmark.high_char
           ]
-      verbose("Benchmarking %s for regexp \"%s\"" %(self.name, '"' + benchmark.regexp(self.syntax) + '"'))
       verbose("Command: %s" % (' '.join(printed_run_command)))
 
     run_command = [
