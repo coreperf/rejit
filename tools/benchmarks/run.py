@@ -96,7 +96,8 @@ class Engine:
     if rc != 0:
       print("Failed to run:\n%s" % (' '.join(run_command)))
       print("Output:\n%s" % (p.communicate()[0]))
-      utils.error("Failed to run benchmark.")
+      utils.warning("Failed to run benchmark.")
+      return None
 
     output = p.communicate()[0]
     if args.display:
@@ -323,7 +324,9 @@ class Benchmark:
   def run(self, engines):
     res = ResultSet(self)
     for engine in engines:
-      res.add_result(engine, engine.run(self, self.sizes))
+      output = engine.run(self, self.sizes)
+      if output is not None:
+        res.add_result(engine, output)
     return res
 
 

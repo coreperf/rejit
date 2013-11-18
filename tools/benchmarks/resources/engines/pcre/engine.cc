@@ -34,10 +34,8 @@ const char *argp_program_version = "pcre benchmark engine 0.1.2";
 
 #define OVECCOUNT 30    /* pcre doc: should be a multiple of 3 */
 
-void pcre_error() {
-  printf("Error benchmarking PCRE. Exiting.\n");
-  exit(1);
-}
+#define warning(message) \
+  printf("WARNING in %s line %d: %s\n", __FILE__, __LINE__, message);
 
 void pcre_compilation_error(int erroffset, const char *error) {
   printf("PCRE compilation failed at offset %d: %s\nExiting.",
@@ -85,12 +83,12 @@ int pcre_match_all(pcre *re, string *text) {
   if (rc < 0) {
     switch (rc) {
       case PCRE_ERROR_NOMATCH:
-        break;
+        return 0;
       default:
-        pcre_error();
+        warning("unknown error");
+        return rc;
         break;
     }
-    return 1;
   }
 
   (void)pcre_fullinfo(re, NULL, PCRE_INFO_OPTIONS, &option_bits);
@@ -185,7 +183,7 @@ int pcre_match_all(pcre *re, string *text) {
     /* Other matching errors are not recoverable. */
 
     if (rc < 0) {
-      pcre_error();
+      warning("unexpected error");
       return 1;
     }
   }      /* End of loop to find second and subsequent matches */
@@ -215,6 +213,7 @@ int main(int argc, char *argv[]) {
 
   vector<size_t>::reverse_iterator rit;
   for (rit = arguments.sizes.rbegin(); rit < arguments.sizes.rend(); ++rit) {
+    int rc;
     bench_res res;
     struct timeval t0, t1, t2;
     size_t size = res.text_size = *rit;
@@ -232,12 +231,14 @@ int main(int argc, char *argv[]) {
                           &erroffset,
                           NULL);
         if (!re) pcre_compilation_error(erroffset, error);
-        pcre_match_all(re, &text);
+        rc = pcre_match_all(re, &text);
         pcre_free(re);
+        if (rc)
+          break;
       }
       gettimeofday(&t1, NULL);
 
-      res.worse = speed(&t0, &t1, size, arguments.iterations);
+      res.worse = rc != 0 ? 0 : speed(&t0, &t1, size, arguments.iterations);
     }
 
     { // Compute best and amortised speeds.
@@ -258,13 +259,20 @@ int main(int argc, char *argv[]) {
       gettimeofday(&t1, NULL);
 
       for (unsigned i = 0; i < arguments.iterations; i++) {
-        pcre_match_all(re, &text);
+        rc = pcre_match_all(re, &text);
+        if (rc)
+          break;
       }
 
       gettimeofday(&t2, NULL);
 
-      res.amortised = speed(&t0, &t2, size, arguments.iterations);
-      res.best = speed(&t1, &t2, size, arguments.iterations);
+      if (rc != 0) {
+        res.amortised = 0;
+        res.best = 0;
+      } else {
+        res.amortised = speed(&t0, &t2, size, arguments.iterations);
+        res.best = speed(&t1, &t2, size, arguments.iterations);
+      }
 
       results.push_back(res);
     }

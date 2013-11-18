@@ -31,6 +31,9 @@ def check_rc(rc, message):
   if rc != 0:
     error(message, rc)
 
+def warning(msg):
+  print "WARNING: %s" % msg
+
 
 # Path helpers -----------------------------------------------------------------
 dir_tools = os.path.dirname(os.path.realpath(__file__))
