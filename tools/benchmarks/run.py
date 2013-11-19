@@ -69,20 +69,6 @@ class Engine:
     if not os.path.exists(self.exec_path):
       utils.error("Could not find: %s" % self.exec_path)
 
-    if verbose or args.display:
-      print("Benchmarking %s for regexp \"%s\"" %(self.name, '"' + benchmark.regexp(self.syntax) + '"'))
-    if verbose:
-      # The regexp is enclosed with quotes.
-      printed_run_command = [
-          self.exec_path,
-          '"' + benchmark.regexp(self.syntax) + '"',
-          '--iterations=' + str(args.iterations),
-          '--size=' + ','.join(map(lambda x: str(x), sizes)),
-          '--low_char=' + benchmark.low_char,
-          '--high_char=' + benchmark.high_char
-          ]
-      verbose("Command: %s" % (' '.join(printed_run_command)))
-
     run_command = [
         self.exec_path,
         benchmark.regexp(self.syntax),
@@ -91,11 +77,26 @@ class Engine:
         '--low_char=' + benchmark.low_char,
         '--high_char=' + benchmark.high_char
         ]
+    # The regexp is enclosed with quotes.
+    printed_run_command = [
+        self.exec_path,
+        '"' + benchmark.regexp(self.syntax) + '"',
+        '--iterations=' + str(args.iterations),
+        '--size=' + ','.join(map(lambda x: str(x), sizes)),
+        '--low_char=' + benchmark.low_char,
+        '--high_char=' + benchmark.high_char
+        ]
+
+    if verbose or args.display:
+      print("Benchmarking %s for regexp \"%s\"" %(self.name, '"' + benchmark.regexp(self.syntax) + '"'))
+    if verbose:
+      verbose("Command: %s" % (' '.join(printed_run_command)))
+
 
     p = subprocess.Popen(run_command, stdout=subprocess.PIPE)
     rc = p.wait()
     if rc != 0:
-      print("Failed to run:\n%s" % (' '.join(run_command)))
+      print("Failed to run:\n%s" % (' '.join(printed_run_command)))
       print("Output:\n%s" % (p.communicate()[0]))
       utils.warning("Failed to run benchmark.")
       return None
