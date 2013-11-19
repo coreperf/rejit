@@ -19,7 +19,7 @@ namespace rejit {
 namespace internal {
 
 ostream& Regexp::OutputToIOStream(ostream& stream) const {  // NOLINT
-  Indent(stream) << "Regexp (";
+  stream << "Regexp (";
   switch (type()) {
 #define PRINT_REGEXP_TYPE(RegexpType) \
 case k##RegexpType: stream << #RegexpType; break;
@@ -54,17 +54,17 @@ Regexp* MultipleChar::DeepCopy() {
 
 
 ostream& MultipleChar::OutputToIOStream(ostream& stream) const {  // NOLINT
-  Indent(stream) << string("MultipleChar [");
+  stream << string("MultipleChar [");
   for (unsigned i = 0; i < chars_length(); i++) {
     stream << chars_[i];
   }
-  Indent(stream) << "] {" << entry_state_ << ", " << output_state_ << "}";
+  stream << "] {" << entry_state_ << ", " << output_state_ << "}";
   return stream;
 }
 
 
 ostream& Bracket::OutputToIOStream(ostream& stream) const {  // NOLINT
-  Indent(stream) << "Bracket ";
+  stream << "Bracket ";
   if (flags() & non_matching)
     stream << "(non_matching) ";
     stream << "[ {" << entry_state_ << ", " << output_state_ << "}\n";
@@ -123,7 +123,7 @@ Regexp* Concatenation::DeepCopy() {
 
 
 ostream& Concatenation::OutputToIOStream(ostream& stream) const {  // NOLINT
-  Indent(stream) << "Concatenation [ {"
+  stream << "Concatenation [ {"
     << entry_state_ << ", " << output_state_ << "}\n";
   { IndentScope is;
     vector<Regexp*>::const_iterator it;
@@ -156,13 +156,13 @@ Regexp* Alternation::DeepCopy() {
 
 
 ostream& Alternation::OutputToIOStream(ostream& stream) const {  // NOLINT
-  Indent(stream) << "Alternation [ {"
+  stream << "Alternation [ {"
                  << entry_state_ << ", " << output_state_ << "}\n";
   {
     vector<Regexp*>::const_iterator it;
     IndentScope is;
     for (it = sub_regexps_.begin(); it < sub_regexps_.end(); it++) {
-      stream << **it << endl;
+      Indent(stream) << **it << endl;
     }
   }
   Indent(stream) << "]";
@@ -190,11 +190,11 @@ void Alternation::SetOutputState(int output_state) {
 
 ostream& Repetition::OutputToIOStream(ostream& stream) const {  // NOLINT
   if (max_rep_ == kMaxUInt) {
-    Indent(stream) << "Repetition"
+    stream << "Repetition"
                    << "{" << min_rep_ << ", inf } [ {"
                    << entry_state_ << ", " << output_state_ << "}\n";
   } else {
-    Indent(stream) << "Repetition"
+    stream << "Repetition"
                    << "{" << min_rep_ << "," << max_rep_ << "} [ {"
                    << entry_state_ << ", " << output_state_ << "}\n";
   }

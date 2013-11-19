@@ -333,7 +333,7 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   indexer.Index(root);
   if (FLAG_print_re_tree) {
     cout << "Regexp tree --------------------------------{{{" << endl;
-    cout << *root << endl;
+    Indent(cout) << *root << endl;
     cout << "}}}------------------------- End of regexp tree" << endl;
   }
   RegexpLister lister(rinfo, rinfo->gen_list());
