@@ -302,6 +302,20 @@ int RunTest() {
   TEST(kMatchAll, 6, "(xxx|^|$)", "___xxx_\n\n__");
   TEST(kMatchAll, 8, "(xxx|^|$|[ab-d])", "___ab___xxx_\n\n__");
   TEST(kMatchAll, 4, "(^|$|[^x])", "_xxx_x_");
+  TEST_First(1, "(..ab.|.ab.)", "__ab__", 0, 5);
+  TEST_First(1, "(.ab.|..ab.)", "__ab__", 0, 5);
+  TEST_First(1, ".(..ab.|.ab.).", "___ab___", 0, 7);
+  TEST_First(1, ".(.ab.|..ab.).", "___ab___", 0, 7);
+  TEST_First(1, "(..ab.|.ab.X)", "__ab__", 0, 5);
+  TEST_First(1, "(.ab.X|..ab.)", "__ab__", 0, 5);
+  TEST_First(1, "(..ab.X|.ab.)", "__ab__", 1, 5);
+  TEST_First(1, "(.ab.|..ab.X)", "__ab__", 1, 5);
+  TEST_First(0, ".(..ab.|.ab.X).", "__ab__", 0, 0);
+  TEST_First(0, ".(.ab.X|..ab.).", "__ab__", 0, 0);
+  TEST_First(1, ".(..ab.X|.ab.).", "__ab__", 0, 6);
+  TEST_First(1, ".(.ab.|..ab.X).", "__ab__", 0, 6);
+  TEST_First(0, ".(X.ab.|.ab.X).", "__ab__", 0, 0);
+  TEST_First(0, ".(.ab.X|X.ab.).", "__ab__", 0, 0);
 
   // Special matching patterns.
   TEST(kMatchFull, 1, "\\d", "5");
