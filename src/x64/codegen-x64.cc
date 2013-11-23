@@ -577,7 +577,9 @@ void Codegen::GenerateMatchDirection(Direction direction,
         __ movq(scratch, ff_position);
         __ cmpq(scratch, string_end);
         __ j(equal, &exit);
-        __ jmp(fast_forward);
+        if (fast_forward) {
+          __ jmp(fast_forward);
+        }
 
         __ bind(&keep_searching);
       }
