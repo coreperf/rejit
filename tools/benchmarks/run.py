@@ -61,13 +61,13 @@ class Engine:
 
     self.syntax = syntax
     if self.syntax not in RE_syntaxes:
-      error("ERROR: Invalid syntax '%s'" % self.syntax)
+      utils.error("ERROR: Invalid syntax '%s'" % self.syntax)
 
     self.commit_id = commit_id
 
   def run(self, benchmark, sizes):
     if not os.path.exists(self.exec_path):
-      error("Could not find: %s" % self.exec_path)
+      utils.error("Could not find: %s" % self.exec_path)
 
     if verbose:
       # The regexp is enclosed with quotes.
@@ -96,7 +96,7 @@ class Engine:
     if rc != 0:
       print("Failed to run:\n%s" % (' '.join(run_command)))
       print("Output:\n%s" % (p.communicate()[0]))
-      error("Failed to run benchmark.")
+      utils.error("Failed to run benchmark.")
 
     output = p.communicate()[0]
     if args.display:
@@ -178,14 +178,14 @@ class ResultSet:
 
   def add_result(self, engine, output):
     if engine.name in self.data:
-      error("Results for engine %s already registered." % engine.name)
+      utils.error("Results for engine %s already registered." % engine.name)
     data_engine = {}
     outs = output.split('\n')
 
     # The first line must be the labels.
     labels = outs[0].split()
     if not 'text_size' in labels:
-      error("Expected labels line.")
+      utils.error("Expected labels line.")
     for label in labels:
       if label != "text_size":
         data_engine[label] = {}
@@ -286,7 +286,7 @@ class ResultSet:
 
     for engine in engines:
       if not engine.name in self.data:
-        error("Could not find benchmark results for engine %s for regexp \"%s\"." % (engine.name, self.benchmark.regexp(engine.syntax)))
+        utils.error("Could not find benchmark results for engine %s for regexp \"%s\"." % (engine.name, self.benchmark.regexp(engine.syntax)))
 
 
 results = []
@@ -316,7 +316,7 @@ class Benchmark:
     if not syntax in self.regexps:
       print("This benchmark does not provide a regexp for syntax '%s'" % syntax)
       list_regexps()
-      error("Unavailable syntax.")
+      utils.error("Unavailable syntax.")
     return self.regexps[syntax]
 
   def run(self, engines):
