@@ -35,7 +35,9 @@ M( print_state_ring_info , false   , false )                                   \
 /* For kMatchAll, print every match when registered. */                        \
 M( trace_match_all       , false   , false )                                   \
 /* Trace repetitions handling at parse time. */                                \
-M( trace_repetitions     , false   , false )
+M( trace_repetitions     , false   , false )                                   \
+/* Use the fast-forwarding mechanisms. */                                      \
+M( use_fast_forward      , true    , true  )
 
 // Declare all the flags.
 #if defined(DEBUG) || defined(MOD_FLAGS)

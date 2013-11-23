@@ -38,6 +38,9 @@ parser.add_argument('--mode', choices=utils.build_options_modes + ['both'], acti
 parser.add_argument('--simd', choices=['on', 'off', 'both'], action='store',
                     default='both',
                     help='Test SIMD with the specified configurations.')
+parser.add_argument('--use_fast_forward', action='store',
+                    choices=['on', 'off', 'both'], default='both',
+                    help='Test with the fast-forward mechanisms for the specified configurations.')
 args = parser.parse_args()
 
 
@@ -59,34 +62,40 @@ if args.simd == 'both':
 else:
   simd_modes = [args.simd]
 
+if args.use_fast_forward == 'both':
+  use_fast_forward_modes = ['on', 'off']
+else:
+  use_fast_forward_modes = [args.use_fast_forward]
+
 # Build and run tests in all modes.
 # The automated tests test both with SIMD enabled and disabled for maximum
 # coverage.
-for mode in build_modes:
+for mode in utils.build_options_modes:
   for simd_enabled in simd_modes:
-    print "Testing (mode=%s,\tsimd=%s)...\t" % (mode, simd_enabled),
-    sys.stdout.flush()  # Flush early to tell the user something is running.
-    scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
+    for ff_enabled in use_fast_forward_modes:
+      print "Testing (mode=%s,\tsimd=%s,\tuse_fast_forward=%s)...\t" % (mode, simd_enabled, ff_enabled),
+      sys.stdout.flush()  # Flush early to tell the user something is running.
+      scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
           "benchtest=on", "modifiable_flags=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
-    pscons = subprocess.Popen(scons_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    scons_ret = pscons.wait()
-    if scons_ret != 0:
-      print 'FAILED'
-      print 'Command:'
-      print ' '.join(scons_command)
-      print 'Output:'
-      scons_output = pscons.communicate()[0]
-      print scons_output
-    else:
-      ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit')], stdout=subprocess.PIPE)
-      test_ret = ptest.wait()
-      test_output = ptest.communicate()[0]
-      if test_ret != 0:
+      pscons = subprocess.Popen(scons_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      scons_ret = pscons.wait()
+      if scons_ret != 0:
         print 'FAILED'
+        print 'Command:'
+        print ' '.join(scons_command)
         print 'Output:'
-        print test_output
+        scons_output = pscons.communicate()[0]
+        print scons_output
       else:
-        if test_output:
-          print test_output,
+        ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit')], stdout=subprocess.PIPE)
+        test_ret = ptest.wait()
+        test_output = ptest.communicate()[0]
+        if test_ret != 0:
+          print 'FAILED'
+          print 'Output:'
+          print test_output
         else:
-          print 'success'
+          if test_output:
+            print test_output,
+          else:
+            print 'success'

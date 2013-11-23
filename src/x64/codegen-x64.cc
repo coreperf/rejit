@@ -196,7 +196,8 @@ void Codegen::Generate(RegexpInfo* rinfo,
     Label fast_forward;
 
     __ bind(&fast_forward);
-    if (GenerateFastForward(rinfo, match_type)) {
+    if (FLAG_use_fast_forward &&
+        GenerateFastForward(rinfo, match_type)) {
       // On output, either a state has been set from which there is a potential
       // match, or string_pointer points to the end of the string.
 
