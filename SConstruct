@@ -217,9 +217,17 @@ rejit = env.StaticLibrary(join(build_dir, 'rejit'), sources)
 env.Alias('librejit.a', rejit)
 
 # The rejit test program.
+test_libs = [librejit]
+if 'os' in env and env['os'] == 'macos':
+  conf = Configure(env)
+  if not conf.CheckLib('argp'):
+    print help_messages['argp']
+    Exit(1)
+  env = conf.Finish()
+  test_libs += ['argp']
 test_rejit = env.Program(join(build_dir, 'test-rejit'),
     join(build_dir_tests, 'test.cc'),
-    LIBS=[librejit])
+    LIBS=test_libs)
 env.Alias('test-rejit', test_rejit)
 
 SConscript('sample/SConscript', exports='env librejit')

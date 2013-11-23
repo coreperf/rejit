@@ -67,7 +67,7 @@ for mode in build_modes:
     print "Testing (mode=%s,\tsimd=%s)...\t" % (mode, simd_enabled),
     sys.stdout.flush()  # Flush early to tell the user something is running.
     scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
-        "benchtest=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
+          "benchtest=on", "modifiable_flags=on", "mode=%s" % mode, "simd=%s" % simd_enabled]
     pscons = subprocess.Popen(scons_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     scons_ret = pscons.wait()
     if scons_ret != 0:

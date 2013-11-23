@@ -13,6 +13,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
+#include <argp.h>
 
 #include "rejit.h"
 #include "checks.h"
@@ -21,6 +22,68 @@
 using namespace std;
 
 namespace rejit {
+
+#ifdef BENCH_ENGINE_REJIT
+// Start the enum from the latest argp key used.
+enum rejit_flags_option_keys {
+  last_argp_key = ARGP_KEY_FINI,
+#define ENUM_KEYS(flag_name, r, d) flag_name##_key,
+  REJIT_FLAGS_LIST(ENUM_KEYS)
+#undef ENUM_KEYS
+  first_rejit_flag_key = last_argp_key + 1
+};
+#define REJIT_FLAG_OFFSET(flag_name) (flag_name##_key - first_rejit_flag_key)
+#endif
+
+
+struct argp_option options[] =
+{
+#ifdef BENCH_ENGINE_REJIT
+  // Convenient access to rejit flags.
+#define FLAG_OPTION(flag_name, r, d) \
+  {#flag_name , flag_name##_key , FLAG_##flag_name ? "1" : "0"   , OPTION_ARG_OPTIONAL , "0 to disable, 1 to enable."},
+  REJIT_FLAGS_LIST(FLAG_OPTION)
+#undef FLAG_OPTION
+#endif
+  {0}
+};
+
+char doc[] =
+"\n"
+"Benchmark test program.\n"
+"Tests a range of regular expressions and outputs test results.\n";
+
+char args_doc[] = "";
+
+const char *argp_program_bug_address = "<alexandre@coreperf.com>";
+
+error_t parse_opt(int key, char *arg, struct argp_state *state) {
+  switch (key) {
+#define FLAG_CASE(flag_name, r, d)                                             \
+    case flag_name##_key: {                                                    \
+      if (arg) {                                                               \
+        unsigned v = stol(arg);                                                \
+        assert(v == 0 || v == 1);                                              \
+        FLAG_##flag_name = v;                                                  \
+      }                                                                        \
+      break;                                                                   \
+    }
+    REJIT_FLAGS_LIST(FLAG_CASE)
+#undef FLAG_CASE
+
+    case ARGP_KEY_ARG:
+      argp_usage(state);
+      break;
+    case ARGP_KEY_END:
+      break;
+    default:
+      return ARGP_ERR_UNKNOWN;
+    }
+  return 0;
+}
+
+struct argp argp = {options, parse_opt, args_doc, doc};
+
 
 #define x10(s) s s s s s s s s s s
 #define x50(s) x10(s) x10(s) x10(s) x10(s) x10(s)
