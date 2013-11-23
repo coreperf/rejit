@@ -95,9 +95,6 @@ namespace rejit {
 static int Test(MatchType match_type, unsigned expected,
                 const char* regexp, const string& text,
                 int line);
-#define TEST(match_type, expected, regexp, text) \
-  failure |= Test(match_type, expected, regexp, string(text), __LINE__);
-
 
 // Also check the start and end of the match.
 static int TestFirst(unsigned expected,
@@ -106,8 +103,6 @@ static int TestFirst(unsigned expected,
                      unsigned expected_start,
                      unsigned expected_end,
                      int line);
-#define TEST_First(expected, re, text, start, end)                             \
-  failure |= TestFirst(expected, re, string(text), start, end, __LINE__)
 // Also test with non-matching prefixes and suffixes.
 // Short strings may not exercise all code paths. This helps exercising
 // (for example) the fast forward paths.
@@ -117,13 +112,38 @@ static int TestFirstUnbound(unsigned expected,
                             unsigned expected_start,
                             unsigned expected_end,
                             int line);
-#define TEST_First_unbound(expected, re, text, start, end)                     \
-  failure |= TestFirstUnbound(expected, re, string(text), start, end, __LINE__)
 
 
 int RunTest() {
   assert(FLAG_benchtest);
-  int failure = 0;
+  int rc = 0, local_rc;
+  int count_pass = 0;
+  int count_fail = 0;
+
+#define TEST(match_type, expected, regexp, text)                               \
+  do {                                                                         \
+    local_rc = Test(match_type, expected, regexp, string(text), __LINE__);     \
+    rc |= local_rc;                                                            \
+    count_pass += rc == 0;                                                     \
+    count_fail += rc != 0;                                                     \
+  } while (0)
+
+#define TEST_First(expected, re, text, start, end)                             \
+  do {                                                                         \
+    local_rc = TestFirst(expected, re, string(text), start, end, __LINE__);    \
+    rc |= local_rc;                                                            \
+    count_pass += rc == 0;                                                     \
+    count_fail += rc != 0;                                                     \
+  } while (0)
+
+#define TEST_First_unbound(expected, re, text, start, end)                     \
+  do {                                                                         \
+    local_rc = TestFirstUnbound(expected, re,                                  \
+                                string(text), start, end, __LINE__);           \
+    rc |= local_rc;                                                            \
+    count_pass += rc == 0;                                                     \
+    count_fail += rc != 0;                                                     \
+  } while (0)
 
   // Simple characters.
   TEST(kMatchFull, 1, "0123456789", "0123456789");
@@ -401,7 +421,8 @@ int RunTest() {
   TEST(kMatchFull, 1, "\\x30", "0");
   TEST(kMatchFull, 0, "\\x30", "_");
 
-  return failure;
+  printf("FAIL: %d\tpass: %d\t(total: %d)\n", count_fail, count_pass, count_fail + count_pass);
+  return rc;
 }
 
 
