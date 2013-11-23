@@ -21,10 +21,12 @@ import subprocess
 import argparse
 
 parser = argparse.ArgumentParser(description='Run rejit tests.')
-parser.add_argument('-j', '--jobs', default=1, type=int,
-    help='Number of jobs to run simultaneously for the *build* commands')
-parser.add_argument('--simd', choices=['on', 'off', 'both'], default='both',
-    help='Test SIMD with the specified configurations.')
+parser.add_argument('-j', '--jobs', type=int, action='store',
+                    default=1, 
+                    help='Number of jobs to run simultaneously for the *build* commands')
+parser.add_argument('--simd', choices=['on', 'off', 'both'], action='store',
+                    default='both',
+                    help='Test SIMD with the specified configurations.')
 args = parser.parse_args()
 
 

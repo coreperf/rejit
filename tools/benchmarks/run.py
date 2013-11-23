@@ -126,27 +126,28 @@ Once run, you can find html graphs of the results in <rejit>/html/rejit.html.'''
 parser = argparse.ArgumentParser(description=rejit_description)
 
 parser.add_argument('--engines', action='store', nargs='+',
-    choices=engines_names, default=engines_names,
-    help='List of engines to benchmark.')
+                    choices=engines_names, default=engines_names,
+                    help='Space-separated list of engines to benchmark.')
 parser.add_argument('--sizes', type=int, action='store', nargs='+',
-    default=map(lambda x: 1 << x, range(3, 24)),
-    help='List of text sizes to benchmark.')
-parser.add_argument('--slow_size_factor', action='store_true',
-    default=3,
-    help="For slow benchmarks, do not benchmark the <n> bigger text sizes.")
+                    default=map(lambda x: 1 << x, range(3, 24)),
+                    help='Space-separated list of text sizes to benchmark.')
+parser.add_argument('--slow_size_factor', action='store', type=int,
+                    default=3,
+                    help="For slow benchmarks, do not benchmark the <n> bigger text sizes.")
 parser.add_argument('--iterations', type=int, action="store",
-    default=100,
-    help="Number of iterations to run benchmarks for.")
+                    default=100,
+                    help="Number of iterations to run benchmarks for.")
 parser.add_argument('--nosimd', action='store_true',
-    help='Disable SIMD usage.')
+                    help='Disable SIMD usage.')
 parser.add_argument('--nobuild', action='store_true',
-    help="Do not build before running.")
-parser.add_argument('-j', '--jobs', default=1, type=int,
-    help='Number of jobs to run simultaneously for the *build* commands')
+                    help="Do not build before running.")
+parser.add_argument('-j', '--jobs', type=int,
+                    default=1, 
+                    help='Number of jobs to run simultaneously for the *build* commands')
 parser.add_argument('--display', action='store_true',
-    help='Display benchmarks results as they execute.')
+                    help='Display benchmarks results as they execute.')
 parser.add_argument('-v', '--verbose', action='store_true',
-    help='Print extra information.')
+                    help='Print extra information.')
 
 args = parser.parse_args()
 
