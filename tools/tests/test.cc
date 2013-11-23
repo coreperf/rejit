@@ -21,7 +21,6 @@
 
 using namespace std;
 
-namespace rejit {
 
 #ifdef BENCH_ENGINE_REJIT
 // Start the enum from the latest argp key used.
@@ -84,6 +83,8 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
 
 struct argp argp = {options, parse_opt, args_doc, doc};
 
+
+namespace rejit {
 
 #define x10(s) s s s s s s s s s s
 #define x50(s) x10(s) x10(s) x10(s) x10(s) x10(s)
