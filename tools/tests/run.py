@@ -20,10 +20,21 @@ from os.path import join, dirname
 import subprocess
 import argparse
 
+# Import rejit utils.
+dir_tests = dirname(os.path.realpath(__file__))
+dir_rejit = dir_tests
+while 'SConstruct' not in os.listdir(dir_rejit):
+  dir_rejit = os.path.realpath(join(dir_rejit, '..'))
+sys.path.insert(0, join(dir_rejit, 'tools'))
+import utils
+
 parser = argparse.ArgumentParser(description='Run rejit tests.')
 parser.add_argument('-j', '--jobs', type=int, action='store',
                     default=1, 
                     help='Number of jobs to run simultaneously for the *build* commands')
+parser.add_argument('--mode', choices=utils.build_options_modes + ['both'], action='store',
+                    default='both',
+                    help='Test with the specified build modes.')
 parser.add_argument('--simd', choices=['on', 'off', 'both'], action='store',
                     default='both',
                     help='Test SIMD with the specified configurations.')
@@ -38,6 +49,11 @@ sys.path.insert(0, join(dir_rejit, 'tools'))
 import utils
 
 
+if args.mode == 'both':
+  build_modes = utils.build_options_modes
+else:
+  build_modes = [args.mode]
+
 if args.simd == 'both':
   simd_modes = ['on', 'off']
 else:
@@ -46,8 +62,8 @@ else:
 # Build and run tests in all modes.
 # The automated tests test both with SIMD enabled and disabled for maximum
 # coverage.
-for simd_enabled in simd_modes:
-  for mode in utils.build_options_modes:
+for mode in build_modes:
+  for simd_enabled in simd_modes:
     print "Testing (mode=%s,\tsimd=%s)...\t" % (mode, simd_enabled),
     sys.stdout.flush()  # Flush early to tell the user something is running.
     scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
