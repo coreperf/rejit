@@ -87,9 +87,13 @@ for mode in build_modes:
         scons_output = pscons.communicate()[0]
         print scons_output
       else:
-        ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit')], stdout=subprocess.PIPE)
-        test_ret = ptest.wait()
-        test_output = ptest.communicate()[0]
+        print ' '.join([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=0'])
+        ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=0'], stdout=subprocess.PIPE)
+        test_output = ''
+        test_ret = ptest.poll()
+        while test_ret is None:
+          test_output += ptest.communicate()[0]
+          test_ret = ptest.poll()
         if test_ret != 0:
           print 'FAILED'
           print 'Output:'

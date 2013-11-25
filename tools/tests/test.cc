@@ -607,7 +607,9 @@ static int TestFirstUnbound(unsigned expected,
 }  // namespace rejit
 
 
-int main() {
+int main(int argc, char *argv[]) {
+  argp_parse(&argp, argc, argv, 0, 0, NULL);
+
   int rc = rejit::RunTest();
   if (rc) {
     printf("FAILED\n");
