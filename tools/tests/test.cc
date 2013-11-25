@@ -37,6 +37,8 @@ enum rejit_flags_option_keys {
 
 struct argp_option options[] =
 {
+  {"line"       , 'l' , "0", OPTION_ARG_OPTIONAL ,=
+    "Only run the tests from the specified line. (Or 0 to run all tests.)"},
 #ifdef BENCH_ENGINE_REJIT
   // Convenient access to rejit flags.
 #define FLAG_OPTION(flag_name, r, d) \
@@ -56,8 +58,18 @@ char args_doc[] = "";
 
 const char *argp_program_bug_address = "<alexandre@coreperf.com>";
 
+struct arguments {
+  unsigned line;
+};
+
 error_t parse_opt(int key, char *arg, struct argp_state *state) {
+  struct arguments *arguments = reinterpret_cast<struct arguments*>(state->input);
   switch (key) {
+    case 'l':
+      if (arg) {
+        arguments->line = stol(arg);
+      }
+      break;
 #define FLAG_CASE(flag_name, r, d)                                             \
     case flag_name##_key: {                                                    \
       if (arg) {                                                               \
@@ -114,36 +126,36 @@ static int TestFirstUnbound(unsigned expected,
                             int line);
 
 
-int RunTest() {
+int RunTest(struct arguments *arguments) {
   assert(FLAG_benchtest);
   int rc = 0, local_rc;
   int count_pass = 0;
   int count_fail = 0;
 
 #define TEST(match_type, expected, regexp, text)                               \
-  do {                                                                         \
+  if (arguments->line == 0 || arguments->line == __LINE__) {                   \
     local_rc = Test(match_type, expected, regexp, string(text), __LINE__);     \
     rc |= local_rc;                                                            \
     count_pass += rc == 0;                                                     \
     count_fail += rc != 0;                                                     \
-  } while (0)
+  }
 
 #define TEST_First(expected, re, text, start, end)                             \
-  do {                                                                         \
+  if (arguments->line == 0 || arguments->line == __LINE__) {                   \
     local_rc = TestFirst(expected, re, string(text), start, end, __LINE__);    \
     rc |= local_rc;                                                            \
     count_pass += rc == 0;                                                     \
     count_fail += rc != 0;                                                     \
-  } while (0)
+  }
 
 #define TEST_First_unbound(expected, re, text, start, end)                     \
-  do {                                                                         \
+  if (arguments->line == 0 || arguments->line == __LINE__) {                   \
     local_rc = TestFirstUnbound(expected, re,                                  \
                                 string(text), start, end, __LINE__);           \
     rc |= local_rc;                                                            \
     count_pass += rc == 0;                                                     \
     count_fail += rc != 0;                                                     \
-  } while (0)
+  }
 
   // Simple characters.
   TEST(kMatchFull, 1, "0123456789", "0123456789");
@@ -608,9 +620,10 @@ static int TestFirstUnbound(unsigned expected,
 
 
 int main(int argc, char *argv[]) {
-  argp_parse(&argp, argc, argv, 0, 0, NULL);
+  struct arguments arguments;
+  argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-  int rc = rejit::RunTest();
+  int rc = rejit::RunTest(&arguments);
   if (rc) {
     printf("FAILED\n");
   } else {
