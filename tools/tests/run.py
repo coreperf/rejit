@@ -70,7 +70,7 @@ else:
 # Build and run tests in all modes.
 # The automated tests test both with SIMD enabled and disabled for maximum
 # coverage.
-for mode in utils.build_options_modes:
+for mode in build_modes:
   for simd_enabled in simd_modes:
     for ff_enabled in use_fast_forward_modes:
       print "Testing (mode=%s,\tsimd=%s,\tuse_fast_forward=%s)...\t" % (mode, simd_enabled, ff_enabled),
