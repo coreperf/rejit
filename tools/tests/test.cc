@@ -37,7 +37,7 @@ enum rejit_flags_option_keys {
 
 struct argp_option options[] =
 {
-  {"line"       , 'l' , "0", OPTION_ARG_OPTIONAL ,=
+  {"line"       , 'l' , "0", OPTION_ARG_OPTIONAL ,
     "Only run the tests from the specified line. (Or 0 to run all tests.)"},
 #ifdef BENCH_ENGINE_REJIT
   // Convenient access to rejit flags.
