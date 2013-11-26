@@ -149,6 +149,8 @@ class Codegen : public PhysicalRegexpVisitor<void> {
  public:
   Codegen();
 
+  // TODO: Remove the local match_type or remove it from the function
+  // prototypes. Do the same for fast_forward and others.
   VirtualMemory* Compile(RegexpInfo* rinfo, MatchType match_type);
 
   void Generate(RegexpInfo* rinfo, MatchType match_type);

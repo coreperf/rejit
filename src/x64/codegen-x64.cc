@@ -119,6 +119,7 @@ void Codegen::FlowTime() {
 
 
 void Codegen::CheckTimeFlow() {
+  // TODO: Use a loop instruction when the time summary is big.
   __ Move(scratch, 0);
   for (int offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
     __ or_(scratch, TimeSummary(offset));
@@ -288,6 +289,10 @@ void Codegen::CheckMatch(Direction direction,
       // Early exit as soon as we find a match.
       Label no_match;
 
+      // TODO: This is wrong. backward matching should share most of the code
+      // for non match-full types.
+      // matchanywhere can only do this optimization of exiting early on
+      // backward if there is only one ff-element.
       if (direction == kBackward) {
         TestState(0, rinfo->entry_state());
         __ j(zero, &no_match);
@@ -485,6 +490,7 @@ void Codegen::GenerateMatchDirection(Direction direction,
   Label skip;
   int current_state = -1;
   for (it = gen_list->begin(); it < gen_list->end(); it++) {
+    // TODO: No need to generate code for control regexps?
     if ((direction == kForward && (*it)->entry_state() != current_state) ||
         (direction == kBackward && (*it)->output_state() != current_state)) {
       __ bind(&skip);
