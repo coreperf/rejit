@@ -22,30 +22,25 @@
 using namespace std;
 
 
-#ifdef BENCH_ENGINE_REJIT
 // Start the enum from the latest argp key used.
 enum rejit_flags_option_keys {
-  last_argp_key = ARGP_KEY_FINI,
+  // Hope it does not collide with other keys.
+  base_rejit_flag_key = 0x7BAD,
 #define ENUM_KEYS(flag_name, r, d) flag_name##_key,
   REJIT_FLAGS_LIST(ENUM_KEYS)
 #undef ENUM_KEYS
-  first_rejit_flag_key = last_argp_key + 1
 };
-#define REJIT_FLAG_OFFSET(flag_name) (flag_name##_key - first_rejit_flag_key)
-#endif
 
 
 struct argp_option options[] =
 {
   {"line"       , 'l' , "0", OPTION_ARG_OPTIONAL ,
     "Only run the tests from the specified line. (Or 0 to run all tests.)"},
-#ifdef BENCH_ENGINE_REJIT
   // Convenient access to rejit flags.
 #define FLAG_OPTION(flag_name, r, d) \
   {#flag_name , flag_name##_key , FLAG_##flag_name ? "1" : "0"   , OPTION_ARG_OPTIONAL , "0 to disable, 1 to enable."},
   REJIT_FLAGS_LIST(FLAG_OPTION)
 #undef FLAG_OPTION
-#endif
   {0}
 };
 

@@ -36,11 +36,12 @@ using namespace std;
 #ifdef BENCH_ENGINE_REJIT
 // Start the enum from the latest argp key used.
 enum rejit_flags_option_keys {
-  last_argp_key = ARGP_KEY_FINI,
+  // Hope it does not collide with other keys.
+  base_rejit_flag_key = 0x7BAD,
 #define ENUM_KEYS(flag_name, r, d) flag_name##_key,
   REJIT_FLAGS_LIST(ENUM_KEYS)
 #undef ENUM_KEYS
-  first_rejit_flag_key = last_argp_key + 1
+  first_rejit_flag_key = base_rejit_flag_key + 1
 };
 #define REJIT_FLAG_OFFSET(flag_name) (flag_name##_key - first_rejit_flag_key)
 #endif
