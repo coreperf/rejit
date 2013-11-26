@@ -616,15 +616,10 @@ static int TestFirstUnbound(unsigned expected,
 
 int main(int argc, char *argv[]) {
   struct arguments arguments;
+  memset(&arguments, 0, sizeof(arguments));
   argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-  int rc = rejit::RunTest(&arguments);
-  if (rc) {
-    printf("FAILED\n");
-  } else {
-    printf("success\n");
-  }
-  return rc;
+  return rejit::RunTest(&arguments);
 }
 
 #undef TEST

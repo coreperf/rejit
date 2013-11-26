@@ -87,8 +87,11 @@ for mode in build_modes:
         scons_output = pscons.communicate()[0]
         print scons_output
       else:
-        print ' '.join([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=0'])
-        ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=0'], stdout=subprocess.PIPE)
+        if ff_enabled == 'on':
+          use_fast_forward = 1
+        else:
+          use_fast_forward = 0
+        ptest = subprocess.Popen([join(utils.dir_build_latest, 'test-rejit'), '--use_fast_forward=%d' % use_fast_forward], stdout=subprocess.PIPE)
         test_output = ''
         test_ret = ptest.poll()
         while test_ret is None:
@@ -101,5 +104,3 @@ for mode in build_modes:
         else:
           if test_output:
             print test_output,
-          else:
-            print 'success'
