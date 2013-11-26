@@ -490,7 +490,9 @@ void Codegen::GenerateMatchDirection(Direction direction,
   Label skip;
   int current_state = -1;
   for (it = gen_list->begin(); it < gen_list->end(); it++) {
-    // TODO: No need to generate code for control regexps?
+    if ((*it)->IsControlRegexp()) {
+      continue;
+    }
     if ((direction == kForward && (*it)->entry_state() != current_state) ||
         (direction == kBackward && (*it)->output_state() != current_state)) {
       __ bind(&skip);
