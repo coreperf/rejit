@@ -131,16 +131,16 @@ int RunTest(struct arguments *arguments) {
   if (arguments->line == 0 || arguments->line == __LINE__) {                   \
     local_rc = Test(match_type, expected, regexp, string(text), __LINE__);     \
     rc |= local_rc;                                                            \
-    count_pass += rc == 0;                                                     \
-    count_fail += rc != 0;                                                     \
+    count_pass += (local_rc == 0);                                             \
+    count_fail += (local_rc != 0);                                             \
   }
 
 #define TEST_First(expected, re, text, start, end)                             \
   if (arguments->line == 0 || arguments->line == __LINE__) {                   \
     local_rc = TestFirst(expected, re, string(text), start, end, __LINE__);    \
     rc |= local_rc;                                                            \
-    count_pass += rc == 0;                                                     \
-    count_fail += rc != 0;                                                     \
+    count_pass += (local_rc == 0);                                             \
+    count_fail += (local_rc != 0);                                             \
   }
 
 #define TEST_First_unbound(expected, re, text, start, end)                     \
@@ -148,8 +148,8 @@ int RunTest(struct arguments *arguments) {
     local_rc = TestFirstUnbound(expected, re,                                  \
                                 string(text), start, end, __LINE__);           \
     rc |= local_rc;                                                            \
-    count_pass += rc == 0;                                                     \
-    count_fail += rc != 0;                                                     \
+    count_pass += (local_rc == 0);                                             \
+    count_fail += (local_rc != 0);                                             \
   }
 
   // Simple characters.
