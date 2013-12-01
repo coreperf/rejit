@@ -441,7 +441,11 @@ int RunTest(struct arguments *arguments) {
   TEST(kMatchFull, 1, "\\x30", "0");
   TEST(kMatchFull, 0, "\\x30", "_");
 
-  printf("FAIL: %d\tpass: %d\t(total: %d)\n", count_fail, count_pass, count_fail + count_pass);
+  if (count_fail) {
+    printf("FAIL: %d\tpass: %d\t(total: %d)\n", count_fail, count_pass, count_fail + count_pass);
+  } else {
+    printf("success\n");
+  }
   return rc;
 }
 
