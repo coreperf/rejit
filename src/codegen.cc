@@ -59,6 +59,16 @@ static void MatchAllAppend(vector<Match>* matches, Match new_match, bool filter)
     matches->erase(it, matches->end());
   }
 
+  // The behaviour for matches of length 0 is a bit special. For now this is
+  // made to behavie like in vim. An end-of-line match (regexp '$') is added
+  // only if there is not already a match finishing at that position.
+  // TODO: This may need to be modified after checking the spec.
+  if (new_match.begin == new_match.end &&
+      !matches->empty() &&
+      new_match.begin == matches->back().end) {
+    return;
+  }
+
   matches->push_back(new_match);
 }
 
