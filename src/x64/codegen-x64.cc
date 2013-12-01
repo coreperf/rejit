@@ -118,12 +118,93 @@ void Codegen::FlowTime() {
 }
 
 
-void Codegen::CheckTimeFlow() {
+void Codegen::TestTimeFlow() {
   // TODO: Use a loop instruction when the time summary is big.
   __ Move(scratch, 0);
   for (int offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
     __ or_(scratch, TimeSummary(offset));
   }
+}
+
+
+void Codegen::CheckTimeFlow(Direction direction,
+                            RegexpInfo *rinfo,
+                            MatchType match_type,
+                            Label *fast_forward,
+                            Label *exit,
+                            Label *limit) {
+  Label done;
+
+  if (match_type_ == kMatchFull) {
+    TestTimeFlow();
+    __ j(not_zero, &done);
+    __ Move(rax, 0);
+    __ jmp(unwind_and_return_);
+
+  } else {
+    // If the time is not flowing, there cannot be any matches and the control
+    // regexps have no effect.
+    if (!fast_forward) {
+      // When not using fast forward, the entry state must (usually) be set at every
+      // character of the input.
+      Label set_entry_state;
+
+      CheckMatch(direction, rinfo, match_type, fast_forward, limit);
+      __ cmpq(forward_match, Immediate(0));
+      __ j(zero, &set_entry_state);
+      if (match_type == kMatchAnywhere) {
+        __ Move(rax, 1);
+        __ jmp(unwind_and_return_);
+      } else if (match_type == kMatchFirst) {
+        __ Move(rax, 1);
+        TestTimeFlow();
+        __ j(zero, limit);
+      } else {  // kMatchAll
+        RegisterMatch(match_type, fast_forward);
+      }
+
+      __ bind(&set_entry_state);
+      SetStateForce(0, rinfo->entry_state());
+
+    } else {
+      TestTimeFlow();
+      __ j(not_zero, &done);
+
+      // Time is not flowing; do what needs to be done.
+
+      // TODO: Why do we need to check one character ahead?
+      // TODO: Can we do this only when forward?
+      __ movq(scratch, string_pointer);
+      __ incq(scratch);
+      __ cmpq(scratch, string_end);
+      __ j(above_equal, limit);
+
+      __ cmpq(direction == kBackward ? backward_match : forward_match,
+              Immediate(0));
+      __ j(zero, fast_forward);
+
+      if (match_type != kMatchAll) {
+        __ jmp(limit);
+
+      } else {  // kMatchAll
+        if (direction == kBackward) {
+          __ movq(string_pointer, backward_match);
+          __ movq(scratch2, ff_found_state);
+          SetStateForce(0, scratch2);
+          __ movq(string_pointer, ff_position);
+          __ jmp(exit);
+
+        } else {
+          RegisterMatch(match_type, fast_forward);
+          ClearAllTimes();
+          __ jmp(fast_forward);
+        }
+      }
+
+    }
+  }
+
+  __ bind(&done);
 }
 
 
@@ -135,7 +216,7 @@ void Codegen::Generate(RegexpInfo* rinfo,
   }
 
   Label unwind_and_return;
-  Label next_character, null_char;
+  unwind_and_return_ = &unwind_and_return;
 
   match_type_ = match_type;
 
@@ -217,8 +298,8 @@ void Codegen::Generate(RegexpInfo* rinfo,
   }
 
   // Unwind the stack and return.
-  __ cld();
   __ bind(&unwind_and_return);
+  __ cld();
   __ addq(rsp, Immediate(reserved_space));
   __ PopCalleeSavedRegisters();
   __ ret(0);
@@ -275,95 +356,78 @@ void Codegen::HandleControlRegexps(RegexpInfo* rinfo) {
 void Codegen::CheckMatch(Direction direction,
                             RegexpInfo* rinfo,
                             MatchType match_type,
-                            Label* limit,
-                            Label* exit) {
-  switch (match_type) {
-    case kMatchFull:
-      // Nothing to do here.
-      // For full matches exits are:
-      //  - when hitting the terminating '\0' or the beginning of the string.
-      //  - when time stops flowing.
-      break;
+                            Label* fast_forward,
+                            Label* limit) {
+  if (match_type == kMatchFull) {
+    // Nothing to do here.
+    // For full matches exits are:
+    //  - when hitting the terminating '\0' or the beginning of the string.
+    //  - when time stops flowing.
 
-    case kMatchAnywhere: {
-      // Early exit as soon as we find a match.
-      Label no_match;
+  } else {
+    Label no_match;
 
-      // TODO: This is wrong. backward matching should share most of the code
-      // for non match-full types.
-      // matchanywhere can only do this optimization of exiting early on
-      // backward if there is only one ff-element.
-      if (direction == kBackward) {
-        TestState(0, rinfo->entry_state());
-        __ j(zero, &no_match);
-
-        ClearAllTimes();
-        __ movq(scratch, ff_found_state);
-        SetStateForce(0, scratch);
-        __ movq(string_pointer, ff_position);
-        __ jmp(exit);
-
-        __ bind(&no_match);
-
-      } else {
-        __ movq(rax, Immediate(1));
-        TestState(0, rinfo->output_state());
-        __ j(not_zero, exit);
-      }
-
-      break;
-    }
-
-    case kMatchFirst: {
-      Label no_match;
-      // A match is not an exit situation, as longer matches may occur.
-      Operand remember_match = direction == kBackward ? backward_match
-        : forward_match;
-      int match_state =
-        direction == kBackward ? rinfo->entry_state() : rinfo->output_state();
-      TestState(0, match_state);
-      __ j(zero, &no_match);
-
-      __ movq(remember_match, string_pointer);
-
-      __ bind(&no_match);
-      break;
-    }
-
-    case kMatchAll: {
-      Label no_match;
-      // A match is not an exit situation, as longer matches may occur.
-      Operand remember_match = direction == kBackward ? backward_match
-        : forward_match;
-      int match_state =  direction == kBackward ? rinfo->entry_state()
-        : rinfo->output_state();
-
-      if (direction == kBackward) {
+    TestState(0, direction == kBackward ? rinfo->entry_state()
+                                        : rinfo->output_state());
+    __ j(zero, &no_match);
+    if (direction == kBackward) {
+      if (match_type == kMatchAll) {
         // A new match cannot start before the latest match finishes.
         __ cmpq(string_pointer, last_match_end);
         __ j(below, limit);
       }
+      // TODO: Potential optimisation for kMatchAnywhere. In some situations we
+      // could stop matching backward and jump back to fast-forward.
+      __ movq(backward_match, string_pointer);
 
-      TestState(0, match_state);
-      __ j(zero, &no_match);
+    } else {  // kForward
+      if (match_type == kMatchAnywhere) {
+        // As in other places this is assuming that we are matching backward
+        // first, and then forward.
+        __ Move(rax, 1);
+        __ jmp(unwind_and_return_);
+      } else {
+        if (!fast_forward && match_type == kMatchAll) {
+          // Check if we were still waiting for the time to stop to register a
+          // previous match.
+          Label no_unregistered_match;
+          __ cmpq(forward_match, Immediate(0));
+          __ j(zero, &no_unregistered_match);
+          // TODO: Add some debug code to verify that the thread for the
+          // previous match is not running any more.
+          __ movq(scratch1, StateOperand(0, rinfo->output_state()));
+          __ cmpq(scratch1, forward_match);
+          __ j(equal, &no_unregistered_match);
+          RegisterMatch(match_type, fast_forward);
 
-      __ movq(remember_match, string_pointer);
-
-      __ bind(&no_match);
-      break;
+          __ bind(&no_unregistered_match);
+        }
+        // A match is not an exit situation: a longer matches may occur.
+        __ movq(forward_match, string_pointer);
+        if (!fast_forward) {
+          __ movq(scratch1, StateOperand(0, rinfo->output_state()));
+          __ movq(backward_match, scratch1);
+          // We must clear more recent threads that are still running to avoid the
+          // older match to be overridden.
+          if (match_type == kMatchAll) {
+            ClearStates(scratch1, string_pointer);
+          } else {
+            ClearStates(scratch1);
+          }
+        }
+      }
     }
 
-    default:
-      UNREACHABLE();
+    __ bind(&no_match);
   }
 }
 
 
 void Codegen::GenerateMatchDirection(Direction direction,
-                                        RegexpInfo* rinfo,
-                                        MatchType match_type,
-                                        Label* fast_forward) {
-  Label next_character, advance, limit, exit;
+                                     RegexpInfo* rinfo,
+                                     MatchType match_type,
+                                     Label* fast_forward) {
+  Label next_character, limit, done_matching;
   vector<Regexp*>* gen_list = rinfo->gen_list();
   vector<Regexp*>::const_iterator it;
 
@@ -371,114 +435,15 @@ void Codegen::GenerateMatchDirection(Direction direction,
 
   __ bind(&next_character);
 
-  if (match_type != kMatchFull && !fast_forward) {
-    SetStateForce(0, rinfo->entry_state());
-  }
+  CheckTimeFlow(direction, rinfo, match_type, fast_forward, &done_matching, &limit);
 
   HandleControlRegexps(rinfo);
 
-  CheckMatch(direction, rinfo, match_type, &limit, &exit);
+  CheckMatch(direction, rinfo, match_type, fast_forward, &limit);
 
   __ cmpq(string_pointer, direction == kForward ? string_end : string_base);
   __ j(equal, &limit);
 
-  CheckTimeFlow();
-  switch (match_type_) {
-    case kMatchFull: {
-      Label cont;
-      __ j(not_zero, &cont);
-      __ Move(rax, 0);
-      __ jmp(&exit);
-      __ bind(&cont);
-      break;
-    }
-
-    case kMatchAnywhere:
-    case kMatchFirst:
-    case kMatchAll: {
-      if (fast_forward) {
-        Label keep_searching;
-        __ j(not_zero, &keep_searching);
-
-        // TODO: Same as other TODO below. Why do we need to check one character
-        // ahead??
-        __ movq(scratch, string_pointer);
-        __ incq(scratch);
-        __ cmpq(scratch, string_end);
-        __ j(above_equal, &limit);
-        //if (direction != kForward) {
-        //  // For forward matches this would be redundant with the check before
-        //  // CheckTimeFlow().
-        //  __ cmpq(string_pointer, string_end);
-        //  __ j(equal, &limit);
-        //}
-        //// TODO: Comment on this. Why do we need it?
-        ////        First test failing without this: line 115
-        //__ cmpb(next_char, Immediate(0));
-        //__ j(zero, &limit);
-
-        if (match_type == kMatchAnywhere) {
-          __ jmp(fast_forward);
-
-        } else if (match_type == kMatchFirst) {
-          Operand remembered_match =
-            direction == kBackward ? backward_match : forward_match;
-          __ cmpq(remembered_match, Immediate(0));
-          __ j(zero, fast_forward);
-          __ jmp(&limit);
-
-        } else {  // kMatchAll
-          Operand remembered_match = direction == kBackward ? backward_match
-            : forward_match;
-          __ cmpq(remembered_match, Immediate(0));
-          __ j(zero, fast_forward);
-
-
-          if (direction == kBackward) {
-            __ movq(string_pointer, backward_match);
-            __ movq(scratch2, ff_found_state);
-            SetStateForce(0, scratch2);
-            __ movq(string_pointer, ff_position);
-            __ jmp(&exit);
-
-          } else {
-            // TOTO(rames): Merge code with CheckMatch?
-            Register match = rdi;
-            __ movq(match, result_matches);
-            __ testq(match, match);
-            __ j(zero, &keep_searching);
-            __ movq(rdx, forward_match);
-            __ movq(last_match_end, rdx);
-            __ movq(rsi, backward_match);
-            __ movq(ff_position, rdx);
-            // We normally decrement the ff_position to account for the
-            // increment when entering ff.
-            // When the match has a length of zero, we need to artificially
-            // increment the ff_position to avoid matching at the same position
-            // again.
-            __ Move(scratch, 0);
-            __ cmpq(rdx, rsi);
-            __ setcc(not_equal, scratch);
-            // TODO: Correct for kCharSize.
-            __ subq(ff_position, scratch);
-            __ CallCpp(FUNCTION_ADDR(RegisterMatch));
-            ClearAllTimes();
-            __ jmp(fast_forward);
-          }
-        }
-        __ bind(&keep_searching);
-
-      } else {
-        // TODO(rames): Optimize.
-        // For now do nothing and run the slow case.
-      }
-
-      break;
-    }
-
-    default:
-      UNREACHABLE();
-  }
 
   // Generate code to match the regexps.
   // Skip regexps which entry state is unset.
@@ -510,7 +475,6 @@ void Codegen::GenerateMatchDirection(Direction direction,
   ClearTime(0);
 
 
-  __ bind(&advance);
   // Advance the string index.
   __ Move(scratch1, 0);
   Advance(1);
@@ -527,84 +491,46 @@ void Codegen::GenerateMatchDirection(Direction direction,
 
 
   __ bind(&limit);
+  // Time may still be flowing, but we have reached a point where execution must
+  // stop (sos, eos, or limit or previously found match).
   if (match_type == kMatchFull) {
     __ Move(rax, 0);
     TestState(0, rinfo->output_state());
     __ setcc(not_equal, rax);
-
-  } else if (match_type == kMatchAnywhere) {
-      ClearAllTimes();
-      __ Move(rax, 0);
-      __ movq(ff_found_state, Immediate(-1));
+    // Control will fall through to unwind_and_return.
 
   } else {
     if (direction == kForward) {
       __ Move(rax, 0);
       __ cmpq(forward_match, Immediate(0));
-      __ j(zero, &exit);
+      __ j(zero, &done_matching);
 
-      // We have a match!
+      // There is a match.
+      RegisterMatch(match_type, fast_forward);
       __ Move(rax, 1);
 
-      if (match_type == kMatchFirst) {
-        Register match = scratch3;
-        __ movq(match, result_matches);
-        __ testq(match, match);
-        __ j(zero, &exit);
-
-        __ movq(scratch1, backward_match);
-        __ movq(scratch2, forward_match);
-        __ movq(Operand(match, offsetof(Match, begin)), scratch1);
-        __ movq(Operand(match, offsetof(Match, end)),   scratch2);
-
-      } else {  // kMatchAll
-        Label keep_searching;
-        Register match = rdi;
-
-        // Register the match.
-        // rsi: exit start.
-        __ movq(match, result_matches);
-        __ testq(match, match);
-        __ j(zero, &keep_searching);
-        // TODO(rames): should the string pointer be rdx?
-        __ movq(rdx, forward_match);
-        __ movq(last_match_end, rdx);
-        __ movq(rsi, backward_match);
-        __ movq(ff_position, rdx);
-        __ Move(scratch, 0);
-        // Correct ff_position for matches of null lengths to avoid matching
-        // them again. This is fine because if there was any match of length
-        // greater than zero from there, it should have matched instead.
-        __ cmpq(rdx, rsi);
-        __ setcc(not_equal, scratch);
-        // TODO: Correct for kCharSize.
-        __ subq(ff_position, scratch);
-        __ CallCpp(FUNCTION_ADDR(RegisterMatch));
-        ClearAllTimes();
+      if (match_type == kMatchAll) {
         // If the ff_position is already at the eos, we should exit here.
-        // Continuing to ff would process past eos.
+        // Otherwise we reset the state ring and continue looking for matches.
         __ movq(scratch, ff_position);
         __ cmpq(scratch, string_end);
-        __ j(equal, &exit);
+        __ j(equal, &done_matching);
+        ClearAllTimes();
         if (fast_forward) {
           __ jmp(fast_forward);
         }
-
-        __ bind(&keep_searching);
       }
 
-
-    } else {
+    } else {  // kBackward
       Label match;
       ClearAllTimes();
       // Check if we found a match but were hoping to find a longer one.
       __ cmpq(backward_match, Immediate(0));
       __ j(not_zero, &match);
       __ movq(ff_found_state, Immediate(-1));
-      __ jmp(&exit);
+      __ jmp(&done_matching);
 
       __ bind(&match);
-      __ movb(rax, Immediate(1));
       __ movq(string_pointer, backward_match);
       __ movq(scratch2, ff_found_state);
       SetStateForce(0, scratch2);
@@ -612,7 +538,8 @@ void Codegen::GenerateMatchDirection(Direction direction,
     }
   }
 
-  __ bind(&exit);
+
+  __ bind(&done_matching);
 }
 
 
@@ -630,6 +557,59 @@ void Codegen::GenerateMatchBackward(RegexpInfo* rinfo,
 
 void Codegen::VisitEpsilon(Epsilon* epsilon) {
   DirectionSetOutputFromEntry(0, epsilon);
+}
+
+
+void Codegen::RegisterMatch(MatchType match_type, bool fast_forward) {
+  Label done;
+  switch (match_type) {
+    case kMatchFirst:
+    case kMatchAll: {
+      // rdi is required for the function call for kMatchAll.
+      Register match = match_type == kMatchAll ? rdi : scratch3;
+      __ movq(match, result_matches);
+      // TODO: This should only be necessary when benchtest is on.
+      __ testq(match, match);
+      __ j(zero, &done);
+
+      if (match_type == kMatchFirst) {
+        __ movq(scratch1, backward_match);
+        __ movq(Operand(match, offsetof(Match, begin)), scratch1);
+        __ movq(scratch2, forward_match);
+        __ movq(Operand(match, offsetof(Match, end)),   scratch2);
+
+      } else {  // kMatchAll
+        __ movq(rdx, forward_match);
+        __ movq(rsi, backward_match);
+        __ movq(last_match_end, rdx);
+        if (!fast_forward) {
+          __ CallCpp(FUNCTION_ADDR(MatchAllAppendFilter));
+        } else {
+          __ movq(ff_position, rdx);
+          __ Move(scratch, 0);
+          // Correct the ff_position for matches of null lengths to avoid matching
+          // them again. This is fine because if there was any match of length
+          // greater than zero from there, it should have matched instead.
+          __ cmpq(rdx, rsi);
+          __ setcc(not_equal, scratch);
+          // TODO: Correct for kCharSize.
+          __ subq(ff_position, scratch);
+          __ CallCpp(FUNCTION_ADDR(MatchAllAppendRaw));
+        }
+      }
+
+      __ movq(backward_match, Immediate(0));
+      __ movq(forward_match,  Immediate(0));
+      break;
+    }
+    case kMatchAnywhere:
+      // There is nothing to register.
+      __ movq(backward_match, Immediate(0));
+      break;
+    default:
+      UNREACHABLE();
+  }
+  __ bind(&done);
 }
 
 
@@ -1030,6 +1010,31 @@ void Codegen::ClearAllTimes() {
   for (offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
     __ movq(TimeSummary(offset), Immediate(0));
   }
+}
+
+
+void Codegen::ClearStates(Register begin, Register end) {
+  ASSERT(!begin.is(scratch2) && !begin.is(scratch3));
+  ASSERT(!end.is(scratch2) && !end.is(scratch3));
+  // TODO: Use a loop instruction.
+  // TODO: Use better code when the state ring is small.
+  Label loop, done;
+  __ lea(scratch2, Operand(StateRingBase(), -kPointerSize));
+  __ lea(scratch3, Operand(StateRingBase(), state_ring_size()));
+
+  __ bind (&loop);
+  __ addq(scratch2, Immediate(kPointerSize));
+  __ cmpq(scratch2, scratch3);
+  __ j(equal, &done);
+  __ cmpq(begin, Operand(scratch2, 0));
+  __ j(above_equal, &loop);
+  if (!end.is(no_reg)) {
+    __ cmpq(end, Operand(scratch2, 0));
+    __ j(below_equal, &loop);
+  }
+  __ movq(Operand(scratch2, 0), Immediate(0));
+  __ jmp(&loop);
+  __ bind(&done);
 }
 
 

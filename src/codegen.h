@@ -19,8 +19,13 @@
 namespace rejit {
 namespace internal {
 
-// Called from the generated code to register a match.
-void RegisterMatch(vector<Match>* matches, Match new_match);
+// Called from the generated code to register matches.
+
+// Simply push a match with no further check.
+void MatchAllAppendRaw(vector<Match>* matches, Match new_match);
+// Push a match and delete any previously registered matches rendered invalid by
+// the new match.
+void MatchAllAppendFilter(vector<Match>* matches, Match new_match);
 
 
 // A simple regexp visitor, which walks the tree and assigns entry and ouput
@@ -162,8 +167,8 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   void CheckMatch(Direction direction,
                   RegexpInfo* rinfo,
                   MatchType match_type,
-                  Label* limit,
-                  Label* match);
+                  Label* fast_forward,
+                  Label* limit);
 
   void GenerateMatchDirection(Direction direction,
                               RegexpInfo* rinfo,
@@ -177,6 +182,8 @@ class Codegen : public PhysicalRegexpVisitor<void> {
                                    Label* fast_forward = NULL) {
     GenerateMatchDirection(kForward, rinfo, match_type, fast_forward);
   }
+
+  void RegisterMatch(MatchType match_type, bool fast_forward);
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual void Visit##RegexpType(RegexpType* r);
@@ -207,6 +214,8 @@ class Codegen : public PhysicalRegexpVisitor<void> {
 
   void ClearTime(int time);
   void ClearAllTimes();
+  void ClearStates(Register begin, Register end = no_reg);
+
   int TimeSummaryBaseOffsetFromFrame();
   Operand TimeSummaryOperand(int time);
   Operand TimeSummary(int offset);
@@ -215,7 +224,13 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   int StateRingBaseOffsetFromFrame();
 
   void FlowTime();
-  void CheckTimeFlow();
+  void TestTimeFlow();
+  void CheckTimeFlow(Direction direction,
+                     RegexpInfo *rinfo,
+                     MatchType match_type,
+                     Label *fast_forward,
+                     Label *exit,
+                     Label *limit);
 
 
   // Accessors.
@@ -245,6 +260,7 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   Operand ring_base_;
 
   Direction direction_;
+  Label *unwind_and_return_;
 };
 
 

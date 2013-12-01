@@ -20,19 +20,56 @@ namespace rejit {
 namespace internal {
 
 
-void RegisterMatch(vector<Match>* matches, Match new_match) {
-  // The current codegen ensures that the match registered is valid. We can just
-  // push it.
-  matches->push_back(new_match);
-
-  if (FLAG_trace_match_all) {
-    printf("Found match: (start %p - end %p) ", new_match.begin, new_match.end);
-    const char* c = new_match.begin;
-    while (c < new_match.end) {
+static void print_match(Match m) {
+    const char* c = m.begin;
+    printf("match (start %p - end %p) (text matched: ", m.begin, m.end);
+    while (c < m.end) {
       printf("%c", *c++);
     }
+    printf(")");
+}
+
+
+static void MatchAllAppend(vector<Match>* matches, Match new_match, bool filter) {
+  // The matches in the vector must be disjoint and in increasing order.
+  // This also assumes that no matches finishing after the new match have been
+  // registered already.
+
+  if (FLAG_trace_match_all) {
+    printf("Found: ");
+    print_match(new_match);
     printf("\n");
   }
+
+  if (filter && matches->size()) {
+    vector<Match>::iterator it;
+    for (it = matches->end() - 1;
+         it >= matches->begin() && (*it).begin >= new_match.begin;
+         --it) {}
+    // Point to where the next match should be inserted.
+    ++it;
+    if (FLAG_trace_match_all && it != matches->end()) {
+      printf("Deleting %ld previously registered matches:",
+             distance(it, matches->end()));
+      for (; it < matches->end(); ++it) {
+        print_match(*it);
+        printf("\n");
+      }
+    }
+    matches->erase(it, matches->end());
+  }
+
+  matches->push_back(new_match);
+}
+
+void MatchAllAppendRaw(vector<Match>* matches, Match new_match) {
+  // The generated code has ensured that the match registred is valid.
+  MatchAllAppend(matches, new_match, false);
+}
+
+
+void MatchAllAppendFilter(vector<Match>* matches, Match new_match) {
+  MatchAllAppend(matches, new_match, true);
 }
 
 
