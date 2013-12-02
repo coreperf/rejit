@@ -154,36 +154,30 @@ class Codegen : public PhysicalRegexpVisitor<void> {
  public:
   Codegen();
 
-  // TODO: Remove the local match_type or remove it from the function
-  // prototypes. Do the same for fast_forward and others.
   VirtualMemory* Compile(RegexpInfo* rinfo, MatchType match_type);
 
-  void Generate(RegexpInfo* rinfo, MatchType match_type);
+  void Generate();
 
-  bool GenerateFastForward(RegexpInfo* rinfo, MatchType match_type);
+  void FlowTime();
+  void TestTimeFlow();
+  void CheckTimeFlow(Direction direction,
+                     Label *fast_forward,
+                     Label *exit,
+                     Label *limit);
 
-  void HandleControlRegexps(RegexpInfo* rinfo);
+  bool GenerateFastForward();
+  void HandleControlRegexps();
 
-  void CheckMatch(Direction direction,
-                  RegexpInfo* rinfo,
-                  MatchType match_type,
-                  Label* fast_forward,
-                  Label* limit);
+  void CheckMatch(Direction direction, Label* fast_forward, Label* limit);
+  void RegisterMatch(bool fast_forward);
 
-  void GenerateMatchDirection(Direction direction,
-                              RegexpInfo* rinfo,
-                              MatchType match_type,
-                              Label* fast_forward = NULL);
-  void GenerateMatchBackward(RegexpInfo* rinfo,
-                             MatchType match_type,
-                             Label* fast_forward = NULL);
-  inline void GenerateMatchForward(RegexpInfo* rinfo,
-                                   MatchType match_type,
-                                   Label* fast_forward = NULL) {
-    GenerateMatchDirection(kForward, rinfo, match_type, fast_forward);
+  void set_direction(Direction dir);
+
+  void GenerateMatchDirection(Direction direction, Label* fast_forward);
+  void GenerateMatchBackward(Label* fast_forward);
+  inline void GenerateMatchForward(Label* fast_forward) {
+    GenerateMatchDirection(kForward, fast_forward);
   }
-
-  void RegisterMatch(MatchType match_type, bool fast_forward);
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual void Visit##RegexpType(RegexpType* r);
@@ -200,16 +194,14 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   void SetStateForce(int target_time, int target_index);
   void SetStateForce(int target_time, Register target_index);
 
-  // Direction helpers.
-  void DirectionTestEntryState(int time, Regexp* regexp);
   void DirectionSetOutputFromEntry(int time, Regexp* regexp);
 
   // Only use if certain that the access will not overflow the ring_state.
   // Typically with time == 0.
   Operand StateOperand(int time, int state_index);
   Operand StateOperand(int time, Register state_index);
-  Operand StateOperand(Register offset);
   void ComputeStateOperandOffset(Register offset, int time, int index);
+  Operand StateOperand(Register offset);
 
 
   void ClearTime(int time);
@@ -223,32 +215,21 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   Operand StateRingBase();
   int StateRingBaseOffsetFromFrame();
 
-  void FlowTime();
-  void TestTimeFlow();
-  void CheckTimeFlow(Direction direction,
-                     RegexpInfo *rinfo,
-                     MatchType match_type,
-                     Label *fast_forward,
-                     Label *exit,
-                     Label *limit);
-
-
   // Accessors.
-  MacroAssembler* masm() const { return masm_; }
+  MacroAssembler *masm() const { return masm_; }
+  RegexpInfo *rinfo() const { return rinfo_; }
   MatchType match_type() const { return match_type_; }
-  bool ff_pre_scan() const { return false && ff_pre_scan_; }
+  Direction direction() const { return direction_; }
   int state_ring_time_size() const { return state_ring_time_size_; }
   int state_ring_times() const { return state_ring_times_; }
   int state_ring_size() const { return state_ring_size_; }
   int time_summary_size() const { return time_summary_size_; }
-  Direction direction() const { return direction_; }
-
-  void set_direction(Direction dir);
 
  private:
-  MacroAssembler* masm_;
+  MacroAssembler *masm_;
+  RegexpInfo *rinfo_;
   MatchType match_type_;
-  bool ff_pre_scan_;
+  Direction direction_;
 
   // The size in bytes of a time of the ring state.
   int state_ring_time_size_;
@@ -259,11 +240,11 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   int time_summary_size_;
   Operand ring_base_;
 
-  Direction direction_;
   Label *unwind_and_return_;
 };
 
 
+// Walks the tree to find what regexps can be used as fast-forward elements.
 class FastForwardGen : public PhysicalRegexpVisitor<void> {
  public:
   FastForwardGen(Codegen* codegen, vector<Regexp*>* list) :

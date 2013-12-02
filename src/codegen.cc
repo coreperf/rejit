@@ -375,23 +375,26 @@ int FF_finder::ff_cmp(size_t i1,
 // Codegen ---------------------------------------------------------------------
 
 VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
-  Regexp* root = rinfo->regexp();
-  RegexpIndexer indexer(rinfo);
+  rinfo_ = rinfo;
+  match_type_ = match_type;
+
+  Regexp* root = rinfo_->regexp();
+  RegexpIndexer indexer(rinfo_);
   indexer.Index(root);
   if (FLAG_print_re_tree) {
     cout << "Regexp tree --------------------------------{{{" << endl;
     Indent(cout) << *root << endl;
     cout << "}}}------------------------- End of regexp tree" << endl;
   }
-  RegexpLister lister(rinfo, rinfo->gen_list());
+  RegexpLister lister(rinfo_, rinfo_->gen_list());
   lister.Visit(root);
 
-  int n_states = rinfo->last_state() + 1;
+  int n_states = rinfo_->last_state() + 1;
 
   // Align size with cache line size?
   state_ring_time_size_ = kPointerSize * n_states;
 
-  state_ring_times_ = 1 + min(rinfo->regexp_max_length(), kMaxNodeLength);
+  state_ring_times_ = 1 + min(rinfo_->regexp_max_length(), kMaxNodeLength);
 
   state_ring_size_ = state_ring_time_size_ * state_ring_times_;
 
@@ -417,8 +420,9 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   }
 
 
-  Generate(rinfo, match_type);
+  Generate();
 
+  rinfo_ = NULL;
   return masm_->GetCode();
 }
 
