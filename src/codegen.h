@@ -161,22 +161,21 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   void FlowTime();
   void TestTimeFlow();
   void CheckTimeFlow(Direction direction,
-                     Label *fast_forward,
                      Label *exit,
                      Label *limit);
 
   bool GenerateFastForward();
   void HandleControlRegexps();
 
-  void CheckMatch(Direction direction, Label* fast_forward, Label* limit);
-  void RegisterMatch(bool fast_forward);
+  void CheckMatch(Direction direction, Label* limit);
+  void RegisterMatch();
 
   void set_direction(Direction dir);
 
-  void GenerateMatchDirection(Direction direction, Label* fast_forward);
-  void GenerateMatchBackward(Label* fast_forward);
-  inline void GenerateMatchForward(Label* fast_forward) {
-    GenerateMatchDirection(kForward, fast_forward);
+  void GenerateMatchDirection(Direction direction);
+  void GenerateMatchBackward();
+  inline void GenerateMatchForward() {
+    GenerateMatchDirection(kForward);
   }
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
@@ -243,6 +242,7 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   int time_summary_size_;
   Operand ring_base_;
 
+  Label *fast_forward_;
   Label *unwind_and_return_;
 };
 
