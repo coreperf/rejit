@@ -240,13 +240,9 @@ void Codegen::CheckTimeFlow(Direction direction,
     // If the time is not flowing, there cannot be any matches and the control
     // regexps have no effect.
     if (!fast_forward_) {
-      // When not using fast forward, the entry state must (usually) be set at every
-      // character of the input.
-      Label set_entry_state;
-
-      CheckMatch(direction, limit);
+      Label done;
       __ cmpq(forward_match, Immediate(0));
-      __ j(zero, &set_entry_state);
+      __ j(zero, &done);
       if (match_type_ == kMatchAnywhere) {
         __ Move(rax, 1);
         __ jmp(unwind_and_return_);
@@ -258,8 +254,7 @@ void Codegen::CheckTimeFlow(Direction direction,
         RegisterMatch();
       }
 
-      __ bind(&set_entry_state);
-      SetStateForce(0, rinfo_->entry_state());
+      __ bind(&done);
 
     } else {
       TestTimeFlow();
@@ -369,6 +364,7 @@ void Codegen::CheckMatch(Direction direction,
     TestState(0, direction == kBackward ? rinfo_->entry_state()
                                         : rinfo_->output_state());
     __ j(zero, &no_match);
+
     if (direction == kBackward) {
       if (match_type_ == kMatchAll) {
         // A new match cannot start before the latest match finishes.
@@ -403,7 +399,7 @@ void Codegen::CheckMatch(Direction direction,
         }
         // A match is not an exit situation: a longer matches may occur.
         __ movq(forward_match, string_pointer);
-        if (!fast_forward_) {
+        if (!fast_forward_ || direction == kForward) {
           __ movq(scratch1, StateOperand(0, rinfo_->output_state()));
           __ movq(backward_match, scratch1);
           // We must clear more recent threads that are still running to avoid the
@@ -456,7 +452,7 @@ void Codegen::RegisterMatch() {
           __ setcc(not_equal, scratch);
           // TODO: Correct for kCharSize.
           __ subq(ff_position, scratch);
-          __ CallCpp(FUNCTION_ADDR(MatchAllAppendRaw));
+          __ CallCpp(FUNCTION_ADDR(MatchAllAppendFilter));
         }
       }
 
@@ -496,6 +492,18 @@ void Codegen::GenerateMatchDirection(Direction direction) {
 
   CheckTimeFlow(direction, &done_matching, &limit);
 
+  if (match_type_ != kMatchFull && direction == kForward) {
+    Label done;
+    if (fast_forward_) {
+      __ cmpq(string_pointer, ff_position);
+      __ j(above, &done);
+      __ cmpq(forward_match, Immediate(0));
+      __ j(above, &done);
+    }
+    SetStateForce(0, rinfo_->entry_state());
+    __ bind(&done);
+  }
+
   HandleControlRegexps();
 
   CheckMatch(direction, &limit);
@@ -530,6 +538,7 @@ void Codegen::GenerateMatchDirection(Direction direction) {
     Visit(*it);
   }
   __ bind(&skip);
+
 
   ClearTime(0);
 
