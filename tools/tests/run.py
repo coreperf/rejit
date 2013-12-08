@@ -70,10 +70,15 @@ else:
 # Build and run tests in all modes.
 # The automated tests test both with SIMD enabled and disabled for maximum
 # coverage.
+testing_str = "Testing ("
+testing_str += "mode={:<" + str(max(map(lambda s: len(s), build_modes))) + "}, " 
+testing_str += "simd={:<" + str(max(map(lambda s: len(s), simd_modes)) )+ "}, " 
+testing_str += "use_fast_forward={:<" + str(max(map(lambda s: len(s), use_fast_forward_modes))) + "}" 
+testing_str += ")...\t"
 for mode in build_modes:
   for simd_enabled in simd_modes:
     for ff_enabled in use_fast_forward_modes:
-      print "Testing (mode=%s,\tsimd=%s,\tuse_fast_forward=%s)...\t" % (mode, simd_enabled, ff_enabled),
+      print testing_str.format(mode, simd_enabled, ff_enabled),
       sys.stdout.flush()  # Flush early to tell the user something is running.
       scons_command = ["scons", "-C", dir_rejit, 'test-rejit', '-j', str(args.jobs),
           "benchtest=on", "modifiable_flags=on", "mode=%s" % mode, "simd=%s" % simd_enabled]

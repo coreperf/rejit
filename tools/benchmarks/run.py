@@ -336,6 +336,7 @@ benchmarks = [
     Benchmark("(12345678|abcdefghijkl)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(12345678|xyz)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(abcd--|abcd____)"),
+    Benchmark("(...abcd.|.abcd.)"),
     ]
 
 
