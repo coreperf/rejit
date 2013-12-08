@@ -193,6 +193,9 @@ class Codegen : public PhysicalRegexpVisitor<void> {
   // Set target state with the current string_pointer as the match source.
   void SetStateForce(int target_time, int target_index);
   void SetStateForce(int target_time, Register target_index);
+  void SetEntryStates(vector<Regexp*> *re_list);
+
+  void RestoreFFFoundStates();
 
   void DirectionSetOutputFromEntry(int time, Regexp* regexp);
 

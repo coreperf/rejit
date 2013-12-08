@@ -278,10 +278,15 @@ void Codegen::CheckTimeFlow(Direction direction,
 
       } else {  // kMatchAll
         if (direction == kBackward) {
-          __ movq(string_pointer, backward_match);
-          __ movq(scratch2, ff_found_state);
-          SetStateForce(0, scratch2);
-          __ movq(string_pointer, ff_position);
+          if (!rinfo_->ff_requires_full_forward_matching()) {
+            __ movq(string_pointer, backward_match);
+            __ movq(scratch2, ff_found_state);
+            SetStateForce(0, scratch2);
+            __ movq(string_pointer, ff_position);
+          } else {
+            __ movq(string_pointer, backward_match);
+            SetStateForce(0, rinfo_->entry_state());
+          }
           __ jmp(exit);
 
         } else {
@@ -577,14 +582,21 @@ void Codegen::GenerateMatchDirection(Direction direction, Label* fast_forward) {
       // Check if we found a match but were hoping to find a longer one.
       __ cmpq(backward_match, Immediate(0));
       __ j(not_zero, &match);
-      __ movq(ff_found_state, Immediate(-1));
+      if (!rinfo_->ff_requires_full_forward_matching()) {
+        __ movq(ff_found_state, Immediate(-1));
+      }
       __ jmp(&done_matching);
 
       __ bind(&match);
-      __ movq(string_pointer, backward_match);
-      __ movq(scratch2, ff_found_state);
-      SetStateForce(0, scratch2);
-      __ movq(string_pointer, ff_position);
+      if (!rinfo_->ff_requires_full_forward_matching()) {
+        __ movq(string_pointer, backward_match);
+        __ movq(scratch2, ff_found_state);
+        SetStateForce(0, scratch2);
+        __ movq(string_pointer, ff_position);
+      } else {
+        __ movq(string_pointer, backward_match);
+        SetStateForce(0, rinfo_->entry_state());
+      }
     }
   }
 
@@ -949,6 +961,19 @@ void Codegen::SetStateForce(int target_time, Register target_index) {
 }
 
 
+void Codegen::SetEntryStates(vector<Regexp*> *re_list) {
+  for (Regexp* re : *re_list) {
+    SetStateForce(0, re->entry_state());
+  }
+}
+
+
+void Codegen::RestoreFFFoundStates() {
+  __ movq(scratch2, ff_found_state);
+  SetStateForce(0, scratch2);
+}
+
+
 void Codegen::DirectionSetOutputFromEntry(int time, Regexp* regexp) {
   if (direction() == kForward) {
     SetState(time, regexp->output_state(), regexp->entry_state());
@@ -1199,6 +1224,9 @@ void FastForwardGen::Generate() {
     __ j(not_equal, &loop);
 
     __ bind(&potential_match);
+    if (codegen_->rinfo()->ff_requires_full_forward_matching()) {
+      codegen_->SetEntryStates(regexp_list_);
+    }
     __ bind(&exit);
   }
 }
@@ -1619,7 +1647,11 @@ void FastForwardGen::VisitSingleEpsilon(Epsilon* epsilon) {
 void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   MatchMultipleChar(masm_, kForward, mc, false, &no_match);
-  FoundState(0, mc->entry_state());
+  if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
+    FoundState(0, mc->entry_state());
+  } else {
+    codegen_->SetEntryStates(regexp_list_);
+  }
   __ jmp(potential_match_);
   __ bind(&no_match);
 }
@@ -1633,7 +1665,11 @@ void FastForwardGen::VisitPeriod(Period* period) {
   __ j(equal, &no_match);
   __ cmpb(current_char, Immediate('\r'));
   __ j(equal, &no_match);
-  FoundState(0, period->entry_state());
+  if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
+    FoundState(0, period->entry_state());
+  } else {
+    codegen_->SetEntryStates(regexp_list_);
+  }
   __ jmp(potential_match_);
   __ bind(&no_match);
 }
@@ -1651,7 +1687,11 @@ void FastForwardGen::VisitBracket(Bracket* bracket) {
   }
 
   __ bind(&maybe_match);
-  FoundState(0, bracket->entry_state());
+  if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
+    FoundState(0, bracket->entry_state());
+  } else {
+    codegen_->SetEntryStates(regexp_list_);
+  }
   __ jmp(potential_match_);
   __ bind(&no_match);
 }
@@ -1666,7 +1706,11 @@ void FastForwardGen::VisitStartOfLine(StartOfLine* sol) {
   __ j(above, &no_match);
 
   __ bind(&maybe_match);
-  FoundState(0, sol->entry_state());
+  if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
+    FoundState(0, sol->entry_state());
+  } else {
+    codegen_->SetEntryStates(regexp_list_);
+  }
   __ jmp(potential_match_);
   __ bind(&no_match);
 }
@@ -1680,7 +1724,11 @@ void FastForwardGen::VisitEndOfLine(EndOfLine* eol) {
   __ cmpb(current_char, Immediate('\r'));
   __ j(above, &no_match);
   __ bind(&maybe_match);
-  FoundState(0, eol->entry_state());
+  if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
+    FoundState(0, eol->entry_state());
+  } else {
+    codegen_->SetEntryStates(regexp_list_);
+  }
   __ jmp(potential_match_);
   __ bind(&no_match);
 }

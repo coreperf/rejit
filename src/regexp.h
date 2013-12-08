@@ -518,6 +518,12 @@ class RegexpInfo {
     regexp_max_length_ = max(regexp_max_length_,  regexp->MatchLength());
   }
 
+  inline bool ff_requires_full_forward_matching() {
+    // TODO: Eventually this can be improved. This is for example not required
+    // if the fast-forward eleements cannot match simultaneously.
+    return ff_list_.size() > 1;
+  }
+
 
   // Accessors.
   int entry_state() const { return entry_state_; }
