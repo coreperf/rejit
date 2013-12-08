@@ -237,12 +237,11 @@ void Codegen::CheckTimeFlow(Direction direction,
     __ jmp(unwind_and_return_);
 
   } else {
-    // If the time is not flowing, there cannot be any matches and the control
-    // regexps have no effect.
     if (!fast_forward_) {
       Label done;
       __ cmpq(forward_match, Immediate(0));
       __ j(zero, &done);
+
       if (match_type_ == kMatchAnywhere) {
         __ Move(rax, 1);
         __ jmp(unwind_and_return_);
@@ -260,10 +259,7 @@ void Codegen::CheckTimeFlow(Direction direction,
       TestTimeFlow();
       __ j(not_zero, &done);
 
-      // Time is not flowing; do what needs to be done.
-
       // TODO: Why do we need to check one character ahead?
-      // TODO: Can we do this only when forward?
       __ movq(scratch, string_pointer);
       __ incq(scratch);
       __ cmpq(scratch, string_end);
@@ -483,8 +479,6 @@ void Codegen::set_direction(Direction dir) {
 
 void Codegen::GenerateMatchDirection(Direction direction) {
   Label next_character, limit, done_matching;
-  vector<Regexp*>* gen_list = rinfo_->gen_list();
-  vector<Regexp*>::const_iterator it;
 
   set_direction(direction);
 
@@ -511,34 +505,7 @@ void Codegen::GenerateMatchDirection(Direction direction) {
   __ cmpq(string_pointer, direction == kForward ? string_end : string_base);
   __ j(equal, &limit);
 
-
-  // Generate code to match the regexps.
-  // Skip regexps which entry state is unset.
-  if (direction == kForward) {
-    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_entry_state);
-  } else {
-    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_output_state);
-  }
-  Label skip;
-  int current_state = -1;
-  for (it = gen_list->begin(); it < gen_list->end(); it++) {
-    if ((*it)->IsControlRegexp()) {
-      continue;
-    }
-    if ((direction == kForward && (*it)->entry_state() != current_state) ||
-        (direction == kBackward && (*it)->output_state() != current_state)) {
-      __ bind(&skip);
-      skip.Unuse();
-      current_state =
-        direction == kForward ? (*it)->entry_state() : (*it)->output_state();
-      TestState(0, current_state);
-      __ j(zero, &skip);
-    }
-    // Control regexps are handled in HandleControlRegexps().
-    Visit(*it);
-  }
-  __ bind(&skip);
-
+  GenerateTransitions(direction);
 
   ClearTime(0);
 
@@ -625,6 +592,37 @@ void Codegen::GenerateMatchBackward() {
   } else {
     GenerateMatchDirection(kBackward);
   }
+}
+
+
+void Codegen::GenerateTransitions(Direction direction) {
+  vector<Regexp*>::const_iterator it;
+  vector<Regexp*>* gen_list = rinfo_->gen_list();
+
+  if (direction == kForward) {
+    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_entry_state);
+  } else {
+    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_output_state);
+  }
+  Label skip;
+  int current_state = -1;
+  for (it = gen_list->begin(); it < gen_list->end(); it++) {
+    if ((*it)->IsControlRegexp()) {
+      continue;
+    }
+    if ((direction == kForward && (*it)->entry_state() != current_state) ||
+        (direction == kBackward && (*it)->output_state() != current_state)) {
+      __ bind(&skip);
+      skip.Unuse();
+      current_state =
+        direction == kForward ? (*it)->entry_state() : (*it)->output_state();
+      TestState(0, current_state);
+      __ j(zero, &skip);
+    }
+    // Control regexps are handled in HandleControlRegexps().
+    Visit(*it);
+  }
+  __ bind(&skip);
 }
 
 

@@ -178,6 +178,8 @@ class Codegen : public PhysicalRegexpVisitor<void> {
     GenerateMatchDirection(kForward);
   }
 
+  void GenerateTransitions(Direction direction);
+
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual void Visit##RegexpType(RegexpType* r);
   LIST_PHYSICAL_REGEXP_TYPES(DECLARE_REGEXP_VISITORS)
