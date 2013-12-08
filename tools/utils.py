@@ -87,7 +87,7 @@ def command_assert(command, failure_message = None, cwd_ = None):
   rc = p.wait()
   if rc != 0:
     if failure_message:
-      error_message(failure_message, rc)
+      error_message(failure_message)
     error("Failed command: %s" % ' '.join(command))
 
 
