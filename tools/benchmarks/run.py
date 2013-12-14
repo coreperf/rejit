@@ -126,7 +126,8 @@ rejit_description = '''
 Run rejit benchmarks.
 Once run, you can find html graphs of the results in <rejit>/html/rejit.html.'''
 
-parser = argparse.ArgumentParser(description=rejit_description)
+parser = argparse.ArgumentParser(description=rejit_description,
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('--engines', action='store', nargs='+',
                     choices=engines_names, default=engines_names,

@@ -28,7 +28,8 @@ while 'SConstruct' not in os.listdir(dir_rejit):
 sys.path.insert(0, join(dir_rejit, 'tools'))
 import utils
 
-parser = argparse.ArgumentParser(description='Run rejit tests.')
+parser = argparse.ArgumentParser(description='Run rejit tests.',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-j', '--jobs', type=int, action='store',
                     default=1, 
                     help='Number of jobs to run simultaneously for the *build* commands')
