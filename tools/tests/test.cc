@@ -406,6 +406,13 @@ int RunTest(struct arguments *arguments) {
   TEST(kMatchAll, 5, "(^|$|[x])", "xxx_x_");
   TEST(kMatchAll, 5, "(^|$|[x])", "_xxx_x");
   TEST(kMatchAll, 4, "(^|$|[x])", "xxx_x");
+  TEST_First(1, "(.a|a)", "_a_", 0, 2);
+  TEST_First(1, "(a|.a)", "_a_", 0, 2);
+  TEST_First(1, "(a|.a.)", "_a_", 0, 3);
+  TEST_First(1, "(...a|a)", "123a123", 0, 4);
+  TEST_First(0, "(....a|a....)", "123a123", 0, 0);
+  TEST_First(1, "(.a.|.......a...)", "0123456789a0123456789", 3, 14);
+  TEST(kMatchAll, 1, "(.a.|.......a...)", "____a__a__a__________");
   TEST_First(1, "(..ab.|.ab.)", "__ab__", 0, 5);
   TEST_First(1, "(.ab.|..ab.)", "__ab__", 0, 5);
   TEST_First(1, ".(..ab.|.ab.).", "___ab___", 0, 7);
