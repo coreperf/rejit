@@ -301,7 +301,7 @@ void Codegen::CheckTimeFlow(Direction direction,
 
 bool Codegen::GenerateFastForward() {
   vector<Regexp*>* fflist = rinfo_->ff_list();
-  FF_finder fff(rinfo_->regexp(), fflist);
+  FF_finder fff(rinfo_);
   bool ff_success = fff.Visit(rinfo_->regexp());
 
   if (FLAG_print_ff_elements) {

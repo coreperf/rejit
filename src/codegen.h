@@ -114,8 +114,10 @@ class RegexpLister : public RealRegexpVisitor<void> {
 // Walks the regexp tree to find the regexps to use as fast forward elements.
 class FF_finder : public RealRegexpVisitor<bool> {
  public:
-  FF_finder(Regexp* root, vector<Regexp*>* regexp_list) :
-    root_(root), regexp_list_(regexp_list) {}
+  FF_finder(RegexpInfo *rinfo) :
+    rinfo_(rinfo) {
+      regexp_list_ = rinfo_->ff_list();
+    }
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   virtual bool Visit##RegexpType(RegexpType* r);
@@ -144,7 +146,7 @@ class FF_finder : public RealRegexpVisitor<bool> {
              size_t i3);
 
  private:
-  Regexp* root_;
+  RegexpInfo *rinfo_;
   vector<Regexp*>* regexp_list_;
   DISALLOW_COPY_AND_ASSIGN(FF_finder);
 };
