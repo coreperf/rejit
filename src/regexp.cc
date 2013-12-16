@@ -128,7 +128,7 @@ ostream& Concatenation::OutputToIOStream(ostream& stream) const {  // NOLINT
   { IndentScope is(2);
     vector<Regexp*>::const_iterator it;
     for (it = sub_regexps_.begin(); it < sub_regexps_.end(); it++) {
-      stream << **it << endl;
+      Indent(stream) << **it << endl;
     }
   }
   Indent(stream) << "]";
