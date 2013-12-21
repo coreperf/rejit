@@ -73,7 +73,7 @@ class Engine:
         self.exec_path,
         benchmark.regexp(self.syntax),
         '--iterations=' + str(args.iterations),
-        '--size=' + ','.join(map(lambda x: str(x), sizes)),
+        '--size=' + ','.join(map(str, sizes)),
         '--low_char=' + benchmark.low_char,
         '--high_char=' + benchmark.high_char
         ]
@@ -82,7 +82,7 @@ class Engine:
         self.exec_path,
         '"' + benchmark.regexp(self.syntax) + '"',
         '--iterations=' + str(args.iterations),
-        '--size=' + ','.join(map(lambda x: str(x), sizes)),
+        '--size=' + ','.join(map(str, sizes)),
         '--low_char=' + benchmark.low_char,
         '--high_char=' + benchmark.high_char
         ]

@@ -31,7 +31,7 @@ import utils
 parser = argparse.ArgumentParser(description='Run rejit tests.',
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-j', '--jobs', type=int, action='store',
-                    default=1, 
+                    default=1,
                     help='Number of jobs to run simultaneously for the *build* commands')
 parser.add_argument('--mode', choices=utils.build_options_modes + ['both'], action='store',
                     default='both',
@@ -80,10 +80,10 @@ else:
 # The automated tests test both with SIMD enabled and disabled for maximum
 # coverage.
 testing_str = "Testing ("
-testing_str += "mode={:<" + str(max(map(lambda s: len(s), build_modes))) + "}, " 
-testing_str += "simd={:<" + str(max(map(lambda s: len(s), simd_modes)) )+ "}, " 
-testing_str += "use_fast_forward={:<" + str(max(map(lambda s: len(s), use_fast_forward_modes))) + "}, " 
-testing_str += "use_ff_reduce={:<" + str(max(map(lambda s: len(s), use_ff_reduce_modes))) + "}" 
+testing_str += "mode={:<" + str(max(map(len, build_modes))) + "}, "
+testing_str += "simd={:<" + str(max(map(len, simd_modes)) )+ "}, "
+testing_str += "use_fast_forward={:<" + str(max(map(len, use_fast_forward_modes))) + "}, "
+testing_str += "use_ff_reduce={:<" + str(max(map(len, use_ff_reduce_modes))) + "}"
 testing_str += ")...\t"
 for mode in build_modes:
   for simd_enabled in simd_modes:
