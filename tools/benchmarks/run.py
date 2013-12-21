@@ -54,7 +54,9 @@ def default_commit_id():
 
 class Engine:
   def __init__(self, name, exec_path, syntax,
-               commit_id = default_commit_id):
+               commit_id = default_commit_id,
+               args_list_separator=',',
+               args_list_assign_char='='):
     self.name = name
 
     self.exec_path = exec_path
@@ -64,6 +66,8 @@ class Engine:
       utils.error("ERROR: Invalid syntax '%s'" % self.syntax)
 
     self.commit_id = commit_id
+    self.args_list_separator = args_list_separator
+    self.args_list_assign_char = args_list_assign_char
 
   def run(self, benchmark, sizes):
     if not os.path.exists(self.exec_path):
@@ -73,18 +77,17 @@ class Engine:
         self.exec_path,
         benchmark.regexp(self.syntax),
         '--iterations=' + str(args.iterations),
-        '--size=' + ','.join(map(str, sizes)),
         '--low_char=' + benchmark.low_char,
-        '--high_char=' + benchmark.high_char
-        ]
+        '--high_char=' + benchmark.high_char,
+        ] + ('--size' + self.args_list_assign_char + self.args_list_separator.join(map(str, sizes))).split(' ')
     # The regexp is enclosed with quotes.
     printed_run_command = [
         self.exec_path,
         '"' + benchmark.regexp(self.syntax) + '"',
         '--iterations=' + str(args.iterations),
-        '--size=' + ','.join(map(str, sizes)),
         '--low_char=' + benchmark.low_char,
-        '--high_char=' + benchmark.high_char
+        '--high_char=' + benchmark.high_char,
+        '--size' + self.args_list_assign_char + self.args_list_separator.join(map(str, sizes))
         ]
 
     if verbose or args.display:
@@ -113,9 +116,9 @@ engine_re2 = Engine('re2', join(utils.dir_benchmarks_engines, 're2/engine'), ERE
                     utils.re2_commit)
 engine_pcre = Engine('pcre', join(utils.dir_benchmarks_engines, 'pcre/engine'), ERE,
                      utils.pcre_commit)
-engine_pcre = Engine('v8', join(utils.dir_benchmarks_engines, 'v8/engine'), ERE,
-                     utils.pcre_commit)
-engines = [engine_rejit, engine_re2, engine_pcre]
+engine_v8 = Engine('v8', join(utils.dir_benchmarks_engines, 'v8/engine'), ERE,
+                     utils.v8_commit, args_list_separator=' ', args_list_assign_char=' ')
+engines = [engine_rejit, engine_re2, engine_pcre, engine_v8]
 engines_names=map(lambda e: e.name, engines)
 
 

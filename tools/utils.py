@@ -109,6 +109,9 @@ def pcre_commit():
   p3 = subprocess.Popen(['awk', '{print $2}'], stdout=subprocess.PIPE, stdin=p2.stdout)
   return p3.communicate()[0].rstrip(' \n\t')
 
+def v8_commit():
+  return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=join(dir_benchmarks_engines, 'v8', 'git.v8')).strip('\n')
+
 
 
 # Help messages ----------------------------------------------------------------
