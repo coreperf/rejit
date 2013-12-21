@@ -150,6 +150,11 @@ parser.add_argument('-j', '--jobs', type=int,
                     help='Number of jobs to run simultaneously for the *build* commands')
 parser.add_argument('--display', action='store_true',
                     help='Display benchmarks results as they execute.')
+parser.add_argument('--machine_description', action='store',
+                    default=join(dir_benchmarks, 'machine_desc'),
+                    help='Path to an html file describing the machine running'
+                         'the benchmarks. The description is embedded in the'
+                         'html results file.')
 parser.add_argument('-v', '--verbose', action='store_true',
                     help='Print extra information.')
 
@@ -373,7 +378,18 @@ def plot_results():
   html_file_results.write(html_file_header.read())
   html_file_header.close()
 
+  html_file_results.write('<h2>Info</h2>')
   html_file_results.write('%s\n' % datetime.datetime.now().strftime("%Y/%m/%d %H:%M"))
+  if args.machine_description:
+    if not os.path.isfile(args.machine_description):
+      utils.warning("Could not open '%s'" % args.machine_description)
+    else:
+      desc_file = open(args.machine_description, 'r')
+      html_file_results.write('<h3>Machine description</h3>')
+      html_file_results.write(desc_file.read())
+      desc_file.close()
+
+  html_file_results.write('<h3>Engines versions</h3>')
   html_file_results.write('<table style="text-align:right;">\n')
   html_file_results.write('<tr><td>engine</td><td style="padding-left:50px;">commit</td></tr>')
   for engine in engines:
@@ -383,6 +399,7 @@ def plot_results():
 
   html_file_results.write('</table>\n')
 
+  html_file_results.write('<h2>Results</h2>')
   html_file_results.write('<table>\n')
   for res in results:
     html_file_results.write(res.plot())
