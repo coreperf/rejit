@@ -345,7 +345,7 @@ benchmarks = [
     Benchmark("abcdefgh", low_char='a', high_char='j'),
     Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(alternation|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(alternation|of|more|than|two|different|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("(alternation|more|than|two|different|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(rather_long_string|min)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(prefix abcd|prefix 1234)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
     Benchmark("(abcd suffix|1234 suffix)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
