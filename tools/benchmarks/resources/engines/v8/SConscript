@@ -1,0 +1,69 @@
+# Copyright (C) 2013 Alexandre Rames <alexandre@coreperf.com>
+
+# rejit is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import os
+import sys
+import subprocess
+
+from os.path import join
+
+dir_v8 = os.path.realpath('.')
+# Import rejit utils.
+dir_root = dir_v8
+while 'SConstruct' not in os.listdir(dir_root):
+  dir_root = os.path.realpath(join(dir_root, '..'))
+sys.path.insert(0, join(dir_root, 'tools'))
+import utils
+
+
+# Import the environment to check for the os.
+Import('env')
+
+# We don't reuse the rejit environment to build third party engines.
+local_env = Environment()
+
+v8_dir = join(utils.dir_benchmarks_engines, 'v8/git.v8')
+v8_git_dir = join(v8_dir, '.git')
+v8_engine_path = join(v8_dir, 'out/native/d8')
+
+def v8_clone(target, source, env):
+  utils.assert_available('git')
+  v8_remote = "git://github.com/v8/v8.git"
+
+  print "Checking for v8... ",
+  if os.path.exists(v8_git_dir) and os.path.isdir(v8_git_dir):
+    print "ok."
+  else:
+    print "not found."
+
+    utils.command_assert(['rm', '-rf', v8_dir])
+
+    print "Cloning v8."
+    utils.command_assert(['git', 'clone', v8_remote, v8_dir],
+                         "Failed to clone v8. Aborting build.")
+
+def v8_build(target, source, env):
+  print "Building v8. This may take some time."
+  print ' '.join(['make', '-C', v8_dir, '-j3', 'dependencies'])
+  utils.command_assert(['make', '-C', v8_dir, '-j3', 'dependencies'],
+                       "Failed to build v8 dependencies. Aborting build.")
+  print ' '.join(['make', '-C', v8_dir, '-j3', 'native'])
+  utils.command_assert(['make', '-C', v8_dir, '-j3', 'native'],
+                       "Failed to build v8. Aborting build.")
+
+v8_repo = local_env.Command(v8_git_dir, '', v8_clone)
+v8_engine = local_env.Command(v8_engine_path, v8_repo, v8_build)
+
+local_env.Alias('v8_engine', v8_engine)
