@@ -349,6 +349,7 @@ benchmarks = [
     Benchmark("(alternation|strings)"),
     Benchmark("(alternation|more|than|two|different|strings)"),
     Benchmark("(rather_long_string|min)"),
+    Benchmark("(([complex]|(regexp)){2,7}alternation)|(strings(at|the|[e-nd]as well))"),
     Benchmark("(prefix abcd|prefix 1234)"),
     Benchmark("(abcd suffix|1234 suffix)"),
     Benchmark("(abcdefgh anywhere xyz|01 anywhere 56789)"),
