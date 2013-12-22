@@ -138,11 +138,8 @@ parser.add_argument('--engines', action='store', nargs='+',
                     choices=engines_names, default=engines_names,
                     help='Space-separated list of engines to benchmark.')
 parser.add_argument('--sizes', type=int, action='store', nargs='+',
-                    default=map(lambda x: 1 << x, range(3, 24)),
+                    default=map(lambda x: 1 << x, range(3, 22)),
                     help='Space-separated list of text sizes to benchmark.')
-parser.add_argument('--slow_size_factor', action='store', type=int,
-                    default=3,
-                    help="For slow benchmarks, do not benchmark the <n> bigger text sizes.")
 parser.add_argument('--iterations', type=int, action="store",
                     default=100,
                     help="Number of iterations to run benchmarks for.")
@@ -348,14 +345,14 @@ benchmarks = [
     Benchmark("abcdefgh", low_char='b', high_char='z'),
     Benchmark("abcdefgh"),
     Benchmark("abcdefgh", low_char='a', high_char='j'),
-    Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(alternation|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(alternation|more|than|two|different|strings)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(rather_long_string|min)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(prefix abcd|prefix 1234)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(abcd suffix|1234 suffix)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(abcdefgh anywhere xyz|01 anywhere 56789)", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
-    Benchmark("(some|[stuff])((other|regexps)? bla root blah | (abcdefgh boot{3,3} xyz | 00 foot 5678))", sizes=args.sizes[:len(args.sizes) - args.slow_size_factor]),
+    Benchmark("([complex]|(regexp)){2,7}abcdefgh(at|the|[e-nd]as well)"),
+    Benchmark("(alternation|strings)"),
+    Benchmark("(alternation|more|than|two|different|strings)"),
+    Benchmark("(rather_long_string|min)"),
+    Benchmark("(prefix abcd|prefix 1234)"),
+    Benchmark("(abcd suffix|1234 suffix)"),
+    Benchmark("(abcdefgh anywhere xyz|01 anywhere 56789)"),
+    Benchmark("(some|[stuff])((other|regexps)? bla root blah | (abcdefgh boot{3,3} xyz | 00 foot 5678))"),
     ]
 
 
