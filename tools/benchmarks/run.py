@@ -213,8 +213,10 @@ class ResultSet:
   def plot_description(self):
     res = '''
   <tr>
-    <td>
-      <div style="padding-left: 5em;"> <code><pre>regexp: %s     range: ['%s','%s']</pre></code> </div>
+    <td style="padding-top: 1em;">
+      <div style="padding: 2em 0 0 5em;">
+      <pre>regexp: %s
+range: ['%s','%s']</pre> </div>
     </td>''' % (self.benchmark.regexp(ERE), self.benchmark.low_char, self.benchmark.high_char)
     if self.benchmark.html_description:
       res += '''
@@ -247,8 +249,8 @@ class ResultSet:
       data_engine = self.data[engine]
       for i, label in enumerate(data_engine):
         datapoints_string = ','.join(map(lambda x: '[%s,%s]' % (x, data_engine[label][x]), sorted(data_engine[label])))
-        datasets_declaration += 'var %s = [%s];\n' % (dataset_id(engine, label), datapoints_string)
-        datasets_definition += "{data: %(dataset_id)s, label: \"%(label)s\", color:\"%(color)s\"},\n" % {'dataset_id':dataset_id(engine, label), 'label':engine + ' ' + label, 'color':ResultSet.plot_colors[engine_index][0 if label == 'amortised' else 1]}
+        datasets_declaration += '\nvar %s = [%s];' % (dataset_id(engine, label), datapoints_string)
+        datasets_definition += "\n{data: %(dataset_id)s, label: \"%(label)s\", color:\"%(color)s\"}," % {'dataset_id':dataset_id(engine, label), 'label':engine + ' ' + label, 'color':ResultSet.plot_colors[engine_index][0 if label == 'amortised' else 1]}
 
     html_dic['datasets_declaration'] = datasets_declaration
     html_dic['datasets_definition'] = datasets_definition
@@ -381,18 +383,18 @@ def plot_results():
   html_file_results.write(html_file_header.read())
   html_file_header.close()
 
-  html_file_results.write('<h2>Info</h2>')
+  html_file_results.write('<h2>Info</h2>\n')
   html_file_results.write('%s\n' % datetime.datetime.now().strftime("%Y/%m/%d %H:%M"))
   if args.machine_description:
     if not os.path.isfile(args.machine_description):
       utils.warning("Could not open '%s'" % args.machine_description)
     else:
       desc_file = open(args.machine_description, 'r')
-      html_file_results.write('<h3>Machine description</h3>')
+      html_file_results.write('<h3>Machine description</h3>\n\n')
       html_file_results.write(desc_file.read())
       desc_file.close()
 
-  html_file_results.write('<h3>Engines versions</h3>')
+  html_file_results.write('<h3>Engines versions</h3>\n\n')
   html_file_results.write('<table style="text-align:right;">\n')
   html_file_results.write('<tr><td>engine</td><td style="padding-left:50px;">commit</td></tr>')
   for engine in engines:
@@ -402,7 +404,7 @@ def plot_results():
 
   html_file_results.write('</table>\n')
 
-  html_file_results.write('<h2>Results</h2>')
+  html_file_results.write('<h2>Results</h2>\n\n')
   html_file_results.write('<table>\n')
   for res in results:
     html_file_results.write(res.plot())
