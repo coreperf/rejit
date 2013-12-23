@@ -54,7 +54,11 @@ options = {
       'LINKFLAGS' : ['-stdlib=libc++']
       },
     'mode:debug' : {
-      'CCFLAGS' : ['-g', '-DDEBUG']
+      'CCFLAGS' : ['-DDEBUG']
+      },
+    'symbols:on' : {
+      'CCFLAGS' : ['-g'],
+      'LINKFLAGS' : ['-g']
       },
     'mode:release' : {
       'CCFLAGS' : ['-O3']
@@ -76,6 +80,8 @@ options = {
 
 # DefaultVariable have a default value that depends on elements not known when
 # variables are first evaluated.
+def symbols_handler(env):
+  env['symbols'] = 'on' if 'mode' in env and env['mode'] == 'debug' else 'off'
 def modifiable_flags_handler(env):
   env['modifiable_flags'] = 'on' if 'mode' in env and env['mode'] == 'debug' else 'off'
 def benchtest_handler(env):
@@ -83,6 +89,7 @@ def benchtest_handler(env):
 
 vars_default_handlers = {
     # variable_name    : [ 'default val', 'handler'                ]
+    'symbols'          : [ 'mode==debug', symbols_handler          ],
     'modifiable_flags' : [ 'mode==debug', modifiable_flags_handler ],
     'benchtest'        : [ 'mode==debug', benchtest_handler        ]
     }
@@ -97,6 +104,7 @@ vars = Variables('build_config.py')
 # Define command line build options.
 vars.AddVariables(
     EnumVariable('mode', 'Build mode', 'release', allowed_values=utils.build_options_modes),
+    DefaultVariable('symbols', 'Include debugging symbols in the binaries', ['on', 'off']),
     # For now only the x64 architecture is a valid target.
     EnumVariable('arch', 'Target architecture', utils.GuessArchitecture(), allowed_values=utils.build_options_archs),
     EnumVariable('os', 'Target os', utils.GuessOS(), allowed_values=utils.build_options_oses),
