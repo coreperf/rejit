@@ -22,7 +22,8 @@ namespace internal {
 
 
 #ifdef REJIT_TARGET_ARCH_X64
-#include "x64/macro-assembler-x64.h"
+#include "x64/assembler-x64.h"
+#include "x64/assembler-x64-inl.h"
 #else
 #error Unkown target architecture.
 #endif
