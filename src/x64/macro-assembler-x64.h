@@ -68,37 +68,30 @@ class MacroAssembler : public MacroAssemblerBase {
   MacroAssembler();
   // TODO(ajr): Check destructor need.
 
-  void PushRegisters(RegList regs);
-  void PopRegisters(RegList regs);
+  inline void PushRegisters(RegList regs);
+  inline void PopRegisters(RegList regs);
 
   // Currently following the System V ABI only.
-  void PushCallerSavedRegisters();
-  void PopCallerSavedRegisters();
-  void PushCalleeSavedRegisters();
-  void PopCalleeSavedRegisters();
+  inline void PushCallerSavedRegisters();
+  inline void PopCallerSavedRegisters();
+  inline void PushCalleeSavedRegisters();
+  inline void PopCalleeSavedRegisters();
 
-  void PushAllRegisters();
-  void PopAllRegisters();
-  void PushAllRegistersAndFlags();
-  void PopAllRegistersAndFlags();
+  inline void PushAllRegisters();
+  inline void PopAllRegisters();
+  inline void PushAllRegistersAndFlags();
+  inline void PopAllRegistersAndFlags();
 
   void CallCppPrepareStack();
   void CallCpp(Address address);
 
   void Move(Register dst, uint64_t value);
-  inline void Move(Register dst, Register src) {
-    if (!dst.is(src)) {
-      movq(dst, src);
-    }
-  }
+  inline void Move(Register dst, Register src);
 
-  void MoveCharsFrom(Register dst, unsigned n, const char* chars);
-  void LoadCharsFrom(Register dst, unsigned n, const Operand& src);
+  inline void MoveCharsFrom(Register dst, unsigned n, const char* chars);
+  inline void LoadCharsFrom(Register dst, unsigned n, const Operand& src);
 
-  void LoadCurrentChar(Register r) {
-    // TODO(rames): Issue when accessing at a memory limit, eg. end of page?
-    movq(r, Operand(string_pointer, 0));
-  }
+  inline void LoadCurrentChar(Register r);
 
   void MaskFirstChars(unsigned n_chars, Register dst);
 
@@ -147,12 +140,12 @@ class MacroAssembler : public MacroAssemblerBase {
   void ZeroMem(Register start, Register end);
 
   // Increment or decrement by the size of a character.
-  void inc_c(Register dst);
-  void dec_c(Register dst);
+  inline void inc_c(Register dst);
+  inline void dec_c(Register dst);
 
   // Advance the register by a number of characters in the given direction.
-  void Advance(unsigned, Direction, Register);
-  void AdvanceToEOS();
+  inline void Advance(unsigned, Direction, Register);
+  inline void AdvanceToEOS();
 
   // Debug helpers ---------------------------------------------------
 
@@ -160,7 +153,7 @@ class MacroAssembler : public MacroAssemblerBase {
 
   // Print a message.
   void msg(const char* message);
-  void debug_msg(const char* message);
+  inline void debug_msg(const char* message);
   void debug_msg(Condition cond, const char* message);
 
   // Assert from assembly.
@@ -171,9 +164,6 @@ class MacroAssembler : public MacroAssemblerBase {
   void stop(const char* messgae);
   void stop(Condition cond, const char* messgae);
 #define asm_assert(cond, description) asm_assert_(cond, __FILE__, __LINE__, description)
-
- private:
-  /* data */
 };
 
 
