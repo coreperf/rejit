@@ -33,18 +33,19 @@ using namespace rejit;
 using namespace std;
 
 
-#ifdef BENCH_ENGINE_REJIT
 // Start the enum from the latest argp key used.
 enum rejit_flags_option_keys {
   // Hope it does not collide with other keys.
   base_rejit_flag_key = 0x7BAD,
+#ifdef BENCH_ENGINE_REJIT
 #define ENUM_KEYS(flag_name, r, d) flag_name##_key,
   REJIT_FLAGS_LIST(ENUM_KEYS)
 #undef ENUM_KEYS
+#endif
+  after_last_rejit_key,
   first_rejit_flag_key = base_rejit_flag_key + 1
 };
 #define REJIT_FLAG_OFFSET(flag_name) (flag_name##_key - first_rejit_flag_key)
-#endif
 
 
 struct arguments {
@@ -54,6 +55,7 @@ struct arguments {
   unsigned  iterations;
   char      low_char;
   char      high_char;
+  int       run_worst_case;
 #ifdef BENCH_ENGINE_REJIT
   int  rejit_flags;
 #endif
@@ -81,7 +83,7 @@ struct bench_res {
   double best;
 };
 
-void print_results(vector<bench_res> *results);
+void print_results(vector<bench_res> *results, int print_worst_case);
 
 double speed(struct timeval *t0, struct timeval *t1, size_t text_size, unsigned times);
 

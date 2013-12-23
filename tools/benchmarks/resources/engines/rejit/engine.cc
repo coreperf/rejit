@@ -71,7 +71,7 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
     bench_res res;
     size_t size = res.text_size = arguments.sizes.at(i);
 
-    { // Measure worst case speed.
+    if (arguments.run_worst_case) { // Measure worst case speed.
       vector<Match> matches;
       gettimeofday(&t0, NULL);
       for (unsigned i = 0; i < arguments.iterations; i++) {
@@ -105,7 +105,7 @@ REJIT_FLAGS_LIST(SET_REJIT_FLAG)
     }
   }
 
-  print_results(&results);
+  print_results(&results, arguments.run_worst_case);
 
   return 0;
 }

@@ -13,11 +13,11 @@
 
 struct argp_option options[] =
 {
-  {"file"       , 'f' , ""     , OPTION_ARG_OPTIONAL , "Source file. If none provided, use a randomly generated characters."}, 
+  {"file"       , 'f' , ""     , OPTION_ARG_OPTIONAL , "Source file. If none provided, use a randomly generated characters."},
   {"size"       , 's' , "65536", OPTION_ARG_OPTIONAL , "Comma-separated list of text sizes."},
   {"iterations" , 'i' , "1000" , OPTION_ARG_OPTIONAL , "Number of iterations to run."},
-  {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."}, 
-  {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."}, 
+  {"low_char"   , 'l' , "0"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the low character of the range of characters composing the matched text."},
+  {"high_char"  , 'h' , "z"    , OPTION_ARG_OPTIONAL , "When the match source is random text, the high character of the range of characters composing the matched text."},
 #ifdef BENCH_ENGINE_REJIT
   // Convenient access to rejit flags.
 #define FLAG_OPTION(flag_name, r, d) \
@@ -25,8 +25,27 @@ struct argp_option options[] =
   REJIT_FLAGS_LIST(FLAG_OPTION)
 #undef FLAG_OPTION
 #endif
+#define RUN_WORST_CASE_KEY (after_last_rejit_key + 1)
+  {"run_worst_case" , RUN_WORST_CASE_KEY , "1", OPTION_ARG_OPTIONAL , "Run the benchmarks for the worst case. 0 to disable, 1 to enable."},
   {0}
 };
+
+static int on_off_from_str(int *res, const char *str) {
+  if (0 == strcmp(str, "on") ||
+      0 == strcmp(str, "true") ||
+      0 == strcmp(str, "1")) {
+    *res = 1;
+    return 0;
+  }
+  if (0 == strcmp(str, "off") ||
+      0 == strcmp(str, "false") ||
+      0 == strcmp(str, "0")) {
+    *res = 0;
+    return 0;
+  }
+  return 1;
+}
+
 
 char doc[] =
 "\n"
@@ -83,6 +102,13 @@ error_t parse_opt(int key, char *arg, struct argp_state *state) {
       arguments->high_char = arg[0];
       break;
 
+    case RUN_WORST_CASE_KEY:
+      if (on_off_from_str(&arguments->run_worst_case, arg)) {
+        error("Invalid value for option 'run_worst_case'. "
+              "Expected one of (on|true|1|off|false|0).\n");
+      }
+      break;
+
 #ifdef BENCH_ENGINE_REJIT
 #define FLAG_CASE(flag_name, r, d)                                             \
     case flag_name##_key: {                                                    \
@@ -124,6 +150,7 @@ void handle_arguments(struct arguments *arguments,
   arguments->iterations = 1000;
   arguments->low_char   = 'a';
   arguments->high_char  = 'z';
+  arguments->run_worst_case  = 1;
 
 #ifdef BENCH_ENGINE_REJIT
 #define SET_FLAG_DEFAULT(flag_name, r, d)                                      \
@@ -181,7 +208,7 @@ void prepare_text(struct arguments *arguments, string *text) {
 }
 
 
-void print_results(vector<bench_res> *results)
+void print_results(vector<bench_res> *results, int print_worst_case)
 {
   vector<bench_res>::iterator it;
   unsigned max_width = strlen("text_size");
@@ -196,17 +223,20 @@ void print_results(vector<bench_res> *results)
     max_width = max(max_width, width);
   }
 
-  cout <<
-    setw(max_width) << "text_size" <<
-    setw(16) << "worse" <<
-    setw(16) << "amortised" <<
+  cout << setw(max_width) << "text_size";
+  if (print_worst_case) {
+    cout << setw(16) << "worse";
+  }
+  cout << setw(16) << "amortised" <<
     setw(16) << "best" << endl;
   for (it = results->begin(); it < results->end(); it++) {
   cout <<
-    setw(max_width) << (*it).text_size <<
-    setw(16) << (*it).worse <<
-    setw(16) << (*it).amortised <<
-    setw(16) << (*it).best << endl;
+    setw(max_width) << (*it).text_size;
+    if (print_worst_case) {
+      cout << setw(16) << (*it).worse;
+    }
+    cout << setw(16) << (*it).amortised <<
+      setw(16) << (*it).best << endl;
   }
 }
 
