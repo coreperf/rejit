@@ -106,16 +106,18 @@ void Codegen::Generate() {
 
   __ PushCalleeSavedRegisters();
 
-  // Check that the base string we were passed is not null.
-  __ testq(rdi, rdi);
-  __ debug_msg(zero, "base string is NULL.\n");
-  __ j(zero, &unwind_and_return);
-
-  // Check the match results pointer.
-  if (match_type_ != kMatchFull && !FLAG_benchtest) {
-    __ testq(rdx, rdx);
-    __ debug_msg(zero, "match results pointer is NULL.\n");
+  if (FLAG_emit_debug_code) {
+    // Check that the base string we were passed is not null.
+    __ testq(rdi, rdi);
+    __ debug_msg(zero, "base string is NULL.\n");
     __ j(zero, &unwind_and_return);
+
+    // Check the match results pointer.
+    if (match_type_ != kMatchFull && !FLAG_benchtest) {
+      __ testq(rdx, rdx);
+      __ debug_msg(zero, "match results pointer is NULL.\n");
+      __ j(zero, &unwind_and_return);
+    }
   }
 
 
