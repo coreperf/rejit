@@ -129,7 +129,7 @@ void Codegen::Generate() {
     kStateInfoSize + state_ring_size() + time_summary_size();
   __ movq(scratch, rsp);
   __ subq(rsp, Immediate(reserved_space));
-  __ ZeroMem(rsp, scratch);
+  __ MemZero(rsp, scratch);
 
   __ movq(string_pointer, rdi);
   __ Move(ring_index, 0);
@@ -987,11 +987,7 @@ void Codegen::DirectionSetOutputFromEntry(int time, Regexp* regexp) {
 void Codegen::ClearTime(int time) {
   // TODO(rames): Use a loop.
   if (time == 0) {
-    for (int offset = 0;
-         offset < state_ring_time_size();
-         offset += kPointerSize) {
-      __ movq(Operand(StateOperand(ring_index), offset), Immediate(0));
-    }
+    __ MemZero(StateOperand(ring_index), state_ring_time_size());
 
   } else {
     __ movq(scratch, ring_index);
@@ -1003,11 +999,7 @@ void Codegen::ClearTime(int time) {
     __ subq(scratch, Immediate(state_ring_size()));
     __ bind(&no_wrapping);
 
-    for (int offset = 0;
-         offset < state_ring_time_size();
-         offset += kPointerSize) {
-    __ movq(Operand(StateOperand(scratch), offset), Immediate(0));
-    }
+    __ MemZero(StateOperand(scratch), state_ring_time_size());
   }
 
   // Clear the summary bit.
@@ -1018,15 +1010,8 @@ void Codegen::ClearTime(int time) {
 
 
 void Codegen::ClearAllTimes() {
-  // TODO(rames): Use a loop.
-  int offset;
-  for (offset = 0; offset < state_ring_size(); offset+= kPointerSize) {
-    __ movq(Operand(rbp, StateRingBaseOffsetFromFrame() + offset),
-            Immediate(0));
-  }
-  for (offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
-    __ movq(TimeSummary(offset), Immediate(0));
-  }
+  __ MemZero(StateRingBase(), state_ring_size());
+  __ MemZero(TimeSummary(0), time_summary_size());
 }
 
 

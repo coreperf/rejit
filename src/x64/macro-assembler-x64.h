@@ -135,9 +135,10 @@ class MacroAssembler : public MacroAssemblerBase {
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, size_t n_chars);
 
-  // Registers start and end must contain the 8-bytes aligned addresses for the
-  // range to zero out.
-  void ZeroMem(Register start, Register end);
+  // The start and end (and size) must be 8-bytes aligned.
+  inline void MemZero(const Operand& start, size_t size);
+  void MemZero(Register start, size_t size);
+  void MemZero(Register start, Register end);
 
   // Increment or decrement by the size of a character.
   inline void inc_c(Register dst);

@@ -130,6 +130,12 @@ void MacroAssembler::LoadCurrentChar(Register r) {
   movq(r, Operand(string_pointer, 0));
 }
 
+void MacroAssembler::MemZero(const Operand& start, size_t size) {
+  lea(scratch, start);
+  MemZero(scratch, size);
+}
+
+
 void MacroAssembler::inc_c(Register dst) {
   if (char_size() == 1) {
     incq(dst);

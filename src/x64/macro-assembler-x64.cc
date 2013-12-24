@@ -288,18 +288,40 @@ void MacroAssembler::movdqp(XMMRegister dst, const char* chars, size_t n_chars) 
 }
 
 
-void MacroAssembler::ZeroMem(Register start, Register end) {
+void MacroAssembler::MemZero(Register start, size_t size) {
+  ASSERT(size % kPointerSize == 0);
+  if (size == 0)
+    return;
+
+  Register zero = start.is(scratch1) ? scratch2 : scratch1;
+
   // TODO: More efficient implementation?
   Label zero_loop;
   ASSERT(!start.is(rcx));
 
-  Move(rcx, end);
-  Move(scratch, 0);
-  subq(rcx, start);
-  shr(rcx, Immediate(kPointerSizeLog2));
+  Move (zero, 0);
+  Move(rcx, size / kPointerSize);
 
   bind(&zero_loop);
-  movq(Operand(start, rcx, times_8, -kPointerSize), scratch);
+  movq(Operand(start, rcx, times_8, -kPointerSize), zero);
+  loop(&zero_loop);
+}
+
+
+void MacroAssembler::MemZero(Register start, Register end) {
+  // TODO: More efficient implementation?
+  Label zero_loop;
+  ASSERT(!start.is(rcx));
+
+  Register zero = start.is(scratch1) ? scratch2 : scratch1;
+
+  Move(rcx, end);
+  subq(rcx, start);
+  shr(rcx, Immediate(kPointerSizeLog2));
+  Move(zero, 0);
+
+  bind(&zero_loop);
+  movq(Operand(start, rcx, times_8, -kPointerSize), zero);
   loop(&zero_loop);
 }
 
