@@ -40,7 +40,9 @@ M( trace_repetitions     , false   , false )                                   \
 M( use_fast_forward      , true    , true  )                                   \
 /* Use / trace reduction of fast-forward elements (substring extraction). */   \
 M( use_ff_reduce         , true    , true  )                                   \
-M( print_ff_reduce       , false   , false )
+M( print_ff_reduce       , false   , false )                                   \
+/* Dump generated code. */                                                     \
+M( dump_code             , false   , false )
 
 // Declare all the flags.
 #if defined(DEBUG) || defined(MOD_FLAGS)

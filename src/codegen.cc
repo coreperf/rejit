@@ -14,6 +14,7 @@
 
 #include "codegen.h"
 #include "macro-assembler.h"
+#include <fstream>
 
 #include "suffix_trees.h"
 
@@ -529,6 +530,35 @@ int FF_finder::ff_reduce_cmp(size_t *i1, size_t *i2) {
 
 // Codegen ---------------------------------------------------------------------
 
+static void dump_code(RegexpInfo *rinfo, VirtualMemory *vmem) {
+  static unsigned index = 1;
+  char *dump_name;
+  ofstream dump_file;
+  unsigned n_digits = 0;
+
+  for (unsigned tmp = index; tmp != 0; tmp = tmp / 10) {
+    ++n_digits;
+  }
+  dump_name = (char*)malloc(strlen("dump.info.") + n_digits + 1);
+  ASSERT(dump_name!= NULL);
+
+  sprintf(dump_name, "dump.%d", n_digits);
+  dump_file = ofstream(dump_name, ofstream::binary);
+  dump_file.write((char*)vmem->address(), vmem->size());
+  dump_file.close();
+
+  sprintf(dump_name, "dump.info.%d", n_digits);
+  dump_file = ofstream(dump_name);
+  dump_file << "Regexp: " << rinfo->regexp() << endl;
+  dump_file << "Base address: 0x" << hex << (uint64_t)vmem->address() << endl;
+  dump_file.close();
+
+  free(dump_name);
+
+  ++index;
+}
+
+
 static void print_re_list(RegexpInfo* rinfo) {
   vector<Regexp*>* gen_list = rinfo->gen_list();
   vector<Regexp*>::const_iterator it;
@@ -596,7 +626,11 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   Generate();
 
   rinfo_ = NULL;
-  return masm_->GetCode();
+  VirtualMemory* vmem = masm_->GetCode();
+  if (FLAG_dump_code) {
+    dump_code(rinfo, vmem);
+  }
+  return vmem;
 }
 
 
