@@ -14,8 +14,10 @@
 
 #include "flags.h"
 
-#if defined(DEBUG) || defined(MOD_FLAGS)
+#if defined(DEBUG) && defined(MOD_FLAGS)
 #define DEFINE_FLAG(name, r, debug_def) bool FLAG_##name = debug_def;
+#elif defined(MOD_FLAGS)
+#define DEFINE_FLAG(name, release_def, d) bool FLAG_##name = release_def;
 #else
 #define DEFINE_FLAG(name, r, d)
 #endif
