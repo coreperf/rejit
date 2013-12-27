@@ -384,7 +384,8 @@ def plot_results():
   html_file_header.close()
 
   html_file_results.write('<h2>Info</h2>\n')
-  html_file_results.write('%s\n' % datetime.datetime.now().strftime("%Y/%m/%d %H:%M"))
+  html_file_results.write('Date: %s<br/>\n' % datetime.datetime.now().strftime("%Y/%m/%d %H:%M"))
+  html_file_results.write('Command: <code>%s</code><br/>\n' % ' '.join(sys.argv))
   if args.machine_description:
     if not os.path.isfile(args.machine_description):
       utils.warning("Could not open '%s'" % args.machine_description)
