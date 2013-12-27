@@ -20,8 +20,7 @@ import gc
 import argparse
 help_description='''
 Benchmark v8 regular expression engine.
-Outputs the amortised processing speed in bytes/s (<size of text matched> / <time to match>)
-considering (<--iterations=?> runs and 1 compilation).
+Outputs the processing speed in bytes/s (<size of text matched> / <time to match>)
 '''
 parser = argparse.ArgumentParser(description=help_description)
 parser.add_argument("regexp" , help="The regular expression to benchmark.")
@@ -72,7 +71,7 @@ function main() {
   var t0, tdiff;
 
   if (sizes.length > 0) {
-    print("text_size	amortised");
+    print("text_size	speed");
   }
   for (var index in sizes) {
     tdiff = 0;
