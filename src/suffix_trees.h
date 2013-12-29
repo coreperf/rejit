@@ -77,7 +77,7 @@ class SuffixTree {
   set<const MultipleChar*> terminated_mcs_;
   set<const MultipleChar*> suffixed_mcs_;
 
-  int active_length_;
+  unsigned active_length_;
 
   friend class SuffixTreeBuilder;
 };
@@ -122,7 +122,7 @@ class SuffixTreeBuilder {
  private:
   SuffixTree *root_;
   SuffixTree *active_node_;
-  int active_length_;
+  unsigned active_length_;
 
   vector<string*> allocated_strings_;
 };

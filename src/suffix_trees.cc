@@ -130,7 +130,7 @@ SuffixTree *SuffixTreeBuilder::append_mc(const MultipleChar *mc) {
   size_t str_len = str_->length();
   size_t offset;
 
-  for (int i = 0; i < str_len; i++) {
+  for (size_t i = 0; i < str_len; i++) {
 #ifdef TRACE_SUFFIX_TREES_CONSTRUCTION
     cout << "--------------------" << endl;
     cout << "inserting " << str + i << endl << endl;;

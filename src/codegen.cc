@@ -543,12 +543,12 @@ static void dump_code(RegexpInfo *rinfo, VirtualMemory *vmem) {
   ASSERT(dump_name!= NULL);
 
   sprintf(dump_name, "dump.%d", n_digits);
-  dump_file = ofstream(dump_name, ofstream::binary);
+  dump_file.open(dump_name, ofstream::binary);
   dump_file.write((char*)vmem->address(), vmem->size());
   dump_file.close();
 
   sprintf(dump_name, "dump.info.%d", n_digits);
-  dump_file = ofstream(dump_name);
+  dump_file.open(dump_name);
   dump_file << "Regexp: " << rinfo->regexp() << endl;
   dump_file << "Base address: 0x" << hex << (uint64_t)vmem->address() << endl;
   dump_file.close();
