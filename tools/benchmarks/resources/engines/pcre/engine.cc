@@ -213,7 +213,7 @@ int main(int argc, char *argv[]) {
 
   vector<size_t>::reverse_iterator rit;
   for (rit = arguments.sizes.rbegin(); rit < arguments.sizes.rend(); ++rit) {
-    int rc;
+    int rc = 0;
     bench_res res;
     struct timeval t0, t1, t2;
     size_t size = res.text_size = *rit;

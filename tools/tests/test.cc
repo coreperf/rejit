@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <argp.h>
+#include <string.h>
 
 #include "rejit.h"
 #include "checks.h"
@@ -550,7 +551,7 @@ static int TestFirst(unsigned expected,
                      unsigned expected_end,
                      int line) {
   bool exception = false;
-  unsigned res, found_start, found_end;
+  unsigned res = 0, found_start, found_end;
 
   int rc;
   if ((rc = Test(kMatchAnywhere, expected, regexp, text, line))) {
