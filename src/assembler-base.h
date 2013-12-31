@@ -125,8 +125,6 @@ class Label {
 };
 
 
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-
 } }  // namespace rejit::internal
 
 #endif  // REJIT_ASSEMBLER_BASE_H_
