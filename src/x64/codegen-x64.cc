@@ -311,7 +311,7 @@ bool Codegen::GenerateFastForward() {
     return false;
   }
 
-  FastForwardGen ffgen(this, rinfo_->ff_list());
+  FastForwardGen ffgen(this, rinfo_->ff_list(), unwind_and_return_);
   // TODO: Do we need to increment here? It seems we are compensating
   // everywhere by decrementing.
   __ movq(string_pointer, ff_position);
@@ -1196,6 +1196,8 @@ void FastForwardGen::Generate() {
 
     __ bind(&standard_code);
 
+    __ Move(rax, 0);
+
     Label loop;
     potential_match_ = &potential_match;
 
@@ -1211,6 +1213,7 @@ void FastForwardGen::Generate() {
     // potential match before this and others after.
     __ cmpq(string_pointer, string_end);
     __ j(not_equal, &loop);
+    __ jmp(unwind_and_return_);
 
     __ bind(&potential_match);
     if (codegen_->rinfo()->ff_requires_full_forward_matching()) {
@@ -1321,6 +1324,8 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
 
   Label loop;
 
+  __ Move(rax, 0);
+
   // By stopping early we avoid useless processing and ensure we are not
   // accessing memory from the eos.
   __ movq(scratch2, string_end);
@@ -1330,7 +1335,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   __ bind(&loop);
   __ inc_c(string_pointer);
   __ cmpq(string_pointer, scratch2);
-  __ j(above, &exit);
+  __ j(above, unwind_and_return_);
   __ cmp_truncated(n_chars, fixed_chars, current_chars);
   __ j(not_equal, &loop);
 

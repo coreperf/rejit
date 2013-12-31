@@ -261,11 +261,13 @@ class Codegen : public PhysicalRegexpVisitor<void> {
 // Walks the tree to find what regexps can be used as fast-forward elements.
 class FastForwardGen : public PhysicalRegexpVisitor<void> {
  public:
-  FastForwardGen(Codegen* codegen, vector<Regexp*>* list) :
+  FastForwardGen(Codegen* codegen, vector<Regexp*>* list,
+                 Label *unwind_and_return) :
     codegen_(codegen),
     masm_(codegen->masm()),
     regexp_list_(list),
-    potential_match_(NULL) {}
+    potential_match_(NULL),
+    unwind_and_return_(unwind_and_return) {}
 
   void Generate();
 
@@ -301,6 +303,7 @@ class FastForwardGen : public PhysicalRegexpVisitor<void> {
   MacroAssembler* masm_;
   vector<Regexp*>* regexp_list_;
   Label* potential_match_;
+  Label* unwind_and_return_;
 
   DISALLOW_COPY_AND_ASSIGN(FastForwardGen);
 };
