@@ -135,10 +135,11 @@ class MacroAssembler : public MacroAssemblerBase {
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, size_t n_chars);
 
+  void do_rcx_memzero(Register start, Register zero);
   // The start and end (and size) must be 8-bytes aligned.
-  inline void MemZero(const Operand& start, size_t size);
-  void MemZero(Register start, size_t size);
-  void MemZero(Register start, Register end);
+  inline void MemZero(const Operand& start, size_t size, Register zero = no_reg);
+  void MemZero(Register start, size_t size, Register zero = no_reg);
+  void MemZero(Register start, Register end, Register zero = no_reg);
 
   // Increment or decrement by the size of a character.
   inline void inc_c(Register dst);

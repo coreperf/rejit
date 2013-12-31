@@ -129,9 +129,8 @@ void Codegen::Generate() {
 
   const size_t reserved_space =
     kStateInfoSize + state_ring_size() + time_summary_size();
-  __ movq(scratch, rsp);
   __ subq(rsp, Immediate(reserved_space));
-  __ MemZero(rsp, scratch);
+  __ MemZero(rsp, reserved_space);
 
   __ movq(string_pointer, rdi);
   __ Move(ring_index, 0);
@@ -1012,8 +1011,10 @@ void Codegen::ClearTime(int time) {
 
 
 void Codegen::ClearAllTimes() {
-  __ MemZero(StateRingBase(), state_ring_size());
-  __ MemZero(TimeSummary(0), time_summary_size());
+  Register zero = scratch;
+  __ Move(zero, 0);
+  __ MemZero(StateRingBase(), state_ring_size(), zero);
+  __ MemZero(TimeSummary(0), time_summary_size(), zero);
 }
 
 

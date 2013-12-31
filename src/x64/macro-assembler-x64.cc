@@ -288,19 +288,15 @@ void MacroAssembler::movdqp(XMMRegister dst, const char* chars, size_t n_chars) 
 }
 
 
-void MacroAssembler::MemZero(Register start, size_t size) {
-  ASSERT(size % kPointerSize == 0);
-  if (size == 0)
-    return;
-
-  Register zero = start.is(scratch1) ? scratch2 : scratch1;
-
-  // TODO: More efficient implementation?
+// rcx must have been preset with the correct count.
+void MacroAssembler::do_rcx_memzero(Register start, Register zero) {
   Label zero_loop;
   ASSERT(!start.is(rcx));
 
-  Move (zero, 0);
-  Move(rcx, size / kPointerSize);
+  if (!zero.is_valid()) {
+    zero = start.is(scratch1) ? scratch2 : scratch1;
+    Move(zero, 0);
+  }
 
   bind(&zero_loop);
   movq(Operand(start, rcx, times_8, -kPointerSize), zero);
@@ -308,21 +304,31 @@ void MacroAssembler::MemZero(Register start, size_t size) {
 }
 
 
-void MacroAssembler::MemZero(Register start, Register end) {
+void MacroAssembler::MemZero(Register start, size_t size, Register zero) {
+  ASSERT(size % kPointerSize == 0);
+
+  if (size <= 4) {
+    for (unsigned i = 0; i < size; ++i) {
+      movq(Operand(start, size * kPointerSize), zero);
+    }
+
+  } else {
+    Move(rcx, size / kPointerSize);
+    do_rcx_memzero(start, zero);
+  }
+}
+
+
+void MacroAssembler::MemZero(Register start, Register end, Register zero) {
   // TODO: More efficient implementation?
   Label zero_loop;
-  ASSERT(!start.is(rcx));
-
-  Register zero = start.is(scratch1) ? scratch2 : scratch1;
+  ASSERT(!start.is(rcx) && !zero.is(rcx));
 
   Move(rcx, end);
   subq(rcx, start);
   shr(rcx, Immediate(kPointerSizeLog2));
-  Move(zero, 0);
 
-  bind(&zero_loop);
-  movq(Operand(start, rcx, times_8, -kPointerSize), zero);
-  loop(&zero_loop);
+  do_rcx_memzero(start, zero);
 }
 
 
