@@ -47,13 +47,48 @@ namespace internal {
 class AssemblerBase {
   // TODO(rames): The AssemblerBase should manage the code generation buffer.
  public:
-  explicit AssemblerBase();
+  explicit AssemblerBase(size_t min_buffer_size, size_t max_buffer_size,
+                         unsigned max_instr_size,
+                         void* buffer, int buffer_size);
   ~AssemblerBase();
 
   VirtualMemory* GetCode();
 
- private:
-  byte* codegen_buffer_;
+  void GrowBuffer();
+
+  inline int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+
+  // Check if there is less than kGap bytes available in the buffer.
+  // If this is the case, we need to grow the buffer before emitting
+  // an instruction or relocation information.
+  inline bool buffer_overflow() const {
+    return pc_ >= buffer_ + buffer_size_ - max_instr_size_;
+  }
+
+  // Get the number of bytes available in the buffer.
+  inline int available_space() const {
+    return static_cast<int>(buffer_ + buffer_size_ - pc_);
+  }
+
+  byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
+ protected:
+  // Architecture specific values.
+  const size_t min_buffer_size_;
+  const size_t max_buffer_size_;
+  // Used to check that the buffer is big enough before assembling an
+  // instruction.
+  const int max_instr_size_;
+
+  // Code buffer:
+  // The buffer into which code is generated.
+  byte* buffer_;
+  size_t buffer_size_;
+  // True if the assembler owns the buffer, false if buffer is external.
+  bool own_buffer_;
+  // code generation
+  byte* pc_;  // the program counter; moves forward
 };
 
 

@@ -471,7 +471,8 @@ class Assembler : public AssemblerBase {
   // (There is a 15 byte limit on x64 instruction length that rules out some
   // otherwise valid instructions.)
   // This allows for a single, fast space check per instruction.
-  static const int kGap = 32;
+  static const int kMaxInstrSize = 15;
+  static const int kGap = kMaxInstrSize + 17;
 
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -488,7 +489,7 @@ class Assembler : public AssemblerBase {
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
   Assembler(void* buffer, int buffer_size);
-  ~Assembler();
+  ~Assembler() {};
 
   // Overrides the default provided by FLAG_debug_code.
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
@@ -1339,50 +1340,14 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
-  int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
-
-  // Check if there is less than kGap bytes available in the buffer.
-  // If this is the case, we need to grow the buffer before emitting
-  // an instruction or relocation information.
-  inline bool buffer_overflow() const {
-    return pc_ >= buffer_ + buffer_size_ - kGap;
-  }
-
-  // Get the number of bytes available in the buffer.
-  inline int available_space() const {
-    return static_cast<int>(buffer_ + buffer_size_ - pc_);
-  }
-
-  static bool IsNop(Address addr);
-
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
-  byte byte_at(int pos)  { return buffer_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+  static bool IsNop(Address addr);
 
   // Rejit added code --------------------------------------
-  // TODO(ajr): Clean and check memory type (writable?).
-  VirtualMemory* GetCode() {
-    VirtualMemory* vmem = new VirtualMemory(pc_offset());
-    if (!vmem->IsReserved()) {
-      FATAL("mem not reserved");
-      delete vmem;
-      return NULL;
-    }
-    if (!vmem->Commit(vmem->address(), pc_offset(), true/*executable*/)) {
-      FATAL("mem not commit");
-      delete vmem;
-      return NULL;
-    }
-
-    memcpy(vmem->address(), buffer_, pc_offset());
-
-    // TODO(rames): Clean up how the code is returned. Returning virtual memory
-    // is not very intuitive!
-    return vmem;
-  }
+  void GrowBuffer();
 
   void loop(Condition cond, Label* L) {
     ASSERT(L->is_bound());
@@ -1507,9 +1472,6 @@ class Assembler : public AssemblerBase {
   void long_at_put(int pos, uint32_t x)  {
     *reinterpret_cast<uint32_t*>(addr_at(pos)) = x;
   }
-
-  // code emission
-  void GrowBuffer();
 
   void emit(byte x) { *pc_++ = x; }
   inline void emitl(uint32_t x);
@@ -1679,16 +1641,6 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class EnsureSpace;
   friend class RegExpMacroAssemblerX64;
-
-  // Code buffer:
-  // The buffer into which code is generated.
-  byte* buffer_;
-  size_t buffer_size_;
-  // True if the assembler owns the buffer, false if buffer is external.
-  bool own_buffer_;
-
-  // code generation
-  byte* pc_;  // the program counter; moves forward
 
   bool emit_debug_code_;
   bool predictable_code_size_;

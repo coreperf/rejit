@@ -34,6 +34,8 @@
 
 #include "assembler-base.h"
 
+#include "allocation.h"
+
 #ifdef REJIT_TARGET_ARCH_X64
 #else
 #error "Unsupported architecture."
@@ -43,13 +45,96 @@ namespace rejit {
 namespace internal {
 
 
-AssemblerBase::AssemblerBase() {
-  codegen_buffer_ = reinterpret_cast<byte*>(malloc(1 * KB));
+AssemblerBase::AssemblerBase(size_t min_buffer_size, size_t max_buffer_size,
+                             unsigned max_instr_size,
+                             void* buffer, int buffer_size) :
+    min_buffer_size_(min_buffer_size), max_buffer_size_(max_buffer_size),
+    max_instr_size_(max_instr_size)
+{
+  if (buffer == NULL) {
+    // Do our own buffer management.
+    if (buffer_size <= min_buffer_size_) {
+      buffer_size = min_buffer_size_;
+    }
+    buffer_ = NewArray<byte>(buffer_size);
+    buffer_size_ = buffer_size;
+    own_buffer_ = true;
+  } else {
+    // Use externally provided buffer instead.
+    ASSERT(buffer_size > 0);
+    buffer_ = static_cast<byte*>(buffer);
+    buffer_size_ = buffer_size;
+    own_buffer_ = false;
+  }
+
+  // Set up buffer pointers.
+  ASSERT(buffer_ != NULL);
+  pc_ = buffer_;
+
 }
 
+
 AssemblerBase::~AssemblerBase() {
-  free(codegen_buffer_);
+  if (own_buffer_) {
+    delete[] buffer_;
+  }
 }
+
+
+// TODO(ajr): Clean and check memory type (writable?).
+VirtualMemory* AssemblerBase::GetCode() {
+  VirtualMemory* vmem = new VirtualMemory(pc_offset());
+  if (!vmem->IsReserved()) {
+    FATAL("VirtualMemory has not been reserved.");
+    delete vmem;
+    return NULL;
+  }
+  if (!vmem->Commit(vmem->address(), pc_offset(), true/*executable*/)) {
+    FATAL("VirtualMemory has not been committed.");
+    delete vmem;
+    return NULL;
+  }
+
+  memcpy(vmem->address(), buffer_, pc_offset());
+
+  // TODO(rames): Clean up how the code is returned. Returning virtual memory
+  // is not very intuitive!
+  return vmem;
+}
+
+
+void AssemblerBase::GrowBuffer() {
+  ASSERT(buffer_overflow());
+  if (!own_buffer_) {
+    FATAL("external code buffer is too small");
+  }
+
+  byte* new_buffer;
+  size_t new_buffer_size;
+
+  ASSERT(buffer_size_ >= min_buffer_size_);
+  if (buffer_size_ >= max_buffer_size_) {
+    FATAL("The code generation buffer has exceeded its maximum possible size.");
+  }
+  new_buffer_size = min(2 * buffer_size_, max_buffer_size_);
+
+  // Set up new buffer.
+  new_buffer = NewArray<byte>(new_buffer_size);
+
+  // Get the pc offset before switching buffers.
+  ptrdiff_t offset = pc_offset();
+
+  // Copy the data.
+  memmove(new_buffer, buffer_, offset);
+  // Switch buffers.
+  delete[] buffer_;
+  buffer_ = new_buffer;
+  buffer_size_ = new_buffer_size;
+  pc_ = new_buffer + offset;
+
+  ASSERT(!buffer_overflow());
+}
+
 
 // -----------------------------------------------------------------------------
 // Implementation of Label

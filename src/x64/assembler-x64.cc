@@ -298,34 +298,11 @@ bool Operand::AddressUsesRegister(Register reg) const {
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
 
-#ifdef GENERATED_CODE_COVERAGE
-static void InitCoverageLog();
-#endif
-
 Assembler::Assembler(void* buffer, int buffer_size)
-    : AssemblerBase(),
+    : AssemblerBase(kMinimalBufferSize, kMaximalBufferSize, kMaxInstrSize,
+                    buffer, buffer_size),
       emit_debug_code_(FLAG_emit_debug_code),
       predictable_code_size_(false) {
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-    }
-    if (buffer == NULL) {
-      buffer_ = NewArray<byte>(buffer_size);
-    } else {
-      buffer_ = static_cast<byte*>(buffer);
-    }
-    buffer_size_ = buffer_size;
-    own_buffer_ = true;
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    buffer_ = static_cast<byte*>(buffer);
-    buffer_size_ = buffer_size;
-    own_buffer_ = false;
-  }
-
   // Clear the buffer in debug mode unless it was provided by the
   // caller in which case we can't be sure it's okay to overwrite
   // existing code in it.
@@ -334,21 +311,6 @@ Assembler::Assembler(void* buffer, int buffer_size)
     memset(buffer_, 0xCC, buffer_size);  // int3
   }
 #endif
-
-  // Set up buffer pointers.
-  ASSERT(buffer_ != NULL);
-  pc_ = buffer_;
-
-#ifdef GENERATED_CODE_COVERAGE
-  InitCoverageLog();
-#endif
-}
-
-
-Assembler::~Assembler() {
-  if (own_buffer_) {
-    delete[] buffer_;
-  }
 }
 
 
@@ -370,6 +332,16 @@ bool Assembler::IsNop(Address addr) {
   if (*a == 0x90) return true;
   if (a[0] == 0xf && a[1] == 0x1f) return true;
   return false;
+}
+
+
+void Assembler::GrowBuffer() {
+  reinterpret_cast<AssemblerBase*>(this)->GrowBuffer();
+  // Clear the buffer in debug mode. Use 'int3' instructions to make
+  // sure to get into problems if we ever run uninitialized code.
+#ifdef DEBUG
+  memset(pc_, 0xCC, available_space());
+#endif
 }
 
 
@@ -410,45 +382,6 @@ void Assembler::bind_to(Label* L, int pos) {
 
 void Assembler::bind(Label* L) {
   bind_to(L, pc_offset());
-}
-
-
-void Assembler::GrowBuffer() {
-  // TODO(ajr): Enable checks in GrowBuffer.
-//  ASSERT(buffer_overflow());
-  if (!own_buffer_) FATAL("external code buffer is too small");
-
-  byte* new_buffer;
-  size_t new_buffer_size;
-
-  // Compute new buffer size.
-//  CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 4 * KB) {
-    new_buffer_size = 4 * KB;
-  } else {
-    new_buffer_size = 2 * buffer_size_;
-  }
-  // Set up new buffer.
-  new_buffer = NewArray<byte>(new_buffer_size);
-
-  // Clear the buffer in debug mode. Use 'int3' instructions to make
-  // sure to get into problems if we ever run uninitialized code.
-#ifdef DEBUG
-  memset(new_buffer, 0xCC, new_buffer_size);
-#endif
-
-  // Get the pc offset before switching buffers.
-  ptrdiff_t offset = pc_offset();
-
-  // Copy the data.
-  memmove(new_buffer, buffer_, offset);
-  // Switch buffers.
-  delete[] buffer_;
-  buffer_ = new_buffer;
-  buffer_size_ = new_buffer_size;
-  pc_ = new_buffer + offset;
-
-//  ASSERT(!buffer_overflow());
 }
 
 
