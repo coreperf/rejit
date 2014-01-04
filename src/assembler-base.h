@@ -38,58 +38,13 @@
 #include "globals.h"
 #include "regexp.h"
 
+#include <map>
+
 namespace rejit {
 namespace internal {
 
-// -----------------------------------------------------------------------------
-// Platform independent assembler base class.
 
-class AssemblerBase {
-  // TODO(rames): The AssemblerBase should manage the code generation buffer.
- public:
-  explicit AssemblerBase(size_t min_buffer_size, size_t max_buffer_size,
-                         unsigned max_instr_size,
-                         void* buffer, int buffer_size);
-  ~AssemblerBase();
-
-  VirtualMemory* GetCode();
-
-  void GrowBuffer();
-
-  inline int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
-
-  // Check if there is less than kGap bytes available in the buffer.
-  // If this is the case, we need to grow the buffer before emitting
-  // an instruction or relocation information.
-  inline bool buffer_overflow() const {
-    return pc_ >= buffer_ + buffer_size_ - max_instr_size_;
-  }
-
-  // Get the number of bytes available in the buffer.
-  inline int available_space() const {
-    return static_cast<int>(buffer_ + buffer_size_ - pc_);
-  }
-
-  byte byte_at(int pos)  { return buffer_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
-
- protected:
-  // Architecture specific values.
-  const size_t min_buffer_size_;
-  const size_t max_buffer_size_;
-  // Used to check that the buffer is big enough before assembling an
-  // instruction.
-  const int max_instr_size_;
-
-  // Code buffer:
-  // The buffer into which code is generated.
-  byte* buffer_;
-  size_t buffer_size_;
-  // True if the assembler owns the buffer, false if buffer is external.
-  bool own_buffer_;
-  // code generation
-  byte* pc_;  // the program counter; moves forward
-};
+class AssemblerBase;
 
 
 // -----------------------------------------------------------------------------
@@ -159,6 +114,125 @@ class Label {
   friend class RegExpMacroAssemblerIrregexp;
 };
 
+
+// -----------------------------------------------------------------------------
+// Data relocation
+// Data may not fit the immediate fields of the instructions, and may not be
+// convenient to generate on the fly.
+// Code generation uses very little relocation and does not have as complex
+// requirements as v8, so we use a simpler relocation system.
+class RelocatedData {
+ public:
+  // The relocated value can be registered in an assembler that will take care
+  // of freeing it at the same time it is destroyed.
+  // The relocated value must be aligned according to the mask.
+  RelocatedData(char *buf, size_t buf_size, bool copy_buf,
+                unsigned alignment);
+  ~RelocatedData();
+
+  inline size_t buffer_size() const { return buffer_size_; }
+  inline unsigned alignment() const { return alignment_; }
+
+ private:
+  char *buffer_;
+  size_t buffer_size_;
+  bool own_buffer_;
+  unsigned alignment_;
+
+  friend class AssemblerBase;
+};
+
+class RelocatedValue {
+ public:
+  RelocatedValue() :
+      data_(NULL), offset_(0) {}
+
+  RelocatedValue(RelocatedData *data, unsigned offset) :
+      data_(data), offset_(offset) { ASSERT(offset_ >= 0); }
+
+  inline RelocatedData *data() const { return data_; }
+
+  bool operator<(const RelocatedValue& other) const {
+    return data_ < other.data_;
+  }
+
+ private:
+  RelocatedData *data_;
+  // Offset from the base of the data.
+  int32_t offset_;
+
+  friend class AssemblerBase;
+  friend class Assembler;
+};
+
+
+// -----------------------------------------------------------------------------
+// Platform independent assembler base class.
+
+class AssemblerBase {
+  // TODO(rames): The AssemblerBase should manage the code generation buffer.
+ public:
+  explicit AssemblerBase(size_t min_buffer_size, size_t max_buffer_size,
+                         unsigned max_instr_size,
+                         void* buffer, int buffer_size);
+  ~AssemblerBase();
+
+  // Code buffer management --------------------------------
+  VirtualMemory* GetCode();
+
+  void GrowBuffer();
+
+  inline int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
+
+  // Check if there is less than kGap bytes available in the buffer.
+  // If this is the case, we need to grow the buffer before emitting
+  // an instruction or relocation information.
+  inline bool buffer_overflow() const {
+    return pc_ >= buffer_ + buffer_size_ - max_instr_size_;
+  }
+
+  // Get the number of bytes available in the buffer.
+  inline int available_space() const {
+    return static_cast<int>(buffer_ + buffer_size_ - pc_);
+  }
+
+  byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
+
+
+  // Relocation --------------------------------------------
+  RelocatedData *NewRelocatedData(char *buf, size_t buf_size, bool copy_buf,
+                                  unsigned alignment);
+  void EmitRelocData();
+
+  void UseRelocatedData(RelocatedData *data);
+  void UseRelocatedValue(RelocatedValue reloc);
+
+
+ protected:
+  // Architecture specific values.
+  const size_t min_buffer_size_;
+  const size_t max_buffer_size_;
+  // Used to check that the buffer is big enough before assembling an
+  // instruction.
+  const int max_instr_size_;
+
+  // Code buffer:
+  // The buffer into which code is generated.
+  byte* buffer_;
+  size_t buffer_size_;
+  // True if the assembler owns the buffer, false if buffer is external.
+  bool own_buffer_;
+  // code generation
+  byte* pc_;  // the program counter; moves forward
+
+  vector<RelocatedData*> reloc_data_owned_;
+  // The relocated data used by this assembler and the offset at which the data
+  // has been emitted in the buffer.
+  map<RelocatedData*, int> reloc_data_location_;
+  // The relocated values and the locations (offsets) at which they are used.
+  map<RelocatedValue, int> reloc_values_usage_location_;
+};
 
 } }  // namespace rejit::internal
 

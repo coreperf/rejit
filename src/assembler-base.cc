@@ -45,6 +45,40 @@ namespace rejit {
 namespace internal {
 
 
+// -----------------------------------------------------------------------------
+// Implementation of Label
+
+int Label::pos() const {
+  if (pos_ < 0) return -pos_ - 1;
+  if (pos_ > 0) return  pos_ - 1;
+  UNREACHABLE();
+  return 0;
+}
+
+
+RelocatedData::RelocatedData(char *buf, size_t buf_size, bool copy_buf,
+                             unsigned alignment) {
+  alignment_ = alignment;
+  if (!copy_buf) {
+    buffer_size_ = buf_size;
+    buffer_ = buf;
+    own_buffer_ = false;
+  } else {
+    buffer_ = NewArray<char>(buf_size);
+    buffer_size_ = buf_size;
+    own_buffer_ = true;
+    memcpy(buffer_, buf, buf_size);
+  }
+}
+
+
+RelocatedData::~RelocatedData() {
+  if (own_buffer_) {
+    delete buffer_;
+  }
+}
+
+
 AssemblerBase::AssemblerBase(size_t min_buffer_size, size_t max_buffer_size,
                              unsigned max_instr_size,
                              void* buffer, int buffer_size) :
@@ -70,13 +104,15 @@ AssemblerBase::AssemblerBase(size_t min_buffer_size, size_t max_buffer_size,
   // Set up buffer pointers.
   ASSERT(buffer_ != NULL);
   pc_ = buffer_;
-
 }
 
 
 AssemblerBase::~AssemblerBase() {
   if (own_buffer_) {
     delete[] buffer_;
+  }
+  for (RelocatedData* reloc : reloc_data_owned_) {
+    delete reloc;
   }
 }
 
@@ -136,14 +172,48 @@ void AssemblerBase::GrowBuffer() {
 }
 
 
-// -----------------------------------------------------------------------------
-// Implementation of Label
+RelocatedData *AssemblerBase::NewRelocatedData(char *buf, size_t buf_size,
+                                               bool copy_buf,
+                                               unsigned alignment_mask) {
+  RelocatedData *reloc = new RelocatedData(buf, buf_size,
+                                           copy_buf, alignment_mask);
+  reloc_data_owned_.push_back(reloc);
+  return reloc;
+}
 
-int Label::pos() const {
-  if (pos_ < 0) return -pos_ - 1;
-  if (pos_ > 0) return  pos_ - 1;
-  UNREACHABLE();
-  return 0;
+
+void AssemblerBase::EmitRelocData() {
+  // Emit relocation data that has not been emitted yet.
+  //for (pair<RelocatedData*, int>& reloc_info : reloc_data_location_) {
+  for (auto& reloc_info : reloc_data_location_) {
+    if (reloc_info.second == -1) {
+      RelocatedData* reloc = reloc_info.first;
+      if (available_space() < reloc->buffer_size_ + reloc->alignment_) {
+        GrowBuffer();
+      }
+      ASSERT(IsPowerOf2(reloc->alignment_));
+      int alignment_mask = reloc->alignment_ - 1;
+      pc_ += (reloc->alignment_ - (pc_offset() & alignment_mask)) & alignment_mask;
+      memcpy(pc_, reloc->buffer_, reloc->buffer_size_);
+      reloc_info.second = pc_offset();
+      pc_ += reloc->buffer_size_;
+    }
+  }
+}
+
+
+void AssemblerBase::UseRelocatedData(RelocatedData *data) {
+  map<RelocatedData*, int>::iterator it;
+  it = reloc_data_location_.find(data);
+  if (it == reloc_data_location_.end()) {
+    reloc_data_location_.insert(pair<RelocatedData*, int>(data, -1));
+  }
+}
+
+
+void AssemblerBase::UseRelocatedValue(RelocatedValue reloc) {
+  UseRelocatedData(reloc.data_);
+  reloc_values_usage_location_.insert(pair<RelocatedValue, int>(reloc, pc_offset()));
 }
 
 
