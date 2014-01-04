@@ -324,9 +324,10 @@ bool Codegen::GenerateFastForward() {
   __ movq(string_pointer, ff_position);
   __ inc_c(string_pointer);
   // Clear the temporary matches.
-  __ movq(backward_match, Immediate(0));
-  __ movq(forward_match,  Immediate(0));
-  __ movq(last_match_end, Immediate(0));
+  __ Move(scratch, 0);
+  __ movq(backward_match, scratch);
+  __ movq(forward_match,  scratch);
+  __ movq(last_match_end, scratch);
   ffgen.Generate();
   __ movq(ff_position, string_pointer);
 
