@@ -170,7 +170,7 @@ void CpuFeatures::Probe() {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-Operand::Operand(Register base, int32_t disp) : rex_(0) {
+Operand::Operand(Register base, int32_t disp) : rex_(0), reloc_data_(NULL) {
   len_ = 1;
   if (base.is(rsp) || base.is(r12)) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
@@ -189,10 +189,22 @@ Operand::Operand(Register base, int32_t disp) : rex_(0) {
 }
 
 
+Operand::Operand(RelocatedData *reloc_data, int32_t offset) :
+    rex_(0), reloc_data_(reloc_data), reloc_disp_(offset) {
+  ASSERT(reloc_disp_ >= 0);
+  len_ = 1;
+  // disp32 from the instruction pointer. See Intel software developer manual
+  // section 2.1.5.
+  Register disp32_rm_code = { 5 };
+  set_modrm(0, disp32_rm_code);
+  set_disp32(0);
+}
+
+
 Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
-                 int32_t disp) : rex_(0) {
+                 int32_t disp) : rex_(0), reloc_data_(NULL) {
   ASSERT(!index.is(rsp));
   len_ = 1;
   set_sib(scale, index, base);
@@ -212,7 +224,7 @@ Operand::Operand(Register base,
 
 Operand::Operand(Register index,
                  ScaleFactor scale,
-                 int32_t disp) : rex_(0) {
+                 int32_t disp) : rex_(0), reloc_data_(NULL) {
   ASSERT(!index.is(rsp));
   len_ = 1;
   set_modrm(0, rsp);
@@ -221,8 +233,9 @@ Operand::Operand(Register index,
 }
 
 
-Operand::Operand(const Operand& operand, int32_t offset) {
+Operand::Operand(const Operand& operand, int32_t offset) : reloc_data_(NULL) {
   ASSERT(operand.len_ >= 1);
+  ASSERT(!operand.uses_reloc_data());  // Not supported yet.
   // Operand encodes REX ModR/M [SIB] [Disp].
   byte modrm = operand.buf_[0];
   ASSERT(modrm < 0xC0);  // Disallow mode 3 (register target).
@@ -326,6 +339,40 @@ void Assembler::CodeTargetAlign() {
 }
 
 
+void Assembler::PatchRelocData() {
+  RelocatedData *data;
+  int32_t disp_offset;
+  int32_t *disp;
+  map<RelocatedData*, int>::iterator it;
+  int32_t data_offset;
+
+  for (pair<RelocatedValue, int> reloc_info : reloc_values_usage_location_) {
+    data = reloc_info.first.data();
+    disp_offset = reloc_info.second;
+    disp = reinterpret_cast<int32_t*>(buffer_ + disp_offset);
+    ASSERT(*disp == 0);
+
+    it = reloc_data_location_.find(data);
+    ASSERT(it != reloc_data_location_.end());
+    data_offset  = it->second;
+    ASSERT(data_offset != -1);
+
+    *disp = data_offset - disp_offset + reloc_info.first.offset_ - 4;
+  }
+}
+
+
+void Assembler::GenerateRelocPool(bool jmp_around_pool) {
+  Label end_pool;
+  if (jmp_around_pool) {
+    jmp(&end_pool);
+  }
+  EmitRelocData();
+  PatchRelocData();
+  bind(&end_pool);
+}
+
+
 bool Assembler::IsNop(Address addr) {
   Address a = addr;
   while (*a == 0x66) a++;
@@ -393,10 +440,15 @@ void Assembler::emit_operand(int code, const Operand& adr) {
   // Emit updated ModR/M byte containing the given register.
   ASSERT((adr.buf_[0] & 0x38) == 0);
   pc_[0] = adr.buf_[0] | code << 3;
+  ++pc_;
 
+  // Record the relocation now, just before we emit the displacement.
+  if (adr.uses_reloc_data()) {
+    UseRelocatedValue(RelocatedValue(adr.reloc_data_, adr.reloc_disp_));
+  }
   // Emit the rest of the encoded operand.
-  for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
-  pc_ += length;
+  for (unsigned i = 1; i < length; i++) pc_[i - 1] = adr.buf_[i];
+  pc_ += length - 1;
 }
 
 

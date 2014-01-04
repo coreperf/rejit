@@ -180,6 +180,13 @@ void Codegen::Generate() {
   __ addq(rsp, Immediate(reserved_space));
   __ PopCalleeSavedRegisters();
   __ ret(0);
+  if (FLAG_emit_debug_code) {
+    __ int3();
+  }
+  __ GenerateRelocPool(false);
+  if (FLAG_emit_debug_code) {
+    __ int3();
+  }
 }
 
 

@@ -190,6 +190,7 @@ void Operand::set_modrm(int mod, Register rm_reg) {
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   ASSERT(len_ == 1);
   ASSERT(is_uint2(scale));
+  ASSERT(!uses_reloc_data());   // Note supported yet.
   // Use SIB with no index register only for base rsp or r12. Otherwise we
   // would skip the SIB byte entirely.
   ASSERT(!index.is(rsp) || base.is(rsp) || base.is(r12));

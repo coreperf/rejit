@@ -270,21 +270,13 @@ void MacroAssembler::movdq(XMMRegister dst, uint64_t high, uint64_t low) {
 
 
 void MacroAssembler::movdqp(XMMRegister dst, const char* chars, size_t n_chars) {
-  // TODO(rames): rework this.
-  // It is awful but it works.
-    if (n_chars > 8) {
-      MoveCharsFrom(scratch, n_chars - 8, chars + 8);
-    } else {
-      Move(scratch, 0);
-    }
-    push(scratch);
-    MoveCharsFrom(scratch, n_chars, chars);
-    push(scratch);
+  char null_term_chars[16];
+  memset(null_term_chars, '\0', 16);
+  memcpy(null_term_chars, chars, n_chars);
 
-    movdqu(dst, Operand(rsp, 0));
-
-    pop(scratch);
-    pop(scratch);
+  RelocatedData *reloc_chars =
+    this->NewRelocatedData(null_term_chars, 16, true, 16);
+  movdqa(dst, Operand(reloc_chars, 0));
 }
 
 

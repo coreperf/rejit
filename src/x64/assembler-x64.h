@@ -342,6 +342,8 @@ class Operand {
   // this must not overflow.
   Operand(const Operand& base, int32_t offset);
 
+  Operand(RelocatedData *reloc_data, int32_t offset);
+
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
   bool AddressUsesRegister(Register reg) const;
@@ -352,6 +354,8 @@ class Operand {
   // Size of the ModR/M, SIB and displacement parts of the generated
   // instruction.
   int operand_size() const { return len_; }
+
+  inline bool uses_reloc_data() const { return reloc_data_ != NULL; }
 
  private:
   byte rex_;
@@ -371,6 +375,9 @@ class Operand {
   // Needs to be called after set_sib, not before it.
   inline void set_disp8(int disp);
   inline void set_disp32(int disp);
+
+  RelocatedData *reloc_data_;
+  int32_t reloc_disp_;
 
   friend class Assembler;
 };
@@ -1348,6 +1355,9 @@ class Assembler : public AssemblerBase {
 
   // Rejit added code --------------------------------------
   void GrowBuffer();
+
+  void PatchRelocData();
+  void GenerateRelocPool(bool jmp_around_pool);
 
   void loop(Condition cond, Label* L) {
     ASSERT(L->is_bound());
