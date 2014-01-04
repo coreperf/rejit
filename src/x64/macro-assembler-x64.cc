@@ -27,16 +27,8 @@ MacroAssembler::MacroAssembler()
 void MacroAssembler::Move(Register dst, uint64_t value) {
   if (value == 0) {
     xorl(dst, dst);
-    return;
-  }
-  // TODO(rames): Optimize this!
-  if (value & 0xFFFFFFFF00000000ULL) {
-    movq(dst, Immediate(value >> 32));
-    shl(dst, Immediate(32));
-    movl(mscratch, Immediate(value & 0xFFFFFFFF));
-    or_(dst, mscratch);
   } else {
-    movq(dst, Immediate(value & 0xFFFFFFFF));
+    movq(dst, value);
   }
 }
 
