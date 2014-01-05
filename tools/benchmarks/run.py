@@ -22,6 +22,7 @@ import csv
 import math
 import time
 import datetime
+import copy
 
 # Import rejit utils.
 dir_benchmarks = dirname(os.path.realpath(__file__))
@@ -386,6 +387,9 @@ def plot_results():
   html_file_results.write('<h2>Info</h2>\n')
   html_file_results.write('Date: %s<br/>\n' % datetime.datetime.now().strftime("%Y/%m/%d %H:%M"))
   html_file_results.write('Command: <code>%s</code><br/>\n' % ' '.join(sys.argv))
+  iter_args = copy.deepcopy(vars(args))
+  iter_args.pop('machine_description')
+  html_file_results.write('Arguments: <code>%s</code><br/>\n' % iter_args)
   if args.machine_description:
     if not os.path.isfile(args.machine_description):
       utils.warning("Could not open '%s'" % args.machine_description)
