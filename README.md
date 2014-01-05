@@ -93,7 +93,7 @@ It illustrates the 'fast forward' mechanism used by rejit (see [this article][co
 Run the benchmarks and open the html file containing the results along with some comments:
 ```
 $ ./tools/benchmarks/run.py
-$ <browser> ./html/rejit.html
+$ <browser> ./tools/benchmarks/benchmarks_results.html
 ```
 See the Sample programs section below for regexdna and jrep.
 

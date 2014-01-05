@@ -8,10 +8,10 @@ This page is available under the Creative Commons "CC BY" licence.
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Rejit</title>
-    <link rel="stylesheet" href="resources/main.css">
-    <script language="javascript" type="text/javascript" src="resources/flot/jquery.js"></script>
-    <script language="javascript" type="text/javascript" src="resources/flot/jquery.flot.js"></script>
-    <script language="javascript" type="text/javascript" src="resources/flot/jquery.flot.time.js"></script>
+    <link rel="stylesheet" href="resources/html/main.css">
+    <script language="javascript" type="text/javascript" src="resources/html/flot/jquery.js"></script>
+    <script language="javascript" type="text/javascript" src="resources/html/flot/jquery.flot.js"></script>
+    <script language="javascript" type="text/javascript" src="resources/html/flot/jquery.flot.time.js"></script>
   </head>
   <body>
     <h1>Benchmarks</h1>
@@ -29,5 +29,5 @@ This page is available under the Creative Commons "CC BY" licence.
     which files of given sizes can be processed.
     </p>
 
-    <script language="javascript" type="text/javascript" src="resources/bench_plot.js"></script>
+    <script language="javascript" type="text/javascript" src="resources/html/bench_plot.js"></script>
 

@@ -377,9 +377,9 @@ def plot_results():
 
   print("Plotting results...")
 
-  html_file_results = open(join(utils.dir_html, 'rejit.html'), 'w')
+  html_file_results = open(join(utils.dir_benchmarks, 'benchmarks_results.html'), 'w')
 
-  html_file_header = open(join(utils.dir_html_resources, 'rejit.html.header'), 'r')
+  html_file_header = open(join(utils.dir_benchmarks_resources_html, 'benchmarks_results.html.header'), 'r')
   html_file_results.write(html_file_header.read())
   html_file_header.close()
 
@@ -411,7 +411,7 @@ def plot_results():
     html_file_results.write(res.plot())
   html_file_results.write('</table>\n')
 
-  html_file_footer = open(join(utils.dir_html_resources, 'rejit.html.footer'), 'r')
+  html_file_footer = open(join(utils.dir_benchmarks_resources_html, 'benchmarks_results.html.footer'), 'r')
   html_file_results.write(html_file_footer.read())
   html_file_footer.close()
 
