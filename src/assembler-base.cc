@@ -56,8 +56,8 @@ int Label::pos() const {
 }
 
 
-RelocatedData::RelocatedData(char *buf, size_t buf_size, bool copy_buf,
-                             unsigned alignment) {
+RelocatedData::RelocatedData(char *buf, int buf_size, bool copy_buf,
+                             int alignment) {
   alignment_ = alignment;
   if (!copy_buf) {
     buffer_size_ = buf_size;
@@ -173,10 +173,9 @@ void AssemblerBase::GrowBuffer() {
 
 
 RelocatedData *AssemblerBase::NewRelocatedData(char *buf, size_t buf_size,
-                                               bool copy_buf,
-                                               unsigned alignment_mask) {
+                                               bool copy_buf, int alignment) {
   RelocatedData *reloc = new RelocatedData(buf, buf_size,
-                                           copy_buf, alignment_mask);
+                                           copy_buf, alignment);
   reloc_data_owned_.push_back(reloc);
   return reloc;
 }

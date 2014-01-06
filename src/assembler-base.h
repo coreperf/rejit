@@ -126,18 +126,18 @@ class RelocatedData {
   // The relocated value can be registered in an assembler that will take care
   // of freeing it at the same time it is destroyed.
   // The relocated value must be aligned according to the mask.
-  RelocatedData(char *buf, size_t buf_size, bool copy_buf,
-                unsigned alignment);
+  RelocatedData(char *buf, int buf_size, bool copy_buf,
+                int alignment);
   ~RelocatedData();
 
-  inline size_t buffer_size() const { return buffer_size_; }
+  inline int buffer_size() const { return buffer_size_; }
   inline unsigned alignment() const { return alignment_; }
 
  private:
   char *buffer_;
-  size_t buffer_size_;
+  int buffer_size_;
   bool own_buffer_;
-  unsigned alignment_;
+  int alignment_;
 
   friend class AssemblerBase;
 };
@@ -202,7 +202,7 @@ class AssemblerBase {
 
   // Relocation --------------------------------------------
   RelocatedData *NewRelocatedData(char *buf, size_t buf_size, bool copy_buf,
-                                  unsigned alignment);
+                                  int alignment);
   void EmitRelocData();
 
   void UseRelocatedData(RelocatedData *data);
@@ -211,8 +211,8 @@ class AssemblerBase {
 
  protected:
   // Architecture specific values.
-  const size_t min_buffer_size_;
-  const size_t max_buffer_size_;
+  const int min_buffer_size_;
+  const int max_buffer_size_;
   // Used to check that the buffer is big enough before assembling an
   // instruction.
   const int max_instr_size_;
@@ -220,7 +220,7 @@ class AssemblerBase {
   // Code buffer:
   // The buffer into which code is generated.
   byte* buffer_;
-  size_t buffer_size_;
+  int buffer_size_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
   // code generation
