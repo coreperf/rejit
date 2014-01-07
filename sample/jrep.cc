@@ -195,6 +195,7 @@ static struct argp argp = {options, parse_opt, args_doc, doc};
 
 // Declared global to be easily accessed via ftw's callback.
 rejit::Regej *re;
+rejit::Regej re_sol("^");
 
 
 bool is_dir(const char* name) {
@@ -257,7 +258,7 @@ int process_file(const char* filename) {
     // TODO: When not printing line numbers it may be faster to look for sos and
     // eos only for each match.
     vector<rejit::Match> new_lines;
-    rejit::MatchAll("^", file_content, file_size, &new_lines);
+    re_sol.MatchAll(file_content, file_size, &new_lines);
     // Append a match for the end of the file to be able to correctly print the
     // last line.
     new_lines.push_back({file_content + file_size, file_content + file_size});
@@ -328,8 +329,8 @@ int process_file(const char* filename) {
       }
     }
   }
-
   output_mutex.unlock();
+
   munmap(file_content, file_size);
 close_file:
   close(fd);
