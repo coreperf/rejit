@@ -253,7 +253,6 @@ int process_file(const char* filename) {
 
   re->MatchAll(file_content, file_size, &matches);
 
-  output_mutex.lock();
   if (matches.size()) {
     // TODO: When not printing line numbers it may be faster to look for sos and
     // eos only for each match.
@@ -265,6 +264,7 @@ int process_file(const char* filename) {
 
     vector<rejit::Match>::iterator it_lines = new_lines.begin();
     vector<rejit::Match>::iterator it_matches = matches.begin();
+    output_mutex.lock();
     while (it_lines < new_lines.end() && it_matches < matches.end()) {
       // Accesses at the limits of the vectors look a bit dangerous but should
       // be guaranteed because the matches are strictly included between the
@@ -328,8 +328,8 @@ int process_file(const char* filename) {
         printf("--\n");
       }
     }
-  }
   output_mutex.unlock();
+  }
 
   munmap(file_content, file_size);
 close_file:
