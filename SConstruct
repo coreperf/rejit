@@ -50,6 +50,10 @@ options = {
 #     'environment_key' : 'values to append'
 #     },
     'os:macos' : {
+      'CCFLAGS' : ['-DREJIT_TARGET_PLATFORM_LINUX']
+      },
+    'os:macos' : {
+      'CCFLAGS' : ['-DREJIT_TARGET_PLATFORM_MACOS'],
       'CXXFLAGS' : ['-stdlib=libc++'],
       'LINKFLAGS' : ['-stdlib=libc++']
       },
