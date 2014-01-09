@@ -43,8 +43,6 @@ struct Match {
   const char* end;
 };
 
-// TODO: Consider adding char*, size_t prototypes.
-
 // High level helpers.
 // These are convenient helpers that abstract the use of the Regej class below.
 // Rejit currently does not yet have a cache for compiled regular expressions,
