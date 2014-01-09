@@ -32,6 +32,15 @@
 #include <mutex>
 #include <condition_variable>
 
+#ifndef REJIT_TARGET_PLATFORM_MACOS
+// TODO: Unify output method on Linux and OSX.
+// cout showed a significant performance gain on Linux (~30% faster), whereas it
+// showed a hugh performance loss on OSX (about 4 times slower). Duplicating the
+// output statements is aweful, but the performance gain is too important to be
+// ignored.
+#include <iostream>
+#endif
+
 #include "rejit.h"
 
 using namespace std;
@@ -215,11 +224,19 @@ static void print_head(const char* filename,
                        unsigned line,
                        char separator=':') {
   if (arguments.print_filename) {
+#ifdef REJIT_TARGET_PLATFORM_MACOS
     printf("%s%c", filename, separator);
+#else
+    cout << filename << separator;
+#endif
   }
   if (arguments.print_line_number) {
     // Index starts at 0, but line numbering at 1.
+#ifdef REJIT_TARGET_PLATFORM_MACOS
     printf("%d%c", line, separator);
+#else
+    cout << line << separator;
+#endif
   }
 }
 
@@ -280,13 +297,21 @@ int process_file(const char* filename) {
 
       if (arguments.context_before) {
         // Print the 'context_before'.
+#ifdef REJIT_TARGET_PLATFORM_MACOS
         printf("--\n");
+#else
+        cout << "--\n";
+#endif
         vector<rejit::Match>::iterator it;
         for(it = max(it_lines - arguments.context_before, new_lines.begin());
             it < it_lines;
             it++) {
           print_head(filename, (int)(1 + (it - new_lines.begin())), '-');
+#ifdef REJIT_TARGET_PLATFORM_MACOS
           printf("%.*s", (int)((it + 1)->begin - it->begin), it->begin);
+#else
+          cout.write(it->begin, (int)((it + 1)->begin - it->begin));
+#endif
         }
       }
 
@@ -302,9 +327,14 @@ int process_file(const char* filename) {
       }
       while (it_matches < matches.end() &&
              it_matches->begin < (it_lines + 1)->begin) {
+#ifdef REJIT_TARGET_PLATFORM_MACOS
         printf(arguments.color_output ? "%.*s" START_RED "%.*s" END_COLOR : "%.*s%.*s" ,
                (int)(it_matches->begin - start), start,
                (int)(it_matches->end - it_matches->begin), it_matches->begin);
+#else
+        cout.write(start, (int)(it_matches->begin - start));
+        cout.write(it_matches->begin, (int)(it_matches->end - it_matches->begin));
+#endif
         start = it_matches->end;
         ++it_matches;
       }
@@ -313,9 +343,13 @@ int process_file(const char* filename) {
       while (it_end_lines->begin < (it_matches - 1)->end) {
         ++it_end_lines;
       }
+#ifdef REJIT_TARGET_PLATFORM_MACOS
       printf("%.*s",
              (int)((it_end_lines)->end - (it_matches - 1)->end),
              (it_matches - 1)->end);
+#else
+      cout.write((it_matches - 1)->end, (int)((it_end_lines)->end - (it_matches - 1)->end));
+#endif
 
       if (arguments.context_after) {
         // Print the 'context_after'.
@@ -323,9 +357,17 @@ int process_file(const char* filename) {
             it < min(it_end_lines + arguments.context_after, new_lines.end());
             it++) {
           print_head(filename, (int)(1 + (it - new_lines.begin())), '-');
+#ifdef REJIT_TARGET_PLATFORM_MACOS
           printf("%.*s", (int)((it + 1)->begin - it->begin), it->begin);
+#else
+          cout.write(it->begin, (int)((it + 1)->begin - it->begin));
+#endif
         }
+#ifdef REJIT_TARGET_PLATFORM_MACOS
         printf("--\n");
+#else
+        cout << "--\n";
+#endif
       }
     }
   output_mutex.unlock();
