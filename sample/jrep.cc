@@ -213,7 +213,7 @@ bool is_dir(const char* name) {
 
   rc = stat(name, &file_stats);
   if (rc) {
-    printf("jrep: %s: %s\n", name, strerror(errno));
+    fprintf(stderr, "jrep: %s: %s\n", name, strerror(errno));
     exit(rc);
   }
   return file_stats.st_mode & S_IFDIR;
@@ -422,7 +422,7 @@ int list_file_or_dir(const char* name) {
 
   rc = stat(name, &file_stats);
   if (rc) {
-    printf("jrep: %s: %s\n", name, strerror(errno));
+    fprintf(stderr, "jrep: %s: %s\n", name, strerror(errno));
     return rc;
   }
 
@@ -482,13 +482,13 @@ int main(int argc, char *argv[]) {
     // Initialize structures for multithreaded processing.
     threads = reinterpret_cast<thread**>(malloc(arguments.jobs * sizeof(thread*)));
     if (!threads) {
-      printf("jrep: %s\n", strerror(errno));
+      fprintf(stderr, "jrep: %s\n", strerror(errno));
       exit(errno);
     }
     n_filenames = max(arguments.nopenfd, 16 * arguments.jobs);
     filenames = new string[n_filenames];
     if (!filenames) {
-      printf("jrep: %s\n", strerror(errno));
+      fprintf(stderr, "jrep: %s\n", strerror(errno));
       exit(errno);
     }
 
@@ -503,7 +503,7 @@ int main(int argc, char *argv[]) {
   for (it = arguments.filenames.begin(); it < arguments.filenames.end(); it++) {
     const char* name = *it;
     if (!arguments.recursive && is_dir(name)) {
-      printf("jrep: %s: Is a directory.\n", name);
+      fprintf(stderr, "jrep: %s: Is a directory.\n", name);
       continue;
     }
     rc = list_file_or_dir(name);
