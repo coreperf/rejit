@@ -513,7 +513,7 @@ int main(int argc, char *argv[]) {
   }
   fn_done_listing = true;
   atomic_thread_fence(memory_order_seq_cst);
-  fn_refilled.notify_one();
+  fn_refilled.notify_all();
 
   for (unsigned i = 0; i < arguments.jobs; i++) {
     threads[i]->join();
