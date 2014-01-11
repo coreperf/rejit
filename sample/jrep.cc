@@ -362,8 +362,9 @@ int process_file(const char* filename) {
 
       if (arguments.context_after) {
         // Print the 'context_after'.
-        for(vector<rejit::Match>::iterator it = it_end_lines;
-            it < min(it_end_lines + arguments.context_after, new_lines.end());
+        vector<rejit::Match>::iterator it;
+        for(it = it_end_lines;
+            it < min(it_end_lines + arguments.context_after, new_lines.end() - 1);
             it++) {
           print_head(filename, (int)(1 + (it - new_lines.begin())), '-');
 #ifdef REJIT_TARGET_PLATFORM_MACOS
@@ -373,8 +374,14 @@ int process_file(const char* filename) {
 #endif
         }
 #ifdef REJIT_TARGET_PLATFORM_MACOS
+        if (it == new_lines.end() - 1) {
+          printf("\n");
+        }
         printf("--\n");
 #else
+        if (it == new_lines.end() - 1) {
+          cout << "\n";
+        }
         cout << "--\n";
 #endif
       }
