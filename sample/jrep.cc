@@ -61,12 +61,12 @@ condition_variable fn_refilled;
 volatile bool fn_done_listing = false;
 thread **threads;
 
-// Protects printing to the output.
+// We want to display the results 'file by file'.
 mutex output_mutex;
 
 
 // Argp configuration ----------------------------------------------------------
-const char *argp_program_version = "grep-like sample powered by rejit";
+const char *argp_program_version = "beta";
 const char *argp_program_bug_address = "<alexandre@coreperf.com>";
 
 enum {
@@ -75,10 +75,9 @@ enum {
   RECURSIVE_FOLLOW_SYMLINKS
 };
 
-/* This structure is used by main to communicate with parse_opt. */
 struct arguments {
   char *regexp;
-  vector<char*> filenames;
+  vector<const char*> paths;
   bool print_filename;
   bool print_line_number;
   int recursive_search;
@@ -91,22 +90,27 @@ struct arguments {
   unsigned context_after;
 } arguments;
 
-/*
-   OPTIONS.  Field 1 in ARGP.
-   Order of fields: {NAME, KEY, ARG, FLAGS, DOC}.
-*/
-const unsigned group_context = 1;
+
+enum {
+  ARGP_GROUP_CONTEXT = 1,
+};
+
 static struct argp_option options[] = {
   {NULL, 'H', NULL, OPTION_ARG_OPTIONAL,
-    "Print the filename with output lines."},
+    "Print the filename with output lines."
+  },
   {"line-number", 'n', NULL, OPTION_ARG_OPTIONAL,
-    "Print the line number of matches with output lines."},
+    "Print the line number of matches with output lines."
+  },
   {"recursive", 'r', NULL, OPTION_ARG_OPTIONAL,
-    "Recursively search directories. Do not follow symbolic links."},
+    "Recursively search directories. Do not follow symbolic links."
+  },
   {NULL, 'R', NULL, OPTION_ARG_OPTIONAL,
-    "Recursively search directories. Follow symbolic links."},
+    "Recursively search directories. Follow symbolic links."
+  },
   {"color_output", 'c', NULL, OPTION_ARG_OPTIONAL,
-    "Highlight matches in red."},
+    "Highlight matches in red."
+  },
   {"jobs", 'j', "0", OPTION_ARG_OPTIONAL,
     "Specify the number <n> of regular expression processing threads to use.\n"
     "One thread walks the file tree (and process files if <n> is zero), while"
@@ -117,14 +121,17 @@ static struct argp_option options[] = {
   },
   {"after-context", 'A', "0", OPTION_ARG_OPTIONAL,
     "Print <n> lines of context after every match. See also -B and -C options.",
-    group_context},
+    ARGP_GROUP_CONTEXT
+  },
   {"before-context", 'B', "0", OPTION_ARG_OPTIONAL,
     "Print <n> lines of context after every match. See also -A and -C options.",
-    group_context},
+    ARGP_GROUP_CONTEXT
+  },
   {"context", 'C', "0", OPTION_ARG_OPTIONAL,
     "Print <n> lines of context before and after every match."
     "See also -A and -B options.",
-    group_context},
+    ARGP_GROUP_CONTEXT
+  },
   {0}
 };
 
@@ -184,7 +191,7 @@ parse_opt(int key, char *arg, struct argp_state *state) {
           arguments->regexp = arg;
           break;
         default:
-          arguments->filenames.push_back(arg);
+          arguments->paths.push_back(arg);
       }
       break;
     case ARGP_KEY_END:
@@ -202,10 +209,10 @@ static char args_doc[] = "regexp file";
 static char doc[] =
 "grep-like program powered by rejit.\n"
 "\n"
-"It provides only a *tiny* subset of grep features.\n"
-"Two additional features:\n"
+"It still has very few features.\n"
+"Two additional features compared to grep:\n"
 "  - you can search for multi-lines patterns (eg. \"a\\nb\").\n"
-"  - there is initial support for multi-threading.\n";
+"  - there is initial support for multi-threading ('-j' option).\n";
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
 
@@ -216,22 +223,7 @@ rejit::Regej *re;
 rejit::Regej re_sol("^");
 
 
-bool is_dir(const char* name) {
-  int rc;
-  struct stat file_stats;
-
-  rc = stat(name, &file_stats);
-  if (rc) {
-    fprintf(stderr, "jrep: %s: %s\n", name, strerror(errno));
-    exit(rc);
-  }
-  return file_stats.st_mode & S_IFDIR;
-}
-
-
-static void print_head(const char* filename,
-                       unsigned line,
-                       char separator=':') {
+void print_head(const char* filename, unsigned line, char separator=':') {
   if (arguments.print_filename) {
 #ifdef REJIT_TARGET_PLATFORM_MACOS
     printf("%s%c", filename, separator);
@@ -251,7 +243,7 @@ static void print_head(const char* filename,
 
 
 int process_file(const char* filename) {
-  int rc = EXIT_SUCCESS;
+  int rc = 0;
 
   size_t file_size;
   char *file_content;
@@ -397,61 +389,51 @@ exit:
 }
 
 
-int list_file(const char *filename) {
-  if (arguments.jobs > 0) {
-    unique_lock<mutex> fn_lock(fn_mutex);
-    unsigned index;
-    if (fn_written >= fn_read + n_filenames) {
-      fn_need_refill.wait(fn_lock);
-    }
-    index = fn_written++;
-    filenames[index % n_filenames].assign(filename);
-    fn_refilled.notify_one();
-    fn_lock.unlock();
-    return 0;
-  } else {
+void list_file(const char *filename) {
+  unique_lock<mutex> fn_lock(fn_mutex);
+  unsigned index;
+  if (fn_written >= fn_read + n_filenames) {
+    fn_need_refill.wait(fn_lock);
+  }
+  index = fn_written++;
+  filenames[index % n_filenames].assign(filename);
+  fn_refilled.notify_one();
+  fn_lock.unlock();
+}
+
+
+inline int handle_file(const char *filename) {
+  if (arguments.jobs == 0) {
     return process_file(filename);
+  } else {
+    list_file(filename);
+    return 0;
   }
 }
 
 
-int ftw_callback(const char *path, const struct stat *s, int typeflag,
-                 struct FTW *unused) {
-  if (typeflag == FTW_F) {
-    if (arguments.jobs > 0) {
-      list_file(path);
-    } else {
-      return process_file(path);
-    }
-  }
+int ftw_process_file(const char *path, const struct stat *s, int typeflag,
+                     struct FTW *unused) {
+  if (typeflag == FTW_F)
+    return process_file(path);
   return 0;
 }
 
 
-inline int list_directory(const char* dirname) {
+int ftw_list_file(const char *path, const struct stat *s, int typeflag,
+                  struct FTW *unused) {
+  if (typeflag == FTW_F)
+    list_file(path);
+   return 0;
+ }
+
+
+inline int handle_directory(const char* dirname) {
   int visit_symlinks =
     arguments.recursive_search == RECURSIVE_FOLLOW_SYMLINKS ? 0 : FTW_PHYS;
-  return nftw(dirname, ftw_callback, arguments.nopenfd, visit_symlinks);
-}
-
-
-int list_file_or_dir(const char* name) {
-  int rc;
-  struct stat file_stats;
-
-  rc = stat(name, &file_stats);
-  if (rc) {
-    fprintf(stderr, "jrep: %s: %s\n", name, strerror(errno));
-    return rc;
-  }
-
-  if (file_stats.st_mode & S_IFDIR) {
-    return list_directory(name);
-  } else if (file_stats.st_mode & S_IFREG) {
-    return list_file(name);
-  }
-
-  return EXIT_SUCCESS;
+  return nftw(dirname,
+              arguments.jobs == 0 ? ftw_process_file : ftw_list_file,
+              arguments.nopenfd, visit_symlinks);
 }
 
 
@@ -481,17 +463,18 @@ void job_process_files() {
   }
 }
 
+
 int main(int argc, char *argv[]) {
   int rc;
-  // Arguments parsing -------------------------------------
+
+  // Set default values for arguments.
   memset(&arguments, 0, sizeof(arguments));
   arguments.nopenfd = 1024;
   arguments.jobs = 0;
   argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-  if (arguments.regexp[0] == 0) {
-    return EXIT_SUCCESS;
-  }
+  if (arguments.regexp[0] == 0)
+    return 0;
 
   rejit::Regej re_(arguments.regexp);
   re_.Compile(rejit::kMatchAll);
@@ -511,32 +494,42 @@ int main(int argc, char *argv[]) {
       exit(errno);
     }
 
-    // Start the processing threads.
     for (unsigned i = 0; i < arguments.jobs; i++) {
       threads[i] = new thread(job_process_files);
     }
   }
 
-  // List files to process.
-  vector<char*>::iterator it;
-  for (it = arguments.filenames.begin(); it < arguments.filenames.end(); it++) {
-    const char* name = *it;
-    if (!arguments.recursive_search && is_dir(name)) {
-      fprintf(stderr, "jrep: %s: Is a directory.\n", name);
+  for (const char *path : arguments.paths) {
+    struct stat file_stats;
+
+    rc = stat(path, &file_stats);
+    if (rc) {
+      fprintf(stderr, "jrep: %s: %s\n", path, strerror(errno));
       continue;
     }
-    rc = list_file_or_dir(name);
-    if (rc != EXIT_SUCCESS) {
-      return rc;
+
+    if (file_stats.st_mode & S_IFDIR) {
+      if (!arguments.recursive_search) {
+        fprintf(stderr, "jrep: %s: Is a directory.\n", path);
+        continue;
+      }
+      rc = handle_directory(path);
+    } else if (file_stats.st_mode & S_IFREG) {
+      rc = handle_file(path);
+    } else {
+      rc = 0;
     }
+
+    if (rc != 0)
+      return rc;
   }
+
   fn_done_listing = true;
   atomic_thread_fence(memory_order_seq_cst);
   fn_refilled.notify_all();
-
   for (unsigned i = 0; i < arguments.jobs; i++) {
     threads[i]->join();
   }
 
-  return EXIT_SUCCESS;
+  return 0;
 }
