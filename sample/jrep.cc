@@ -69,13 +69,19 @@ mutex output_mutex;
 const char *argp_program_version = "grep-like sample powered by rejit";
 const char *argp_program_bug_address = "<alexandre@coreperf.com>";
 
+enum {
+  NOT_RECURSIVE = 0,
+  RECURSIVE,  // Do not follow symlinks.
+  RECURSIVE_FOLLOW_SYMLINKS
+};
+
 /* This structure is used by main to communicate with parse_opt. */
 struct arguments {
   char *regexp;
   vector<char*> filenames;
   bool print_filename;
   bool print_line_number;
-  bool recursive;
+  int recursive_search;
   // TODO: Automatically handle coloring. This was protected behind an option to
   // not trash the output when redirected to a file.
   bool color_output;
@@ -95,9 +101,10 @@ static struct argp_option options[] = {
     "Print the filename with output lines."},
   {"line-number", 'n', NULL, OPTION_ARG_OPTIONAL,
     "Print the line number of matches with output lines."},
-  {"recursive", 'R', NULL, OPTION_ARG_OPTIONAL,
-    "Recursively search directories listed."},
-  {NULL, 'r', NULL, OPTION_ALIAS, NULL},
+  {"recursive", 'r', NULL, OPTION_ARG_OPTIONAL,
+    "Recursively search directories. Do not follow symbolic links."},
+  {NULL, 'R', NULL, OPTION_ARG_OPTIONAL,
+    "Recursively search directories. Follow symbolic links."},
   {"color_output", 'c', NULL, OPTION_ARG_OPTIONAL,
     "Highlight matches in red."},
   {"jobs", 'j', "0", OPTION_ARG_OPTIONAL,
@@ -166,8 +173,10 @@ parse_opt(int key, char *arg, struct argp_state *state) {
       arguments->print_line_number = true;
       break;
     case 'R':
+      arguments->recursive_search = RECURSIVE_FOLLOW_SYMLINKS;
+      break;
     case 'r':
-      arguments->recursive = true;
+      arguments->recursive_search = RECURSIVE;
       break;
     case ARGP_KEY_ARG:
       switch (state->arg_num) {
@@ -399,7 +408,8 @@ int list_file(const char *filename) {
 }
 
 
-int ftw_callback(const char *path, const struct stat *s, int typeflag) {
+int ftw_callback(const char *path, const struct stat *s, int typeflag,
+                 struct FTW *unused) {
   if (typeflag == FTW_F) {
     if (arguments.jobs > 0) {
       list_file(path);
@@ -412,7 +422,9 @@ int ftw_callback(const char *path, const struct stat *s, int typeflag) {
 
 
 inline int list_directory(const char* dirname) {
-  return ftw(dirname, ftw_callback, arguments.nopenfd);
+  int visit_symlinks =
+    arguments.recursive_search == RECURSIVE_FOLLOW_SYMLINKS ? 0 : FTW_PHYS;
+  return nftw(dirname, ftw_callback, arguments.nopenfd, visit_symlinks);
 }
 
 
@@ -502,7 +514,7 @@ int main(int argc, char *argv[]) {
   vector<char*>::iterator it;
   for (it = arguments.filenames.begin(); it < arguments.filenames.end(); it++) {
     const char* name = *it;
-    if (!arguments.recursive && is_dir(name)) {
+    if (!arguments.recursive_search && is_dir(name)) {
       fprintf(stderr, "jrep: %s: Is a directory.\n", name);
       continue;
     }
