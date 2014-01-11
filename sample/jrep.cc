@@ -504,6 +504,7 @@ int main(int argc, char *argv[]) {
     const char* name = *it;
     if (!arguments.recursive && is_dir(name)) {
       printf("jrep: %s: Is a directory.\n", name);
+      continue;
     }
     rc = list_file_or_dir(name);
     if (rc != EXIT_SUCCESS) {
