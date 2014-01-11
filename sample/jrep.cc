@@ -209,6 +209,8 @@ static char args_doc[] = "regexp file";
 static char doc[] =
 "grep-like program powered by rejit.\n"
 "\n"
+"jrep uses the Extended Regular Expression syntax. See details at\n"
+"http://coreperf.com/projects/rejit/documentation.html#syntax\n"
 "It still has very few features.\n"
 "Two additional features compared to grep:\n"
 "  - you can search for multi-lines patterns (eg. \"a\\nb\").\n"
