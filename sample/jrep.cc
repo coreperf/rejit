@@ -96,7 +96,7 @@ enum {
 };
 
 static struct argp_option options[] = {
-  {NULL, 'H', NULL, OPTION_ARG_OPTIONAL,
+  {"with-filename", 'H', NULL, OPTION_ARG_OPTIONAL,
     "Print the filename with output lines."
   },
   {"line-number", 'n', NULL, OPTION_ARG_OPTIONAL,
@@ -105,7 +105,7 @@ static struct argp_option options[] = {
   {"recursive", 'r', NULL, OPTION_ARG_OPTIONAL,
     "Recursively search directories. Do not follow symbolic links."
   },
-  {NULL, 'R', NULL, OPTION_ARG_OPTIONAL,
+  {"dereference-recursive", 'R', NULL, OPTION_ARG_OPTIONAL,
     "Recursively search directories. Follow symbolic links."
   },
   {"color_output", 'c', NULL, OPTION_ARG_OPTIONAL,
