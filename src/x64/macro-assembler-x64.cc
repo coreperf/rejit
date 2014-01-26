@@ -261,10 +261,10 @@ void MacroAssembler::movdq(XMMRegister dst, uint64_t high, uint64_t low) {
 }
 
 
-void MacroAssembler::movdqp(XMMRegister dst, const char* chars, size_t n_chars) {
+void MacroAssembler::movdqp(XMMRegister dst, const char* chars, unsigned n_chars) {
   char null_term_chars[16];
   memset(null_term_chars, '\0', 16);
-  memcpy(null_term_chars, chars, n_chars);
+  memcpy(null_term_chars, chars, min(16u, n_chars));
 
   RelocatedData *reloc_chars =
     this->NewRelocatedData(null_term_chars, 16, true, 16);

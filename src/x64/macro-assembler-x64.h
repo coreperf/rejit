@@ -133,7 +133,7 @@ class MacroAssembler : public MacroAssemblerBase {
   void cmp(unsigned width, const Operand& dst, Register src);
 
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
-  void movdqp(XMMRegister dst, const char* chars, size_t n_chars);
+  void movdqp(XMMRegister dst, const char* chars, unsigned n_chars);
 
   void do_rcx_memzero(Register start, Register zero);
   // The start and end (and size) must be 8-bytes aligned.
