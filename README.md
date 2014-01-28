@@ -1,9 +1,11 @@
-Rejit is a prototype regular expression JIT compiler. It currently only supports
-the x86_64 architecture.
+Rejit is a prototype of a non-backtracking, just-in-time, SIMD-able regular
+expression compiler developed on our free time. It is available under the GPLv3
+licence. It currently only supports the x86_64 architecture.
 
-For more detailed information about rejit, more benchmarks and some explanation of its mechanisms please read [this article][coreperf rejit].
+## Documentation
 
-For questions, feedback, suggestions, to talk about regular expression matching, optimisation, or other related topics, please use the [rejit-users][1] Google group or email me at <alexandre@coreperf.com> !
+Documentation and information is available [here][coreperf rejit]. Below are
+some sample benchmarks results.
 
 ## Benchmarks
 
@@ -43,7 +45,7 @@ use-case!  The time spent in `sys` is equivalent, but Rejit spends 3 times less
 time in `user` code.
 <br />It is part of the sample programs in the rejit repository (see the
 wiki).  It is of course far behind grep in terms of features, but
-supports searching for multi-lines patterns and has initial multithreading
+supports searching for multi-lines patterns and has initial multi-threading
 support.
 
 #### DNA matching benchmark.
@@ -88,94 +90,8 @@ It illustrates the 'fast forward' mechanism used by rejit (see [this article][co
 
 ![Graph comparing performance of re2, v8, and rejit to match a complex regular expression][6]
 
-### Benchmarks suite
-
-Run the benchmarks and open the html file containing the results along with some comments:
-```
-$ ./tools/benchmarks/run.py
-$ <browser> ./tools/benchmarks/benchmarks_results.html
-```
-See the Sample programs section below for regexdna and jrep.
-
-### Utilities
-
-You can build the benchmark utilities to experiment more with performance:
-```
-$ scons benchmark
-```
-
-You will then find the benchmarking executables
-```
-tools/benchmarks/resources/engines/re2/engine
-tools/benchmarks/resources/engines/rejit/engine
-tools/benchmarks/resources/engines/v8/engine
-```
-which you can use to report processing speeds (bytes/s) for a regular expression
-```
-$ tools/benchmarks/resources/engines/rejit/engine "regexp"
-3.41191e+09 (worst speed)
-1.33176e+10 (amortised speed)
-1.33856e+10 (best speed)
-```
-Use the ```--help``` option for details.
-
-## Bulding and usage
-
-All scripts and utilities should include a help message available via ```$ <script> --help```
-
-Include ```<rejit>/include/rejit.h``` in your program.
-
-```
-#include <rejit.h>
-using namespace std;
-using namespace rejit;
-
-int main() {
-  string text = "";
-  vector<Match> matches;
-  rejit::MatchAll("regexp", text, &matches);
-  for (vector<Match>::iterator it = matches.begin(); it < matches.end(); it++) {
-    // Do something.
-  }
-  return 0;
-}
-```
-
-Then build rejit
-```
-$ scons
-```
-
-and compile and link your program with the built library
-```
-$ g++ -o myprg myprg.cc -I<rejit>/include -L<rejit>/build/latest -lrejit
-```
-
-Documentation for the various functions offered by rejit are available as comments in ```include/rejit.h```.
-You can also find examples in the sample programs provided in ```sample/```.
-
-## Sample programs
-
-A few sample programs using rejit are included in the ```sample/``` folder.
-It includes the ```regexdna``` and ```jrep``` samples which were introduced in the benchmarks section above.
-Compile them with:
-```
-$ scons sample/basic
-$ scons sample/jrep
-$ scons sample/regexdna
-$ scons sample/regexdna-multithread
-```
-
-Use ```$ sample/<sample> --help``` for details.
-
-## Misc
-
-You can run the sparse rejit development test suite with ```$ ./tools/tests/run.py```.
-
-Rejit is provided under the GPLv3 licence. For other licences contact me.
 
 
-  [1]: https://groups.google.com/forum/?fromgroups#!forum/rejit-users
   [2]: http://benchmarksgame.alioth.debian.org/
   [3]: http://benchmarksgame.alioth.debian.org/u64/program.php?test=regexdna&lang=v8&id=2
   [4]: http://benchmarksgame.alioth.debian.org/u64/benchmark.php?test=regexdna&lang=all&data=u64
