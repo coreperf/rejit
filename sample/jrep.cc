@@ -481,6 +481,7 @@ int main(int argc, char *argv[]) {
   rejit::Regej re_(arguments.regexp);
   re_.Compile(rejit::kMatchAll);
   re = &re_;
+  re_sol.Compile(rejit::kMatchAll);
 
   if (arguments.jobs > 0) {
     // Initialize structures for multithreaded processing.
