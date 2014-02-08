@@ -104,6 +104,10 @@ static int Test(MatchType match_type, unsigned expected,
                 const char* regexp, const string& text,
                 int line);
 
+static int TestFull(unsigned expected,
+                    const char* regexp, const string& text,
+                    int line);
+
 // Also check the start and end of the match.
 static int TestFirst(unsigned expected,
                      const char* regexp,
@@ -136,6 +140,14 @@ int RunTest(struct arguments *arguments) {
     count_fail += (local_rc != 0);                                             \
   }
 
+#define TEST_Full(expected, re, text)                                          \
+  if (arguments->line == 0 || arguments->line == __LINE__) {                   \
+    local_rc = TestFull(expected, re, string(text), __LINE__);                 \
+    rc |= local_rc;                                                            \
+    count_pass += (local_rc == 0);                                             \
+    count_fail += (local_rc != 0);                                             \
+  }
+
 #define TEST_First(expected, re, text, start, end)                             \
   if (arguments->line == 0 || arguments->line == __LINE__) {                   \
     local_rc = TestFirst(expected, re, string(text), start, end, __LINE__);    \
@@ -154,51 +166,51 @@ int RunTest(struct arguments *arguments) {
   }
 
   // Simple characters.
-  TEST(kMatchFull, 1, "0123456789", "0123456789");
-  TEST(kMatchFull, 0, "0123456789", "0123456789abcd");
+  TEST_Full(1, "0123456789", "0123456789");
+  TEST_Full(0, "0123456789", "0123456789abcd");
   TEST_First_unbound(1, "0123456789", "0123456789",     0, 10);
   TEST_First_unbound(1, "0123456789", "ab0123456789cd", 2, 12);
 
   // More characters than the maximum number of ring times.
-  TEST(kMatchFull, 1, x10("0123456789"), x10("0123456789"));
-  TEST(kMatchFull, 0, x10("0123456789"), x10("0123456789") "X");
-  TEST(kMatchFull, 0, x10("0123456789"), "X" x10("0123456789"));
-  TEST(kMatchFull, 1, x100("0123456789"), x100("0123456789"));
-  TEST(kMatchFull, 0, x100("0123456789"), x100("0123456789") "X");
-  TEST(kMatchFull, 0, x100("0123456789"), "X" x100("0123456789"));
+  TEST_Full(1, x10("0123456789"), x10("0123456789"));
+  TEST_Full(0, x10("0123456789"), x10("0123456789") "X");
+  TEST_Full(0, x10("0123456789"), "X" x10("0123456789"));
+  TEST_Full(1, x100("0123456789"), x100("0123456789"));
+  TEST_Full(0, x100("0123456789"), x100("0123456789") "X");
+  TEST_Full(0, x100("0123456789"), "X" x100("0123456789"));
 
   // Period.
-  TEST(kMatchFull, 1, "01234.6789", "0123456789");
-  TEST(kMatchFull, 0, "012345678.", "0123456789abcd");
+  TEST_Full(1, "01234.6789", "0123456789");
+  TEST_Full(0, "012345678.", "0123456789abcd");
   TEST_First_unbound(1, ".123456789", "0123456789", 0, 10);
   TEST_First_unbound(1, "012345678.", "ab0123456789cd", 2, 12);
-  TEST(kMatchFull, 1, "...", "abc");
-  TEST(kMatchFull, 0, ".", "\n");
-  TEST(kMatchFull, 0, ".", "\r");
-  TEST(kMatchFull, 0, "a.b", "a\nb");
-  TEST(kMatchFull, 0, "a.b", "a\rb");
-  TEST(kMatchFull, 0, "...", "01");
-  TEST(kMatchFull, 0, "..", "012");
+  TEST_Full(1, "...", "abc");
+  TEST_Full(0, ".", "\n");
+  TEST_Full(0, ".", "\r");
+  TEST_Full(0, "a.b", "a\nb");
+  TEST_Full(0, "a.b", "a\rb");
+  TEST_Full(0, "...", "01");
+  TEST_Full(0, "..", "012");
   TEST_First(0, "...", "01", 0, 0);
   TEST_First(1, "..", "012", 0, 2);
   TEST_First(0, ".", "\n\n\n\r\r\r", 0, 0);
   TEST_First(1, ".", "\n\n\n\r\r\r.", 6, 7);
 
   // Start and end of line.
-  TEST(kMatchFull, 1, "^" , "");
-  TEST(kMatchFull, 1, "$" , "");
-  TEST(kMatchFull, 1, "^$", "");
-  //TEST(kMatchFull, 0, "$^", ""); // TODO(rames): Interesting! Check the spec.
-  TEST(kMatchFull, 1, "^$\n^$" , "\n");
-  TEST(kMatchFull, 1, "\n^$"   , "\n");
-  TEST(kMatchFull, 1, "^$\n"   , "\n");
+  TEST_Full(1, "^" , "");
+  TEST_Full(1, "$" , "");
+  TEST_Full(1, "^$", "");
+  //TEST_Full(0, "$^", ""); // TODO(rames): Interesting! Check the spec.
+  TEST_Full(1, "^$\n^$" , "\n");
+  TEST_Full(1, "\n^$"   , "\n");
+  TEST_Full(1, "^$\n"   , "\n");
 
-  TEST(kMatchFull, 0, "^", "x");
-  TEST(kMatchFull, 0, "$", "x");
-  TEST(kMatchFull, 0, "^$", "x");
-  TEST(kMatchFull, 1, "^\n", "\n");
-  TEST(kMatchFull, 1, "\n$", "\n");
-  TEST(kMatchFull, 1, "^\n$", "\n");
+  TEST_Full(0, "^", "x");
+  TEST_Full(0, "$", "x");
+  TEST_Full(0, "^$", "x");
+  TEST_Full(1, "^\n", "\n");
+  TEST_Full(1, "\n$", "\n");
+  TEST_Full(1, "^\n$", "\n");
 
   TEST_First(1, "^" , "", 0, 0);
   TEST_First(1, "$" , "", 0, 0);
@@ -230,9 +242,9 @@ int RunTest(struct arguments *arguments) {
   TEST(kMatchAll, 1, "($|x)", "x");
 
   // Alternation.
-  TEST(kMatchFull, 1, "0123|abcd|efgh", "abcd");
-  TEST(kMatchFull, 1, "0123|abcd|efgh", "efgh");
-  TEST(kMatchFull, 0, "0123|abcd|efgh", "_efgh___");
+  TEST_Full(1, "0123|abcd|efgh", "abcd");
+  TEST_Full(1, "0123|abcd|efgh", "efgh");
+  TEST_Full(0, "0123|abcd|efgh", "_efgh___");
   TEST_First_unbound(1, "0123|abcd|efgh", "_abcd___", 1, 5);
   TEST_First_unbound(0, "0123|abcd|efgh", "_efgX___", 0, 0);
   TEST_First_unbound(1, "(0123|abcd)|efgh", "abcd", 0, 4);
@@ -240,66 +252,66 @@ int RunTest(struct arguments *arguments) {
   TEST_First_unbound(0, "0000|1111|2222|3333|4444|5555|6666|7777|8888|9999", "_8__8_", 0, 0);
 
   // Alternations and ERE.
-  TEST(kMatchFull, 1, ")", ")");
+  TEST_Full(1, ")", ")");
   TEST_First_unbound(1, ")", "012)___", 3, 4);
 
   // Repetition.
-  TEST(kMatchFull, 0, "x{3,5}", "x");
-  TEST(kMatchFull, 0, "x{3,5}", "xx");
-  TEST(kMatchFull, 1, "x{3,5}", "xxx");
-  TEST(kMatchFull, 1, "x{3,5}", "xxxx");
-  TEST(kMatchFull, 1, "x{3,5}", "xxxxx");
-  TEST(kMatchFull, 0, "x{3,5}", "xxxxxx");
-  TEST(kMatchFull, 0, "x{3,5}", "xxxxxxxxxxxxx");
+  TEST_Full(0, "x{3,5}", "x");
+  TEST_Full(0, "x{3,5}", "xx");
+  TEST_Full(1, "x{3,5}", "xxx");
+  TEST_Full(1, "x{3,5}", "xxxx");
+  TEST_Full(1, "x{3,5}", "xxxxx");
+  TEST_Full(0, "x{3,5}", "xxxxxx");
+  TEST_Full(0, "x{3,5}", "xxxxxxxxxxxxx");
 
-  TEST(kMatchFull, 0, "(ab.){3,5}", "ab.");
-  TEST(kMatchFull, 0, "(ab.){3,5}", "ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){3,5}", "ab.ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){3,5}", "ab.ab.ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){3,5}", "ab.ab.ab.ab.ab.");
-  TEST(kMatchFull, 0, "(ab.){3,5}", "ab.ab.ab.ab.ab.ab.");
-  TEST(kMatchFull, 0, "(ab.){3,5}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
+  TEST_Full(0, "(ab.){3,5}", "ab.");
+  TEST_Full(0, "(ab.){3,5}", "ab.ab.");
+  TEST_Full(1, "(ab.){3,5}", "ab.ab.ab.");
+  TEST_Full(1, "(ab.){3,5}", "ab.ab.ab.ab.");
+  TEST_Full(1, "(ab.){3,5}", "ab.ab.ab.ab.ab.");
+  TEST_Full(0, "(ab.){3,5}", "ab.ab.ab.ab.ab.ab.");
+  TEST_Full(0, "(ab.){3,5}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
 
-  TEST(kMatchFull, 1, "(ab.){,5}", "");
-  TEST(kMatchFull, 1, "(ab.){,5}", "ab.ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){,5}", "ab.ab.ab.ab.ab.");
-  TEST(kMatchFull, 0, "(ab.){,5}", "ab.ab.ab.ab.ab.ab.");
-  TEST(kMatchFull, 0, "(ab.){,5}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
+  TEST_Full(1, "(ab.){,5}", "");
+  TEST_Full(1, "(ab.){,5}", "ab.ab.ab.");
+  TEST_Full(1, "(ab.){,5}", "ab.ab.ab.ab.ab.");
+  TEST_Full(0, "(ab.){,5}", "ab.ab.ab.ab.ab.ab.");
+  TEST_Full(0, "(ab.){,5}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
 
-  TEST(kMatchFull, 0, "(ab.){3,}", "");
-  TEST(kMatchFull, 0, "(ab.){3,}", "ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){3,}", "ab.ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){3,}", "ab.ab.ab.ab.ab.");
-  TEST(kMatchFull, 1, "(ab.){3,}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
+  TEST_Full(0, "(ab.){3,}", "");
+  TEST_Full(0, "(ab.){3,}", "ab.ab.");
+  TEST_Full(1, "(ab.){3,}", "ab.ab.ab.");
+  TEST_Full(1, "(ab.){3,}", "ab.ab.ab.ab.ab.");
+  TEST_Full(1, "(ab.){3,}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
 
-  TEST(kMatchFull, 0, "x{3,5}", "x");
-  TEST(kMatchFull, 0, "x{3,5}", "xx");
-  TEST(kMatchFull, 1, "x{3,5}", "xxx");
-  TEST(kMatchFull, 1, "x{3,5}", "xxxx");
-  TEST(kMatchFull, 1, "x{3,5}", "xxxxx");
-  TEST(kMatchFull, 0, "x{3,5}", "xxxxxx");
+  TEST_Full(0, "x{3,5}", "x");
+  TEST_Full(0, "x{3,5}", "xx");
+  TEST_Full(1, "x{3,5}", "xxx");
+  TEST_Full(1, "x{3,5}", "xxxx");
+  TEST_Full(1, "x{3,5}", "xxxxx");
+  TEST_Full(0, "x{3,5}", "xxxxxx");
 
-  TEST(kMatchFull, 0, "(a.){2,3}{2,3}", "a.");
-  TEST(kMatchFull, 0, "(a.){2,3}{2,3}", "a.a.");
-  TEST(kMatchFull, 0, "(a.){2,3}{2,3}", "a.a.a.");
-  TEST(kMatchFull, 1, "(a.){2,3}{2,3}", "a.a.a.a.");
-  TEST(kMatchFull, 1, "(a.){2,3}{2,3}", "a.a.a.a.a.");
-  TEST(kMatchFull, 1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.");
-  TEST(kMatchFull, 1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.");
-  TEST(kMatchFull, 1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.a.");
-  TEST(kMatchFull, 1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.a.a.");
-  TEST(kMatchFull, 0, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.a.a.a.");
+  TEST_Full(0, "(a.){2,3}{2,3}", "a.");
+  TEST_Full(0, "(a.){2,3}{2,3}", "a.a.");
+  TEST_Full(0, "(a.){2,3}{2,3}", "a.a.a.");
+  TEST_Full(1, "(a.){2,3}{2,3}", "a.a.a.a.");
+  TEST_Full(1, "(a.){2,3}{2,3}", "a.a.a.a.a.");
+  TEST_Full(1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.");
+  TEST_Full(1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.");
+  TEST_Full(1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.a.");
+  TEST_Full(1, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.a.a.");
+  TEST_Full(0, "(a.){2,3}{2,3}", "a.a.a.a.a.a.a.a.a.a.");
 
-  TEST(kMatchFull, 1, ".*", "0123456789");
-  TEST(kMatchFull, 1, "0.*9", "0123456789");
-  TEST(kMatchFull, 0, "0.*9", "0123456789abcd");
+  TEST_Full(1, ".*", "0123456789");
+  TEST_Full(1, "0.*9", "0123456789");
+  TEST_Full(0, "0.*9", "0123456789abcd");
   TEST_First_unbound(1, "0.*9", "0123456789", 0, 10);
   TEST_First_unbound(1, "0.*9", "____0123456789abcd", 4, 14);
 
-  TEST(kMatchFull, 1, "a*b*c*", "aaaabccc");
-  TEST(kMatchFull, 1, "a*b*c*", "aaaaccc");
-  TEST(kMatchFull, 1, "a*b*c*", "aaaab");
-  TEST(kMatchFull, 1, "a*b*c*", "bccc");
+  TEST_Full(1, "a*b*c*", "aaaabccc");
+  TEST_Full(1, "a*b*c*", "aaaaccc");
+  TEST_Full(1, "a*b*c*", "aaaab");
+  TEST_Full(1, "a*b*c*", "bccc");
 
   TEST_First_unbound(1, "a+", "012aaa_", 3, 6);
   TEST_First_unbound(1, "(a.)+", "012a.a_a-_", 3, 9);
@@ -307,39 +319,39 @@ int RunTest(struct arguments *arguments) {
 
 
   // Combinations of alternations and repetitions.
-  TEST(kMatchFull, 1, ".**", "0123456789");
-  TEST(kMatchFull, 1, "(1|22)*", "111122221221221222222");
-  TEST(kMatchFull, 1, "ABCD_(1|22)*_XYZ", "ABCD_111122221221221222222_XYZ");
-  TEST(kMatchFull, 0, "ABCD_(1|22)*_XYZ", "111122221221221222222");
+  TEST_Full(1, ".**", "0123456789");
+  TEST_Full(1, "(1|22)*", "111122221221221222222");
+  TEST_Full(1, "ABCD_(1|22)*_XYZ", "ABCD_111122221221221222222_XYZ");
+  TEST_Full(0, "ABCD_(1|22)*_XYZ", "111122221221221222222");
   TEST_First_unbound(1, "(1|22)+", "ABCD_111122221221221222222_XYZ", 5, 26);
 
-  TEST(kMatchFull, 1, "(0123|abcd)|(efgh)*", "efghefghefgh");
-  TEST(kMatchFull, 1, "(0123|abcd)|(efgh){1,4}", "efghefghefgh");
-  TEST(kMatchFull, 1, "(0123|abcd)|(efgh){0,4}", "efghefghefgh");
-  TEST(kMatchFull, 0, "(0123|abcd)|(efgh){0,2}", "efghefghefgh");
+  TEST_Full(1, "(0123|abcd)|(efgh)*", "efghefghefgh");
+  TEST_Full(1, "(0123|abcd)|(efgh){1,4}", "efghefghefgh");
+  TEST_Full(1, "(0123|abcd)|(efgh){0,4}", "efghefghefgh");
+  TEST_Full(0, "(0123|abcd)|(efgh){0,2}", "efghefghefgh");
 
   // Brackets.
-  TEST(kMatchFull, 1, "[0-9]", "0");
-  TEST(kMatchFull, 0, "[^0-9]", "0");
-  TEST(kMatchFull, 1, "[^0-9]", "a");
-  TEST(kMatchFull, 1, "[0-9]abcdefgh", "5abcdefgh");
-  TEST(kMatchFull, 0, "[0-9]abcdefgh", "Xabcdefgh");
-  TEST(kMatchFull, 1, "a[b-x]g", "afg");
-  TEST(kMatchFull, 1, "_[0-9]*_", "__");
-  TEST(kMatchFull, 1, "_[0-9]*_", "_1234567890987654321_");
-  TEST(kMatchFull, 0, "_[0-9]*_", "_123456789_987654321_");
+  TEST_Full(1, "[0-9]", "0");
+  TEST_Full(0, "[^0-9]", "0");
+  TEST_Full(1, "[^0-9]", "a");
+  TEST_Full(1, "[0-9]abcdefgh", "5abcdefgh");
+  TEST_Full(0, "[0-9]abcdefgh", "Xabcdefgh");
+  TEST_Full(1, "a[b-x]g", "afg");
+  TEST_Full(1, "_[0-9]*_", "__");
+  TEST_Full(1, "_[0-9]*_", "_1234567890987654321_");
+  TEST_Full(0, "_[0-9]*_", "_123456789_987654321_");
   TEST_First_unbound(1, "[0-9]", "__________0__________", 10, 11);
 
-  TEST(kMatchFull, 1, "^____$", "____");
+  TEST_Full(1, "^____$", "____");
   TEST(kMatchFirst, 1, "^____$", "xx\n____");
   TEST(kMatchFirst, 1, "^____$", "____\nxx");
   TEST(kMatchFirst, 1, "^____$", "xx\n____\nxx");
 
-  TEST(kMatchFull, 1, "(abcd|.)*0123", "x0123");
+  TEST_Full(1, "(abcd|.)*0123", "x0123");
   TEST(kMatchFirst, 1, "[a]{1,}", "________________a___");
   TEST(kMatchFirst, 0, "[a]{1,}", "________________b___");
 
-  TEST(kMatchFull, 0, "(123|(efg)*)456", "123efg456");
+  TEST_Full(0, "(123|(efg)*)456", "123efg456");
 
   TEST(kMatchFirst, 1, "...123456789", "xxx123456789");
   TEST(kMatchFirst, 0, "...123456789", "xx1234567890");
@@ -430,24 +442,24 @@ int RunTest(struct arguments *arguments) {
   TEST_First(0, ".(.ab.X|X.ab.).", "__ab__", 0, 0);
 
   // Special matching patterns.
-  TEST(kMatchFull, 1, "\\d", "5");
-  TEST(kMatchFull, 0, "\\d", "_");
-  TEST(kMatchFull, 0, "\\D", "5");
-  TEST(kMatchFull, 1, "\\D", "_");
-  TEST(kMatchFull, 1, "\\n", "\n");
-  TEST(kMatchFull, 0, "\\n", "\r");
-  TEST(kMatchFull, 1, "\\s", " ");
-  TEST(kMatchFull, 1, "\\s", "\t");
-  TEST(kMatchFull, 0, "\\s", "_");
-  TEST(kMatchFull, 0, "\\s", "_");
-  TEST(kMatchFull, 0, "\\S", " ");
-  TEST(kMatchFull, 0, "\\S", "\t");
-  TEST(kMatchFull, 1, "\\S", "_");
-  TEST(kMatchFull, 1, "\\S", "_");
-  TEST(kMatchFull, 1, "\\t", "\t");
-  TEST(kMatchFull, 0, "\\t", "\n");
-  TEST(kMatchFull, 1, "\\x30", "0");
-  TEST(kMatchFull, 0, "\\x30", "_");
+  TEST_Full(1, "\\d", "5");
+  TEST_Full(0, "\\d", "_");
+  TEST_Full(0, "\\D", "5");
+  TEST_Full(1, "\\D", "_");
+  TEST_Full(1, "\\n", "\n");
+  TEST_Full(0, "\\n", "\r");
+  TEST_Full(1, "\\s", " ");
+  TEST_Full(1, "\\s", "\t");
+  TEST_Full(0, "\\s", "_");
+  TEST_Full(0, "\\s", "_");
+  TEST_Full(0, "\\S", " ");
+  TEST_Full(0, "\\S", "\t");
+  TEST_Full(1, "\\S", "_");
+  TEST_Full(1, "\\S", "_");
+  TEST_Full(1, "\\t", "\t");
+  TEST_Full(0, "\\t", "\n");
+  TEST_Full(1, "\\x30", "0");
+  TEST_Full(0, "\\x30", "_");
 
   if (count_fail) {
     printf("FAIL: %d\tpass: %d\t(total: %d)\n", count_fail, count_pass, count_fail + count_pass);
@@ -542,6 +554,21 @@ static int Test(MatchType match_type, unsigned expected,
     cout << "------------------------------------------------------------------------------------\n\n" << endl;
   }
   return exception || res != expected;
+}
+
+static int TestFull(unsigned expected,
+                    const char* regexp, const string& text,
+                    int line) {
+  int rc;
+  if ((rc = Test(kMatchFull, expected, regexp, text, line)))
+    return rc;
+  if (expected) {
+    if ((rc = Test(kMatchFirst, expected, regexp, text, line)))
+      return rc;
+    if ((rc = Test(kMatchAll, expected, regexp, text, line)))
+      return rc;
+  }
+  return rc;
 }
 
 static int TestFirst(unsigned expected,
