@@ -517,7 +517,6 @@ void Parser::DoAlternation() {
   // Now the stack is in a state like:
   //   ... ( regexp | regexp | regexp
   // Collapse the alternations of regular expressions into one Alternation.
-  Alternation* alt = new Alternation();
 
   vector<Regexp*>::iterator it;
   vector<Regexp*>::iterator begin = stack()->begin();
@@ -528,9 +527,12 @@ void Parser::DoAlternation() {
   // TODO(rames): When tracking submatches we need to handle parenthesis around
   // one element.
   if ((*last)->IsLeftParenthesis() ||
-      ((last - 1) >= begin && (*(last - 1))->IsLeftParenthesis())) {
+      ((last - 1) >= begin && (*(last - 1))->IsLeftParenthesis()) ||
+      (begin == last)) {
     return;
   }
+
+  Alternation* alt = new Alternation();
 
   // TODO(rames): Try to find a common substring for alternations of
   // multiplechars?
