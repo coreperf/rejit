@@ -162,8 +162,10 @@ void Codegen::Generate() {
       // string, so match backward first.
       // Note that a few functions assume this order, so reversing backward and
       // forward matching will not work.
+      //__ stop("try match backward");
       GenerateMatchBackward();
 
+      //__ stop("try match forward");
       GenerateMatchForward();
 
       fast_forward_ = NULL;
@@ -333,11 +335,35 @@ bool Codegen::GenerateFastForward() {
 
 
 void Codegen::HandleControlRegexps() {
+  // TODO: We apply brute force repettion of the control transistions to make
+  // sure that all states are correctly set. Improve this by either computing
+  // the minimal number of steps required, or by tracking the changes applied by
+  // the successive iterations.
+  Label loop;
+  unsigned count = 0;
   vector<Regexp*>::iterator it;
+
+  for (it = rinfo_->gen_list()->begin(); it < rinfo_->gen_list()->end(); it++) {
+    if ((*it)->IsControlRegexp()) {
+      ++count;
+    }
+  }
+
+  if (count > 1) {
+    __ Move(rcx, count);
+    __ bind(&loop);
+    __ push(rcx);
+  }
   for (it = rinfo_->gen_list()->begin(); it < rinfo_->gen_list()->end(); it++) {
     if ((*it)->IsControlRegexp()) {
       Visit(*it);
     }
+  }
+  if (count > 1) {
+    __ pop(rcx);
+    __ decq(rcx);
+    __ cmpq(rcx, Immediate(0));
+    __ j(not_zero, &loop);
   }
 }
 
@@ -499,6 +525,8 @@ void Codegen::GenerateMatchDirection(Direction direction) {
   }
 
   HandleControlRegexps();
+
+  //__ stop("check match");
 
   CheckMatch(direction, &limit);
 
