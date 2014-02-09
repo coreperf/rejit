@@ -209,7 +209,7 @@ ostream& Repetition::OutputToIOStream(ostream& stream) const {  // NOLINT
   }
   {
     IndentScope is(2);
-    stream << *sub_regexp_ << endl;
+    Indent(stream) << *sub_regexp_ << endl;
   }
   Indent(stream) << "]";
   return stream;
