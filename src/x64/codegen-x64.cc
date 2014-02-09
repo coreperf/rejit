@@ -256,10 +256,7 @@ void Codegen::CheckTimeFlow(Direction direction,
       TestTimeFlow();
       __ j(not_zero, &done);
 
-      // TODO: Why do we need to check one character ahead?
-      __ movq(scratch, string_pointer);
-      __ incq(scratch);
-      __ cmpq(scratch, string_end);
+      __ cmpq(string_pointer, string_end);
       __ j(above_equal, limit);
 
       __ cmpq(direction == kBackward ? backward_match : forward_match,
