@@ -461,6 +461,11 @@ int RunTest(struct arguments *arguments) {
   TEST_Full(1, "\\x30", "0");
   TEST_Full(0, "\\x30", "_");
 
+  TEST_Full(1, "(a?)a", "a");
+  TEST_Full(1, "(a?){1}a{1}", "a");
+  TEST_Full(1, "(a?){2}a{2}", "aa");
+  TEST_Full(1, "(a?){5}a{5}", "aaaaa");
+
   if (count_fail) {
     printf("FAIL: %d\tpass: %d\t(total: %d)\n", count_fail, count_pass, count_fail + count_pass);
   } else {
