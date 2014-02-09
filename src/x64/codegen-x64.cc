@@ -448,6 +448,10 @@ void Codegen::RegisterMatch() {
         }
       }
 
+      __ movq(scratch1, forward_match);
+      __ cmpq(scratch1, string_end);
+      __ j(equal, unwind_and_return_);
+
       __ movq(backward_match, Immediate(0));
       __ movq(forward_match,  Immediate(0));
       break;
@@ -537,8 +541,8 @@ void Codegen::GenerateMatchDirection(Direction direction) {
       __ j(zero, &done_matching);
 
       // There is a match.
-      RegisterMatch();
       __ Move(rax, 1);
+      RegisterMatch();
 
       if (match_type_ == kMatchAll) {
         // If the ff_position is already at the eos, we should exit here.
@@ -715,6 +719,10 @@ static void MatchMultipleChar(MacroAssembler *masm_,
                             on_no_match ? on_no_match : &done);
   }
 
+  if (direction == kBackward) {
+    __ dec_c(string_pointer);
+  }
+
   const Operand c = direction == kForward ?
     current_chars : Operand(string_pointer, -(n_chars - 1));
 
@@ -772,6 +780,9 @@ static void MatchMultipleChar(MacroAssembler *masm_,
     }
   }
   __ bind(&done);
+  if (direction == kBackward) {
+    __ inc_c(string_pointer);
+  }
 }
 
 
@@ -779,23 +790,10 @@ void Codegen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   unsigned n_chars = mc->chars_length();
 
-  // If matching backward, there is no terminating character to help the match
-  // fail.
-  if (direction() == kBackward) {
-    __ dec_c(string_pointer);
-    __ movq(scratch, string_pointer);
-    __ subq(scratch, Immediate(n_chars));
-    __ cmpq(scratch, string_base);
-    __ j(below, &no_match);
-  }
-
   MatchMultipleChar(masm_, direction(), mc, false, &no_match);
 
   DirectionSetOutputFromEntry(n_chars, mc);
   __ bind(&no_match);
-  if (direction() == kBackward) {
-    __ inc_c(string_pointer);
-  }
 }
 
 
