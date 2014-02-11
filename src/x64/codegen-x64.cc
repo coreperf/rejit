@@ -162,10 +162,8 @@ void Codegen::Generate() {
       // string, so match backward first.
       // Note that a few functions assume this order, so reversing backward and
       // forward matching will not work.
-      //__ stop("try match backward");
       GenerateMatchBackward();
 
-      //__ stop("try match forward");
       GenerateMatchForward();
 
       fast_forward_ = NULL;
@@ -525,8 +523,6 @@ void Codegen::GenerateMatchDirection(Direction direction) {
   }
 
   HandleControlRegexps();
-
-  //__ stop("check match");
 
   CheckMatch(direction, &limit);
 
