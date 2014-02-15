@@ -97,7 +97,8 @@ class RegexpInfo;
 // Upon error, the rejit_status_string is updated with an error message.
 enum Status {
   RejitSuccess = 0,
-  ParserError
+  // Parser errors must have negative codes.
+  ParserError = -1
 };
 extern char* const rejit_status_string;
 

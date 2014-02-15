@@ -20,6 +20,12 @@
 namespace rejit {
 namespace internal {
 
+// TODO: Full support for ERE. Expose BRE support. More syntaxes
+enum Syntax {
+  BRE,
+  ERE
+};
+
 // TODO: The indexer and ff_finder should be merged into the parser.
 
 // Regular expression parser.
@@ -27,15 +33,12 @@ class Parser {
  public:
   Parser() {}
 
-  // TODO: Full support for ERE. Expose BRE support. More syntaxes
-  enum Syntax {
-    BRE,
-    ERE
-  };
-
   // Top level function to parse a regular expression.
   inline Status Parse(Syntax syntax, RegexpInfo* rinfo, const char* regexp) {
     syntax_ = syntax;
+    regexp_info_ = rinfo;
+    regexp_string_ = regexp;
+    status_ = RejitSuccess;
     switch(syntax) {
       case BRE:
         return ParseBRE(rinfo, regexp);
@@ -50,6 +53,8 @@ class Parser {
   Status ParseERE(RegexpInfo* rinfo, const char* regexp);
   Status ParseBRE(RegexpInfo* rinfo, const char* regexp);
 
+  // Parsing functions that can fail can return a negative progress to indicate
+  // a failure.
   int ParseCurlyBrackets(const char* left_curly_bracket);
   int ParseBrackets(const char* left_bracket);
 
@@ -134,6 +139,7 @@ class Parser {
   const char* regexp_string_;
   uint64_t index_;
   Syntax syntax_;
+  Status status_;
 };
 
 } }  // namespace rejit::internal

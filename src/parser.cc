@@ -38,10 +38,7 @@ static char hex_code_from_char(char c) {
 
 
 Status Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
-  regexp_info_ = rinfo;
-  regexp_string_ = regexp;
   index_ = 0;
-  syntax_ = ERE;
 
   char c;
   char lookahead;
@@ -180,6 +177,9 @@ Status Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
         PushChar(regexp_string_ + index_);
     }
 
+    if (status_ != RejitSuccess)
+      return status_;
+
     index_ += advance;
   }
 
@@ -187,14 +187,11 @@ Status Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
 
   regexp_info()->set_regexp(PopRegexp());
 
-  return RejitSuccess;
+  return status_;
 }
 
 
 Status Parser::ParseBRE(RegexpInfo* rinfo, const char* regexp) {
-  regexp_info_ = rinfo;
-  syntax_ = BRE;
-
   char c;
   char lookahead;
   size_t index = 0;
@@ -356,6 +353,13 @@ int Parser::ParseCurlyBrackets(const char *left_curly_bracket) {
       }
       max = min;
     }
+  }
+
+  if (min > max) {
+    const char* right_curly_bracket = c - (escaped_brackets ? 3 : 1);
+    return ParseError(right_curly_bracket,
+                      "Invalid repetition bounds: %u > %u\n",
+                      min, max);
   }
 
   PushRegexp(new Repetition(PopRegexp(), min, max));
@@ -600,7 +604,8 @@ Status Parser::ParseError(const char* pos, const char *format, ...) {
   vsnprintf(rejit_status_string + written, STATUS_STRING_SIZE - written,
             format, argptr);
   va_end(argptr);
-  return ParserError;
+  status_ = ParserError;
+  return status_;
 }
 
 

@@ -126,14 +126,14 @@ size_t ReplaceAll(const char* regexp, string& text, const string& with) {
 
 Regej::Regej(const char* regexp) : regexp_(regexp), rinfo_(new RegexpInfo()) {
   Parser parser;
-  status_ = parser.ParseERE(rinfo_, regexp_);
+  status_ = parser.Parse(ERE, rinfo_, regexp_);
 }
 
 
 Regej::Regej(const string& regexp) :
   regexp_(regexp.c_str()), rinfo_(new RegexpInfo()) {
   Parser parser;
-  status_ = parser.ParseERE(rinfo_, regexp_);
+  status_ = parser.Parse(ERE, rinfo_, regexp_);
 }
 
 
