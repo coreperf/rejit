@@ -360,7 +360,6 @@ void Codegen::HandleControlRegexps() {
   if (count > 1) {
     __ pop(rcx);
     __ decq(rcx);
-    __ cmpq(rcx, Immediate(0));
     __ j(not_zero, &loop);
   }
 }
