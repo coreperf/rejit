@@ -130,6 +130,7 @@ void MacroAssembler::LoadCurrentChar(Register r) {
   movq(r, Operand(string_pointer, 0));
 }
 
+
 void MacroAssembler::MemZero(const Operand& op, size_t size, Register zero) {
   Register start = zero.is(scratch2) ? scratch3 : scratch2;
   lea(start, op);

@@ -214,10 +214,15 @@ void Codegen::FlowTime() {
 
 
 void Codegen::TestTimeFlow() {
-  // TODO: Use a loop instruction when the time summary is big.
-  __ Move(scratch, 0);
-  for (int offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
-    __ or_(scratch, TimeSummary(offset));
+  ASSERT(time_summary_size() % kPointerSize == 0);
+  if (time_summary_size() == kPointerSize) {
+      __ cmpq(TimeSummary(0), Immediate(0));
+  } else {
+    // TODO: Use a loop instruction when the time summary is big.
+    __ Move(scratch, 0);
+    for (int offset = 0; offset < time_summary_size() ; offset += kPointerSize) {
+      __ or_(scratch, TimeSummary(offset));
+    }
   }
 }
 

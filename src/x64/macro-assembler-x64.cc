@@ -290,10 +290,17 @@ void MacroAssembler::do_rcx_memzero(Register start, Register zero) {
 
 void MacroAssembler::MemZero(Register start, size_t size, Register zero) {
   ASSERT(size % kPointerSize == 0);
+  ASSERT(size > 0);
 
-  if (size <= 4) {
-    for (unsigned i = 0; i < size; ++i) {
-      movq(Operand(start, size * kPointerSize), zero);
+  if (size <= 4 * kPointerSize) {
+    if (zero.is(no_reg)) {
+      for (unsigned offset = 0; offset < size; offset += kPointerSize) {
+        movq(Operand(start, offset), Immediate(0));
+      }
+    } else {
+      for (unsigned offset = 0; offset < size; offset += kPointerSize) {
+        movq(Operand(start, offset), zero);
+      }
     }
 
   } else {
