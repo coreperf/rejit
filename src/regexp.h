@@ -181,6 +181,7 @@ inline ostream& operator<<(ostream& stream, const Regexp& regexp) {
 class MultipleChar : public Regexp {
  public:
   MultipleChar() : Regexp(kMultipleChar) {}
+  MultipleChar(MultipleChar *mc);
   MultipleChar(char c);
   MultipleChar(const string&);
   MultipleChar(const char* chars, unsigned count);
@@ -224,6 +225,8 @@ class MultipleChar : public Regexp {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MultipleChar);
+
+  friend class Parser;
 };
 
 

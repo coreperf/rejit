@@ -38,6 +38,10 @@ MultipleChar::MultipleChar(char c) : Regexp(kMultipleChar) {
 }
 
 
+MultipleChar::MultipleChar(MultipleChar *mc)
+  : Regexp(kMultipleChar), chars_(mc->chars_) {}
+
+
 MultipleChar::MultipleChar(const string& str)
   : Regexp(kMultipleChar) {
   ASSERT(str.length() <= kMaxNodeLength);

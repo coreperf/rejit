@@ -362,7 +362,57 @@ int Parser::ParseCurlyBrackets(const char *left_curly_bracket) {
                       min, max);
   }
 
-  PushRegexp(new Repetition(PopRegexp(), min, max));
+  Regexp *re = PopRegexp();
+
+  if (FLAG_use_parser_opt &&
+      re->IsMultipleChar() && min > 1) {
+    // Optimize a{min,max} to a^m a{0,max-min}
+
+    Regexp *result = NULL;
+    MultipleChar *mc = re->AsMultipleChar();
+    MultipleChar *mc_start;
+
+    if (min == max) {
+      // We do not need to preserve the base regexp.
+      mc_start = mc;
+      result = mc_start;
+    } else {
+      mc_start = new MultipleChar(mc->chars());
+    }
+
+    int repeat_base = 1;
+    int mc_base_len = mc->chars_length();
+    vector<char>::iterator mc_base_begin = mc->chars_.begin();
+    vector<char>::iterator mc_base_end = mc->chars_.end();
+
+    Concatenation *concat = NULL;
+    if (mc_base_len * min > kMaxNodeLength || min != max) {
+      concat = new Concatenation();
+      result = concat;
+    }
+
+    while (repeat_base++ < min) {
+      if (mc_start->chars_length() + mc_base_len > kMaxNodeLength) {
+        concat->Append(mc_start);
+        mc_start = new MultipleChar();
+      }
+      mc_start->chars_.insert(mc_start->chars_.end(),
+                              mc_base_begin, mc_base_end);
+    }
+    if (concat != NULL) {
+      concat->Append(mc_start);
+    }
+
+    if (min != max) {
+      concat->Append(new Repetition(mc, 0, max - min));
+    }
+
+    regexp_info()->UpdateRegexpMaxLength(result);
+    PushRegexp(result);
+
+  } else {
+    PushRegexp(new Repetition(re, min, max));
+  }
 
   // c points after the closing bracket.
   return c - left_curly_bracket;
