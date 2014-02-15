@@ -297,7 +297,6 @@ Status Parser::ParseBRE(RegexpInfo* rinfo, const char* regexp) {
 
   // Check that the stack only contains the root node.
   ALWAYS_ASSERT(stack()->size() == 1);
-  // if (FLAG_trace_parser) PrintStack();
   regexp_info()->set_regexp(PopRegexp());
 
   return RejitSuccess;
@@ -526,9 +525,10 @@ void Parser::DoAlternation() {
   // Avoid trivial alternations of zero or one element.
   // TODO(rames): When tracking submatches we need to handle parenthesis around
   // one element.
-  if ((*last)->IsLeftParenthesis() ||
-      ((last - 1) >= begin && (*(last - 1))->IsLeftParenthesis()) ||
-      (begin == last)) {
+  if (FLAG_use_parser_opt &&
+      ((*last)->IsLeftParenthesis() ||
+       ((last - 1) >= begin && (*(last - 1))->IsLeftParenthesis()) ||
+       (begin == last))) {
     return;
   }
 

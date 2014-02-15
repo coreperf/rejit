@@ -41,6 +41,8 @@ M( use_fast_forward      , true    , true  )                                   \
 /* Use / trace reduction of fast-forward elements (substring extraction). */   \
 M( use_ff_reduce         , true    , true  )                                   \
 M( print_ff_reduce       , false   , false )                                   \
+/* Use parser level optimizations. */                                          \
+M( use_parser_opt        , true    , true  )                                   \
 /* Dump generated code. */                                                     \
 M( dump_code             , false   , false )
 

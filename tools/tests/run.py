@@ -115,6 +115,8 @@ test_options = [
   RunOption('use_fast_forward', 'Test with the specified configurations for fast-forwarding.',
             val_test_choices=['all', '1', '0']),
   RunOption('use_ff_reduce', 'Test with the specified configurations for common substrings extraction.',
+            val_test_choices=['all', '1', '0']),
+  RunOption('use_parser_opt', 'Test with the specified configurations for parser level optimizations.',
             val_test_choices=['all', '1', '0'])
 ]
 
