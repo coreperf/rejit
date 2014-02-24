@@ -380,7 +380,7 @@ int Parser::ParseCurlyBrackets(const char *left_curly_bracket) {
       mc_start = new MultipleChar(mc->chars());
     }
 
-    int repeat_base = 1;
+    uint32_t repeat_base = 1;
     int mc_base_len = mc->chars_length();
     vector<char>::iterator mc_base_begin = mc->chars_.begin();
     vector<char>::iterator mc_base_end = mc->chars_.end();
