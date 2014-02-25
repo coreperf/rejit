@@ -461,12 +461,12 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
       linking_mc_in->SetEntryState(mc->entry_state());
       linking_mc_in->SetOutputState(substring_entry_state);
       rinfo_->extra_allocated()->push_back(linking_mc_in);
-      rinfo_->gen_list()->push_back(linking_mc_in);
+      rinfo_->re_matching_list()->push_back(linking_mc_in);
       re_in = linking_mc_in;
     } else {
       Epsilon *epsilon = new Epsilon(mc->entry_state(), substring_entry_state);
       rinfo_->extra_allocated()->push_back(epsilon);
-      rinfo_->gen_list()->push_back(epsilon);
+      rinfo_->re_control_list()->push_back(epsilon);
       re_in = epsilon;
     }
 
@@ -476,12 +476,12 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
       linking_mc_out->SetEntryState(substring_output_state);
       linking_mc_out->SetOutputState(mc->output_state());
       rinfo_->extra_allocated()->push_back(linking_mc_out);
-      rinfo_->gen_list()->push_back(linking_mc_out);
+      rinfo_->re_matching_list()->push_back(linking_mc_out);
       re_out = linking_mc_out;
     } else {
       Epsilon *epsilon = new Epsilon(substring_output_state, mc->output_state());
       rinfo_->extra_allocated()->push_back(epsilon);
-      rinfo_->gen_list()->push_back(epsilon);
+      rinfo_->re_control_list()->push_back(epsilon);
       re_out = epsilon;
     }
 
@@ -559,17 +559,6 @@ static void dump_code(RegexpInfo *rinfo, VirtualMemory *vmem) {
 }
 
 
-static void print_re_list(RegexpInfo* rinfo) {
-  vector<Regexp*>* gen_list = rinfo->gen_list();
-  vector<Regexp*>::const_iterator it;
-  cout << "Regexp list --------------------------------{{{" << endl;
-  for (it = gen_list->begin(); it < gen_list->end(); it++) {
-    cout << **it << endl;
-  }
-  cout << "}}}------------------------- End of regexp list" << endl;
-}
-
-
 VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   rinfo_ = rinfo;
   match_type_ = match_type;
@@ -583,7 +572,7 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
     cout << "}}}------------------------- End of regexp tree" << endl;
   }
 
-  RegexpLister lister(rinfo_, rinfo->gen_list());
+  RegexpLister lister(rinfo_);
   lister.Visit(root);
 
   FF_finder fff(rinfo);
@@ -620,7 +609,7 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
   }
 
     if (FLAG_print_re_list) {
-      print_re_list(rinfo);
+      rinfo->print_re_list();
     }
 
   Generate();

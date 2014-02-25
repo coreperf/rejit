@@ -564,6 +564,8 @@ class RegexpInfo {
     return ff_list_.size() > 1 || ff_reduced_;
   }
 
+  // Debugging
+  void print_re_list();
 
   // Accessors.
   int entry_state() const { return entry_state_; }
@@ -580,7 +582,8 @@ class RegexpInfo {
   // Will be initialized by the FF_finder.
   // A stack structure is needed.
   vector<Regexp*>* ff_list() { return &ff_list_; }
-  vector<Regexp*>* gen_list() { return &gen_list_; }
+  vector<MatchingRegexp*>* re_matching_list() { return &re_matching_list_; }
+  vector<ControlRegexp*>* re_control_list() { return &re_control_list_; }
   vector<Regexp*>* extra_allocated() { return &extra_allocated_; }
 
   inline bool ff_reduced() const { return ff_reduced_; }
@@ -596,7 +599,9 @@ class RegexpInfo {
   // The FF_finder requires a stack structure to compare groups of regexps, but
   // after that ordering is not needed.
   vector<Regexp*> ff_list_;
-  vector<Regexp*> gen_list_;
+  // The lists of regexps that we will need to generate code for.
+  vector<MatchingRegexp*> re_matching_list_;
+  vector<ControlRegexp*> re_control_list_;
   // This is used to store regexp allocated later than parsing time, and hence
   // not present in the regexp tree (which root is regexp_).
   vector<Regexp*> extra_allocated_;

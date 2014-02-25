@@ -238,6 +238,25 @@ RegexpInfo::~RegexpInfo() {
 }
 
 
+void RegexpInfo::print_re_list() {
+  cout << "Regexp list --------------------------------{{{" << endl;
+  { IndentScope is(2);
+    cout << "Control regexps list --------------------------------{{{" << endl;
+    for (ControlRegexp* re : re_control_list_) {
+      cout << *re << endl;
+    }
+    cout << "}}}-------------------------- End of control regexp list" << endl;
+    cout << "Matching regexps list --------------------------------{{{" << endl;
+    for (MatchingRegexp* re : re_matching_list_) {
+      cout << *re << endl;
+    }
+    cout << "}}}-------------------------- End of control regexp list" << endl;
+    cout << "}}}-------------------------- End of matching regexp list" << endl;
+  }
+  cout << "}}}------------------------- End of regexp list" << endl;
+}
+
+
 // Regexp utils ----------------------------------------------------------------
 
 bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2) {

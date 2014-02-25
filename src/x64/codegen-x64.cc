@@ -343,26 +343,18 @@ void Codegen::HandleControlRegexps() {
   // the minimal number of steps required, or by tracking the changes applied by
   // the successive iterations.
   Label loop;
-  unsigned count = 0;
+  unsigned n_ctrl_re = rinfo_->re_control_list()->size();
   vector<Regexp*>::iterator it;
 
-  for (it = rinfo_->gen_list()->begin(); it < rinfo_->gen_list()->end(); it++) {
-    if ((*it)->IsControlRegexp()) {
-      ++count;
-    }
-  }
-
-  if (count > 1) {
-    __ Move(rcx, count);
+  if (n_ctrl_re > 1) {
+    __ Move(rcx, n_ctrl_re);
     __ bind(&loop);
     __ push(rcx);
   }
-  for (it = rinfo_->gen_list()->begin(); it < rinfo_->gen_list()->end(); it++) {
-    if ((*it)->IsControlRegexp()) {
-      Visit(*it);
-    }
+  for (ControlRegexp *ctrl_re : *rinfo_->re_control_list()) {
+    Visit(ctrl_re);
   }
-  if (count > 1) {
+  if (n_ctrl_re > 1) {
     __ pop(rcx);
     __ decq(rcx);
     __ j(not_zero, &loop);
@@ -624,8 +616,7 @@ void Codegen::GenerateMatchBackward() {
 
 
 void Codegen::GenerateTransitions(Direction direction) {
-  vector<Regexp*>::const_iterator it;
-  vector<Regexp*>* gen_list = rinfo_->gen_list();
+  vector<MatchingRegexp*>* gen_list = rinfo_->re_matching_list();
 
   if (direction == kForward) {
     sort(gen_list->begin(), gen_list->end(), &regexp_cmp_entry_state);
@@ -634,21 +625,18 @@ void Codegen::GenerateTransitions(Direction direction) {
   }
   Label skip;
   int current_state = -1;
-  for (it = gen_list->begin(); it < gen_list->end(); it++) {
-    if ((*it)->IsControlRegexp()) {
-      continue;
-    }
-    if ((direction == kForward && (*it)->entry_state() != current_state) ||
-        (direction == kBackward && (*it)->output_state() != current_state)) {
+  for (MatchingRegexp *re : *gen_list) {
+    if ((direction == kForward && re->entry_state() != current_state) ||
+        (direction == kBackward && re->output_state() != current_state)) {
       __ bind(&skip);
       skip.Unuse();
       current_state =
-        direction == kForward ? (*it)->entry_state() : (*it)->output_state();
+        direction == kForward ? re->entry_state() : re->output_state();
       TestState(0, current_state);
       __ j(zero, &skip);
     }
     // Control regexps are handled in HandleControlRegexps().
-    Visit(*it);
+    Visit(re);
   }
   __ bind(&skip);
 }

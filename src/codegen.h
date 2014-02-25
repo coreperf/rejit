@@ -73,12 +73,16 @@ class RegexpIndexer : public RealRegexpVisitor<void> {
 // generate code.
 class RegexpLister : public RealRegexpVisitor<void> {
  public:
-  explicit RegexpLister(RegexpInfo* rinfo,
-                        vector<Regexp*>* physical_regexp_list) :
-    rinfo_(rinfo),
-    physical_regexp_list_(physical_regexp_list) {}
+  explicit RegexpLister(RegexpInfo* rinfo) :
+    rinfo_(rinfo) {}
 
-  inline void List(Regexp* re) { physical_regexp_list_->push_back(re); }
+  void List(Regexp* re) {
+    if (re->IsControlRegexp()) {
+      rinfo_->re_control_list()->push_back(re->AsControlRegexp());
+    } else {
+      rinfo_->re_matching_list()->push_back(re->AsMatchingRegexp());
+    }
+  }
   // List a regexp allocated by the lister.
   // Register it in the RegexpInfo to correctly delete it later.
   inline void ListNew(Regexp* re) {
@@ -105,7 +109,6 @@ class RegexpLister : public RealRegexpVisitor<void> {
 
  private:
   RegexpInfo* rinfo_;
-  vector<Regexp*>* physical_regexp_list_;
 
   DISALLOW_COPY_AND_ASSIGN(RegexpLister);
 };
