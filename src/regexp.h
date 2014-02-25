@@ -545,7 +545,6 @@ class RegexpInfo {
     regexp_max_length_ = regexp_max_length;
   }
 
-  vector<Regexp*>* regexp_tree() { return &regexp_tree_; }
   vector<Regexp*>* ff_list() { return &ff_list_; }
   vector<Regexp*>* gen_list() { return &gen_list_; }
   vector<Regexp*>* extra_allocated() { return &extra_allocated_; }
@@ -559,7 +558,6 @@ class RegexpInfo {
   int output_state_;
   int last_state_;
   unsigned regexp_max_length_;
-  vector<Regexp*> regexp_tree_;
   vector<Regexp*> ff_list_;
   vector<Regexp*> gen_list_;
   // This is used to store regexp allocated later than parsing time, and hence

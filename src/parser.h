@@ -39,6 +39,7 @@ class Parser {
     regexp_info_ = rinfo;
     regexp_string_ = regexp;
     status_ = RejitSuccess;
+    stack_.clear();
     switch(syntax) {
       case BRE:
         return ParseBRE(rinfo, regexp);
@@ -132,7 +133,7 @@ class Parser {
 
 
   RegexpInfo* regexp_info() { return regexp_info_; }
-  vector<Regexp*>* stack() { return regexp_info()->regexp_tree(); }
+  vector<Regexp*>* stack() { return &stack_; }
 
  private:
   RegexpInfo* regexp_info_;
@@ -140,6 +141,7 @@ class Parser {
   uint64_t index_;
   Syntax syntax_;
   Status status_;
+  vector<Regexp*> stack_;
 };
 
 } }  // namespace rejit::internal

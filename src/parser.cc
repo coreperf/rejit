@@ -185,7 +185,11 @@ Status Parser::ParseERE(RegexpInfo* rinfo, const char* regexp) {
 
   DoFinish();
 
-  regexp_info()->set_regexp(PopRegexp());
+  // Check that the stack only contains the root node.
+  ALWAYS_ASSERT(stack_.size() == 1);
+
+  regexp_info()->set_regexp(stack_.at(0));
+
 
   return status_;
 }
@@ -293,8 +297,9 @@ Status Parser::ParseBRE(RegexpInfo* rinfo, const char* regexp) {
   DoFinish();
 
   // Check that the stack only contains the root node.
-  ALWAYS_ASSERT(stack()->size() == 1);
-  regexp_info()->set_regexp(PopRegexp());
+  ALWAYS_ASSERT(stack_.size() == 1);
+
+  regexp_info()->set_regexp(stack_.at(0));
 
   return RejitSuccess;
 }
