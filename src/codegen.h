@@ -112,11 +112,12 @@ class RegexpLister : public RealRegexpVisitor<void> {
 
 
 // Walks the regexp tree to find the regexps to use as fast forward elements.
+// TODO: Merge FF into the parsing stage.
 class FF_finder : public RealRegexpVisitor<bool> {
  public:
   FF_finder(RegexpInfo *rinfo) :
     rinfo_(rinfo) {
-      regexp_list_ = rinfo_->ff_list();
+      ff_list_ = rinfo_->ff_list();
     }
 
   void FindFFElements();
@@ -127,7 +128,7 @@ class FF_finder : public RealRegexpVisitor<bool> {
 #undef DECLARE_REGEXP_VISITORS
 
   inline virtual bool VisitRegexp(Regexp* re) {
-    regexp_list_->push_back(re);
+    ff_list_->push_back(re);
     return true;
   }
 #define DEFINE_FF_FINDER_SIMPLE_VISITOR(RType)                                 \
@@ -147,14 +148,14 @@ class FF_finder : public RealRegexpVisitor<bool> {
   // forward elements.
   void ff_alternation_reduce(size_t *start, size_t *end);
   // Reduce the two blocks of regular expressions [i1:i2] and
-  // [i2:regexp_list_->size()] and chose the most efficient of the two.
+  // [i2:ff_list_->size()] and chose the most efficient of the two.
   // A positive return value indicates that [i1:i2] is more efficient than
-  // [i2:regexp_list_->size()].
+  // [i2:ff_list_->size()].
   int ff_reduce_cmp(size_t *i1, size_t *i2);
 
  private:
   RegexpInfo *rinfo_;
-  vector<Regexp*>* regexp_list_;
+  vector<Regexp*>* ff_list_;
   DISALLOW_COPY_AND_ASSIGN(FF_finder);
 };
 
@@ -265,7 +266,7 @@ class FastForwardGen : public PhysicalRegexpVisitor<void> {
                  Label *unwind_and_return) :
     codegen_(codegen),
     masm_(codegen->masm()),
-    regexp_list_(list),
+    ff_list_(list),
     potential_match_(NULL),
     unwind_and_return_(unwind_and_return) {}
 
@@ -301,7 +302,7 @@ class FastForwardGen : public PhysicalRegexpVisitor<void> {
  private:
   Codegen* codegen_;
   MacroAssembler* masm_;
-  vector<Regexp*>* regexp_list_;
+  vector<Regexp*>* ff_list_;
   Label* potential_match_;
   Label* unwind_and_return_;
 

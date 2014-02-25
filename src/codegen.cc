@@ -298,7 +298,7 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
 void FF_finder::FindFFElements() {
   if (Visit(rinfo_->regexp())) {
     if (FLAG_use_ff_reduce) {
-      size_t start = 0, end = regexp_list_->size();
+      size_t start = 0, end = ff_list_->size();
       ff_alternation_reduce(&start, &end);
     }
   } else {
@@ -324,30 +324,30 @@ bool FF_finder::VisitConcatenation(Concatenation* concat) {
   bool res = false;
   bool cur_res;
   vector<Regexp*>::iterator it;
-  size_t cur_start = regexp_list_->size();
-  size_t cur_end = regexp_list_->size();
+  size_t cur_start = ff_list_->size();
+  size_t cur_end = ff_list_->size();
 
   for (it = concat->sub_regexps()->begin();
        it < concat->sub_regexps()->end();
        it++) {
     cur_res = Visit(*it);
     if (!cur_res) {
-      regexp_list_->erase(regexp_list_->begin() + cur_end, regexp_list_->end());
+      ff_list_->erase(ff_list_->begin() + cur_end, ff_list_->end());
     }
     res |= cur_res;
     if (cur_start == cur_end) {
       // No sub-regexp has been visited successfully yet.
-      cur_end = regexp_list_->size();
+      cur_end = ff_list_->size();
     }
 
     // Chose between the two blocks of regexps.
     if (ff_reduce_cmp(&cur_start, &cur_end) >= 0) {
-      regexp_list_->erase(regexp_list_->begin() + cur_end, regexp_list_->end());
+      ff_list_->erase(ff_list_->begin() + cur_end, ff_list_->end());
     } else {
-      regexp_list_->erase(regexp_list_->begin() + cur_start,
-                          regexp_list_->begin() + cur_end);
+      ff_list_->erase(ff_list_->begin() + cur_start,
+                      ff_list_->begin() + cur_end);
     }
-    cur_end = regexp_list_->size();
+    cur_end = ff_list_->size();
   }
 
   return res;
@@ -370,8 +370,8 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
   }
 
   // Build a suffix tree for the mcs involved.
-  vector<Regexp*> mcs(regexp_list_->size());
-  it = copy_if(regexp_list_->begin() + *start, regexp_list_->begin() + *end,
+  vector<Regexp*> mcs(ff_list_->size());
+  it = copy_if(ff_list_->begin() + *start, ff_list_->begin() + *end,
                mcs.begin(),
                [](Regexp* re) { return re->IsMultipleChar(); });
   mcs.resize(distance(mcs.begin(), it));
@@ -419,15 +419,15 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
   // Remove the elements replaced by the new mc.
   vector<Regexp*>::iterator it_mcs;
   for (it_mcs = mcs.begin(); it_mcs < mcs.end(); ++it_mcs) {
-    for (it = regexp_list_->begin() + *start; it < regexp_list_->begin() + *end; ++it) {
+    for (it = ff_list_->begin() + *start; it < ff_list_->begin() + *end; ++it) {
       if (*it == *it_mcs) {
-        regexp_list_->erase(it);
+        ff_list_->erase(it);
         --(*end);
         break;
       }
     }
   }
-  regexp_list_->insert(regexp_list_->begin() + *start, substring_mc);
+  ff_list_->insert(ff_list_->begin() + *start, substring_mc);
   ++(*end);
 
   if (FLAG_print_ff_reduce) {
@@ -502,7 +502,7 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
 }
 
 int FF_finder::ff_reduce_cmp(size_t *i1, size_t *i2) {
-  size_t list_size = regexp_list_->size();
+  size_t list_size = ff_list_->size();
   size_t s1 = *i2 - *i1;
   size_t s2 = list_size - *i2;
   int score_1 = 0, score_2 = 0;
@@ -513,15 +513,15 @@ int FF_finder::ff_reduce_cmp(size_t *i1, size_t *i2) {
 
   if (FLAG_use_ff_reduce) {
     ff_alternation_reduce(i1, i2);
-    list_size = regexp_list_->size();
+    list_size = ff_list_->size();
     ff_alternation_reduce(i2, &list_size);
   }
 
   for (size_t i = *i1; i < *i2; i++) {
-    score_1 += regexp_list_->at(i)->ff_score();
+    score_1 += ff_list_->at(i)->ff_score();
   }
   for (size_t i = *i2; i < list_size; i++) {
-    score_2 += regexp_list_->at(i)->ff_score();
+    score_2 += ff_list_->at(i)->ff_score();
   }
 
   return score_2 - score_1;

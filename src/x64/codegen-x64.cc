@@ -1077,12 +1077,12 @@ void Codegen::ClearStates(Register begin, Register end) {
 // FastForwardGen --------------------------------------------------------------
 
 void FastForwardGen::Generate() {
-  if (regexp_list_->size() == 0) {
+  if (ff_list_->size() == 0) {
     return;
   }
 
-  if (regexp_list_->size() == 1) {
-    VisitSingle(regexp_list_->at(0));
+  if (ff_list_->size() == 1) {
+    VisitSingle(ff_list_->at(0));
 
   } else {
 
@@ -1094,7 +1094,7 @@ void FastForwardGen::Generate() {
 
     vector<Regexp*>::iterator it;
     bool multiple_chars_only = true;
-    for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
+    for (it = ff_list_->begin(); it < ff_list_->end(); it++) {
       if (!(*it)->IsMultipleChar()) {
         multiple_chars_only = false;
         break;
@@ -1108,7 +1108,7 @@ void FastForwardGen::Generate() {
         multiple_chars_only &&
         // xmm0-xmm8 give 8 registers minus one allocated for the string.
         // TODO: Can we use a REX prefix to use all xmm registers?
-        regexp_list_->size() <= 7) {
+        ff_list_->size() <= 7) {
       // This code is designed after VisitSingleMultipleChar().
 
       static const uint8_t pcmp_str_control =
@@ -1118,8 +1118,8 @@ void FastForwardGen::Generate() {
       // Pre-load the XMM registers for MultipleChars.
       static const int first_free_xmm_code = 1;
       unsigned min_n_chars = kMaxNodeLength, max_n_chars = 0;
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {
-        MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
+      for (unsigned i = 0; i < ff_list_->size(); i++) {
+        MultipleChar *mc = ff_list_->at(i)->AsMultipleChar();
         __ movdqp(XMMRegister::from_code(first_free_xmm_code + i),
                   mc->chars(), mc->chars_length());
         min_n_chars = min(min_n_chars, mc->chars_length());
@@ -1140,7 +1140,7 @@ void FastForwardGen::Generate() {
 
       __ movdqu(xmm0, Operand(string_pointer, 0x0));
       __ Move(low_index, 0x10);
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {
+      for (unsigned i = 0; i < ff_list_->size(); i++) {
         __ pcmpistri(pcmp_str_control,
                      XMMRegister::from_code(first_free_xmm_code + i),
                      xmm0);
@@ -1167,7 +1167,7 @@ void FastForwardGen::Generate() {
       __ cmpq(string_pointer, simd_max_index);
       __ j(above, &standard_code);
 #define fast_round(current_offset)                                             \
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {                    \
+      for (unsigned i = 0; i < ff_list_->size(); i++) {                        \
         if (i == 0) {                                                          \
           /* The conditional jump above ensures that the eos wasn't reached. */\
           __ movdqa(xmm0,                                                      \
@@ -1201,7 +1201,7 @@ void FastForwardGen::Generate() {
       __ Move(low_index, 0x10);
 
       __ movdqa(xmm0, Operand(string_pointer, 0));
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {
+      for (unsigned i = 0; i < ff_list_->size(); i++) {
         __ pcmpistri(pcmp_str_control,
                      XMMRegister::from_code(first_free_xmm_code + i), xmm0);
         __ cmpq(rcx, low_index);
@@ -1212,11 +1212,11 @@ void FastForwardGen::Generate() {
       // We may have a potential match.
       // Check if it is good enough to exit the fast forward loop.
       __ addq(string_pointer, low_index);
-      for (unsigned i = 0; i < regexp_list_->size(); i++) {
+      for (unsigned i = 0; i < ff_list_->size(); i++) {
         // TODO: We could use pre-loaded registers if there are enough. Or maybe
         // move from xmm registers if it is faster.
         Label no_match;
-        MultipleChar *mc = regexp_list_->at(i)->AsMultipleChar();
+        MultipleChar *mc = ff_list_->at(i)->AsMultipleChar();
         MatchMultipleChar(masm_, kForward, mc, true, &no_match);
         FoundState(0, mc->entry_state());
         __ jmp(&exit);
@@ -1235,7 +1235,7 @@ void FastForwardGen::Generate() {
     __ dec_c(string_pointer);
     __ bind(&loop);
     __ inc_c(string_pointer);
-    for (it = regexp_list_->begin(); it < regexp_list_->end(); it++) {
+    for (it = ff_list_->begin(); it < ff_list_->end(); it++) {
       Visit(*it);
     }
     // We must check for eos after having visited the ff elements, because eos
@@ -1248,7 +1248,7 @@ void FastForwardGen::Generate() {
 
     __ bind(&potential_match);
     if (codegen_->rinfo()->ff_requires_full_forward_matching()) {
-      codegen_->SetEntryStates(regexp_list_);
+      codegen_->SetEntryStates(ff_list_);
     }
     __ bind(&exit);
   }
@@ -1675,7 +1675,7 @@ void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
     FoundState(0, mc->entry_state());
   } else {
-    codegen_->SetEntryStates(regexp_list_);
+    codegen_->SetEntryStates(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1693,7 +1693,7 @@ void FastForwardGen::VisitPeriod(Period* period) {
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
     FoundState(0, period->entry_state());
   } else {
-    codegen_->SetEntryStates(regexp_list_);
+    codegen_->SetEntryStates(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1715,7 +1715,7 @@ void FastForwardGen::VisitBracket(Bracket* bracket) {
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
     FoundState(0, bracket->entry_state());
   } else {
-    codegen_->SetEntryStates(regexp_list_);
+    codegen_->SetEntryStates(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1734,7 +1734,7 @@ void FastForwardGen::VisitStartOfLine(StartOfLine* sol) {
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
     FoundState(0, sol->entry_state());
   } else {
-    codegen_->SetEntryStates(regexp_list_);
+    codegen_->SetEntryStates(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1752,7 +1752,7 @@ void FastForwardGen::VisitEndOfLine(EndOfLine* eol) {
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
     FoundState(0, eol->entry_state());
   } else {
-    codegen_->SetEntryStates(regexp_list_);
+    codegen_->SetEntryStates(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);

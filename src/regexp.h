@@ -73,8 +73,8 @@ namespace internal {
     LIST_REGEXP_TYPES(ENUM_REGEXP_TYPES)
     // Aliases.
     kLastPhysicalRegexp = kEpsilon,
-    kFirstControlRegexp = kStartOfLine,
-    kLastControlRegexp = kEpsilon,
+    kFirstMatchingRegexp = kMultipleChar,
+    kLastMatchingRegexp = kBracket,
     kFirstMarker = kLeftParenthesis
   };
 #undef ENUM_REGEXP_TYPES
@@ -545,6 +545,8 @@ class RegexpInfo {
     regexp_max_length_ = regexp_max_length;
   }
 
+  // Will be initialized by the FF_finder.
+  // A stack structure is needed.
   vector<Regexp*>* ff_list() { return &ff_list_; }
   vector<Regexp*>* gen_list() { return &gen_list_; }
   vector<Regexp*>* extra_allocated() { return &extra_allocated_; }
@@ -558,6 +560,9 @@ class RegexpInfo {
   int output_state_;
   int last_state_;
   unsigned regexp_max_length_;
+  // The list of fast-forward regexps will be initialized by the FF_finder.
+  // The FF_finder requires a stack structure to compare groups of regexps, but
+  // after that ordering is not needed.
   vector<Regexp*> ff_list_;
   vector<Regexp*> gen_list_;
   // This is used to store regexp allocated later than parsing time, and hence
