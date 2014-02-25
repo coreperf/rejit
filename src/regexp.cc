@@ -33,17 +33,17 @@ case k##RegexpType: stream << #RegexpType; break;
 }
 
 
-MultipleChar::MultipleChar(char c) : Regexp(kMultipleChar) {
+MultipleChar::MultipleChar(char c) : MatchingRegexp(kMultipleChar) {
   chars_.push_back(c);
 }
 
 
 MultipleChar::MultipleChar(MultipleChar *mc)
-  : Regexp(kMultipleChar), chars_(mc->chars_) {}
+  : MatchingRegexp(kMultipleChar), chars_(mc->chars_) {}
 
 
 MultipleChar::MultipleChar(const string& str)
-  : Regexp(kMultipleChar) {
+  : MatchingRegexp(kMultipleChar) {
   ASSERT(str.length() <= kMaxNodeLength);
   for (size_t i = 0; i < str.length(); i++) {
     chars_.push_back(str[i]);
@@ -52,7 +52,7 @@ MultipleChar::MultipleChar(const string& str)
 
 
 MultipleChar::MultipleChar(const char* first_char, unsigned count)
-  : Regexp(kMultipleChar) {
+  : MatchingRegexp(kMultipleChar) {
   ASSERT(count <= kMaxNodeLength);
   for (const char* c = first_char; c < first_char + count; c++) {
     chars_.push_back(*c);

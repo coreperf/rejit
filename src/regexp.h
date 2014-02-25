@@ -41,8 +41,8 @@ namespace internal {
   LIST_CONTROL_REGEXP_TYPES(M)
 
 #define LIST_FLOW_REGEXP_TYPES(M)                                              \
-  M(Concatenation)                                                             \
   M(Repetition)                                                                \
+  M(Concatenation)                                                             \
   M(Alternation)
 
 // Real regular expression can appear in a regular expression tree, after
@@ -73,6 +73,8 @@ namespace internal {
     LIST_REGEXP_TYPES(ENUM_REGEXP_TYPES)
     // Aliases.
     kLastPhysicalRegexp = kEpsilon,
+    kFirstControlRegexp = kStartOfLine,
+    kLastControlRegexp = kEpsilon,
     kFirstMatchingRegexp = kMultipleChar,
     kLastMatchingRegexp = kBracket,
     kFirstMarker = kLeftParenthesis
@@ -80,10 +82,20 @@ namespace internal {
 #undef ENUM_REGEXP_TYPES
 
 
+// Intermediate classes used for convenience.
+#define LIST_INTERMEDIATE_REGEXP_TYPES(M)                                      \
+  M(MatchingRegexp)                                                            \
+  M(ControlRegexp)                                                             \
+  M(RegexpWithSubs)                                                            \
+  M(RegexpWithOneSub)
+
+
+
 // Forward declaration of real regexp classes.
 class Regexp;
 #define FORWARD_DECLARE(RegexpType) class RegexpType;
 LIST_REAL_REGEXP_TYPES(FORWARD_DECLARE)
+LIST_INTERMEDIATE_REGEXP_TYPES(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 
@@ -113,9 +125,26 @@ class Regexp {
   }
 
 #define DECLARE_IS_REGEXP_HELPERS(RegexpType)                                  \
-  bool Is##RegexpType() { return type_ == k##RegexpType; }
+  bool Is##RegexpType() const { return type_ == k##RegexpType; }
   LIST_REGEXP_TYPES(DECLARE_IS_REGEXP_HELPERS)
 #undef DECLARE_IS_REGEXP_HELPERS
+
+  bool IsControlRegexp() const {
+    return kFirstControlRegexp <= type_ && type_ <= kLastControlRegexp;
+  }
+
+  bool IsMatchingRegexp() const {
+    return kFirstMatchingRegexp <= type_ && type_ <= kLastMatchingRegexp;
+  }
+
+  bool IsRegexpWithOneSub() const {
+    return type_ == kRepetition;
+  }
+
+  bool IsRegexpWithSubs() const {
+    return type_ == kConcatenation || type_ == kAlternation;
+  }
+
 
 #define DECLARE_CAST(RegexpType)                                               \
   inline RegexpType* As##RegexpType() {                                        \
@@ -123,11 +152,8 @@ class Regexp {
     return reinterpret_cast<RegexpType*>(this);                                \
   }
   LIST_REAL_REGEXP_TYPES(DECLARE_CAST)
+  LIST_INTERMEDIATE_REGEXP_TYPES(DECLARE_CAST)
 #undef DECLARE_CAST
-
-  inline bool IsControlRegexp() {
-    return kFirstControlRegexp <= type() && type() <= kLastControlRegexp;
-  }
 
   inline bool IsPhysical() {
     return type() <= kLastPhysicalRegexp;
@@ -176,11 +202,17 @@ inline ostream& operator<<(ostream& stream, const Regexp& regexp) {
 }
 
 
+class MatchingRegexp : public Regexp {
+ public:
+  MatchingRegexp(RegexpType type) : Regexp(type) {}
+};
+
+
 // TODO: Implementation of MC assumes that the regexp stays available for
 // the lifetime of the generated functions.
-class MultipleChar : public Regexp {
+class MultipleChar : public MatchingRegexp {
  public:
-  MultipleChar() : Regexp(kMultipleChar) {}
+  MultipleChar() : MatchingRegexp(kMultipleChar) {}
   MultipleChar(MultipleChar *mc);
   MultipleChar(char c);
   MultipleChar(const string&);
@@ -232,9 +264,9 @@ class MultipleChar : public Regexp {
 
 // TODO: The code generated for simple 'period' regexps could be grouped into
 // one 'check for period' and state transition operations.
-class Period : public Regexp {
+class Period : public MatchingRegexp {
  public:
-  Period() : Regexp(kPeriod) {}
+  Period() : MatchingRegexp(kPeriod) {}
   virtual Regexp* DeepCopy() { return new Period(); }
   virtual unsigned MatchLength() const { return 1; }
   virtual int ff_score() const { return 20 * ff_base_score; }
@@ -244,9 +276,9 @@ class Period : public Regexp {
 };
 
 
-class Bracket : public Regexp {
+class Bracket : public MatchingRegexp {
  public:
-  Bracket() : Regexp(kBracket), flags_(0) {}
+  Bracket() : MatchingRegexp(kBracket), flags_(0) {}
 
   struct CharRange {
     char low;
