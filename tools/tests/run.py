@@ -87,7 +87,7 @@ class BuildOption(TestOption):
         if val != 'all':
           res.append(self.name + '=' + val)
     else:
-      res.append(to_test)
+      res.append(self.name + '=' + to_test)
     return res
 
 class RunOption(TestOption):
