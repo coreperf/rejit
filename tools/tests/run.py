@@ -102,7 +102,7 @@ class RunOption(TestOption):
         if val != 'all':
           res.append(optionify(self.name) + '=' + val)
     else:
-      res.append(to_test)
+      res.append(optionify(self.name) + '=' + to_test)
     return res
 
 
