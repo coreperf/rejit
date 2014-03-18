@@ -169,6 +169,7 @@ class Codegen : public PhysicalRegexpVisitor<void> {
 
   VirtualMemory* Compile(RegexpInfo* rinfo, MatchType match_type);
 
+  // Code generation.
   void Generate();
 
   void FlowTime();

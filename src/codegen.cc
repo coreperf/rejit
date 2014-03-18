@@ -637,9 +637,13 @@ VirtualMemory* Codegen::Compile(RegexpInfo* rinfo, MatchType match_type) {
     cout << "}}}--------------------- End of state ring info" << endl;
   }
 
-    if (FLAG_print_re_list) {
-      rinfo->print_re_list();
-    }
+  if (FLAG_print_re_list) {
+    rinfo->print_re_list();
+  }
+
+  vector<Regexp*>* re_control_list =
+      reinterpret_cast<vector<Regexp*>*>(rinfo->re_control_list());
+  rinfo->set_re_control_list_top_sorted(SortTopoligcal(re_control_list));
 
   Generate();
 

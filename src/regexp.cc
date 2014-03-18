@@ -14,6 +14,8 @@
 
 #include "regexp.h"
 #include <string.h>
+#include <map>
+
 
 namespace rejit {
 namespace internal {
@@ -242,6 +244,8 @@ void RegexpInfo::print_re_list() {
   cout << "Regexp list --------------------------------{{{" << endl;
   { IndentScope is(2);
     cout << "Control regexps list --------------------------------{{{" << endl;
+    cout << "topologically sorted: ";
+    cout << (re_control_list_topo_sorted_ ? "yes" : "no") << endl;
     for (ControlRegexp* re : re_control_list_) {
       cout << *re << endl;
     }
@@ -250,7 +254,6 @@ void RegexpInfo::print_re_list() {
     for (MatchingRegexp* re : re_matching_list_) {
       cout << *re << endl;
     }
-    cout << "}}}-------------------------- End of control regexp list" << endl;
     cout << "}}}-------------------------- End of matching regexp list" << endl;
   }
   cout << "}}}------------------------- End of regexp list" << endl;
@@ -279,6 +282,74 @@ bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps) {
       return it == regexps->end();
 }
 
+
+bool SortTopoligcal(vector<Regexp*> *regexps) {
+  unsigned n_re = regexps->size();
+
+  if (n_re <= 1) {
+    return true;
+  }
+
+  // Map entry/exit states to regexps.
+  multimap<int, Regexp*> entries;
+  multimap<int, Regexp*> exits;
+  for (Regexp* re : *regexps) {
+    entries.insert(pair<int, Regexp*>(re->entry_state(), re->AsControlRegexp()));
+    exits.insert(pair<int, Regexp*>(re->exit_state(), re->AsControlRegexp()));
+  }
+
+  vector<Regexp*> sorted_ctrl_regexps;
+
+  vector<int> sorted_states;
+
+  for (pair<int, Regexp*> p : entries) {
+    if (exits.find(p.first) == exits.end()) {
+      vector<int>::iterator it;
+      for (it = sorted_states.begin(); it != sorted_states.end(); ++it) {
+        if (*it == p.first) {
+          break;
+        }
+      }
+      if (it == sorted_states.end()) {
+        sorted_states.push_back(p.first);
+      }
+    }
+  }
+
+  if (sorted_states.size() == n_re)
+    return true;
+
+  while (!sorted_states.empty()) {
+    int current = sorted_states.back();
+
+    sorted_states.pop_back();
+
+    for (pair<int, Regexp*> p : range(entries.equal_range(current))) {
+      sorted_ctrl_regexps.push_back(p.second);
+      int exit = p.second->exit_state();
+
+      pair<multimap<int, Regexp*>::iterator, multimap<int, Regexp*>::iterator> exit_range;
+      multimap<int, Regexp*>::iterator it;
+      exit_range = exits.equal_range(exit);
+      for (it = exit_range.first; it != exit_range.second; ++it) {
+        if (it->second == p.second) {
+          exits.erase(it);
+          break;
+        }
+      }
+      if (exits.count(exit) == 0) {
+        sorted_states.push_back(exit);
+      }
+    }
+  }
+
+  if (sorted_ctrl_regexps.size() == n_re) {
+    regexps->assign(sorted_ctrl_regexps.begin(), sorted_ctrl_regexps.end());
+    return true;
+  } else {
+    return false;
+  }
+}
 
 } }  // namespace rejit::internal
 

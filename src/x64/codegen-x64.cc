@@ -338,23 +338,34 @@ bool Codegen::GenerateFastForward() {
 
 
 void Codegen::HandleControlRegexps() {
-  // TODO: We apply brute force repettion of the control transistions to make
-  // sure that all states are correctly set. Improve this by either computing
-  // the minimal number of steps required, or by tracking the changes applied by
-  // the successive iterations.
+  // If the control regular expressions could not be sorted, use to a slow loop
+  // to ensure the transitions happen correctly. A better algorithm could be
+  // used, but if we are in this situation the input regexp is likely not very
+  // well constructed.
   Label loop;
   unsigned n_ctrl_re = rinfo_->re_control_list()->size();
-  vector<Regexp*>::iterator it;
+  cout << n_ctrl_re << endl;
 
-  if (n_ctrl_re > 1) {
+  if (!rinfo()->re_control_list_topo_sorted()) {
     __ Move(rcx, n_ctrl_re);
     __ bind(&loop);
     __ push(rcx);
   }
-  for (ControlRegexp *ctrl_re : *rinfo_->re_control_list()) {
-    Visit(ctrl_re);
+
+  vector<ControlRegexp*> *ctrl_list = rinfo_->re_control_list();
+  if (direction_ == kForward) {
+    vector<ControlRegexp*>::iterator it;
+    for (it = ctrl_list->begin(); it != ctrl_list->end(); ++it) {
+      Visit(*it);
+    }
+  } else {
+    vector<ControlRegexp*>::reverse_iterator it;
+    for (it = ctrl_list->rbegin(); it != ctrl_list->rend(); ++it) {
+      Visit(*it);
+    }
   }
-  if (n_ctrl_re > 1) {
+
+  if (!rinfo()->re_control_list_topo_sorted()) {
     __ pop(rcx);
     __ decq(rcx);
     __ j(not_zero, &loop);

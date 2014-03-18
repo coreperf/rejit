@@ -541,6 +541,7 @@ class RegexpInfo {
     : regexp_(NULL),
       entry_state_(-1), exit_state_(-1), last_state_(0),
       regexp_max_length_(0),
+      re_control_list_topo_sorted_(false),
       ff_reduced_(false),
       match_full_(NULL),
       match_anywhere_(NULL),
@@ -584,6 +585,12 @@ class RegexpInfo {
   vector<Regexp*>* ff_list() { return &ff_list_; }
   vector<MatchingRegexp*>* re_matching_list() { return &re_matching_list_; }
   vector<ControlRegexp*>* re_control_list() { return &re_control_list_; }
+  bool re_control_list_topo_sorted() const {
+    return re_control_list_topo_sorted_;
+  }
+  void set_re_control_list_top_sorted(bool sorted) {
+    re_control_list_topo_sorted_ = sorted;
+  }
   vector<Regexp*>* extra_allocated() { return &extra_allocated_; }
 
   inline bool ff_reduced() const { return ff_reduced_; }
@@ -601,7 +608,10 @@ class RegexpInfo {
   vector<Regexp*> ff_list_;
   // The lists of regexps that we will need to generate code for.
   vector<MatchingRegexp*> re_matching_list_;
+  // Cycles should be avoided in the control regexp lists. When no cycles are
+  // present, better code can be generated.
   vector<ControlRegexp*> re_control_list_;
+  bool re_control_list_topo_sorted_;
   // This is used to store regexp allocated later than parsing time, and hence
   // not present in the regexp tree (which root is regexp_).
   vector<Regexp*> extra_allocated_;
@@ -632,6 +642,10 @@ bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2);
 bool regexp_cmp_exit_state(Regexp* r1, Regexp* r2);
 
 bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps);
+
+// Returns true if the list of regexps could be topoligically sorted, or false if
+// it couldn't (ie. if there is a cycle).
+bool SortTopoligcal(vector<Regexp*> *regexps);
 
 
 } }  // namespace rejit::internal

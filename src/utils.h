@@ -197,6 +197,30 @@ REPEAT_1_T0_63(DEFINE_IS_UINTN)
 
 #undef REPEAT_1_T0_63
 
+// Range iterators -------------------------------------------------------------
+template <typename Iterator>
+class iterator_pair {
+ public:
+  iterator_pair(Iterator begin, Iterator end) : begin_(begin), end_(end) {}
+
+  Iterator begin() const { return begin_; }
+  Iterator end() const { return end_; }
+
+ private:
+  Iterator begin_;
+  Iterator end_;
+};
+
+template <typename Iterator>
+iterator_pair<Iterator> range(Iterator begin, Iterator end) {
+  return iterator_pair<Iterator>(begin, end);
+}
+
+template <typename Iterator>
+iterator_pair<Iterator> range(pair<Iterator, Iterator> it_pair) {
+  return iterator_pair<Iterator>(it_pair.first, it_pair.second);
+}
+
 } }  // namespace rejit::internal
 
 #endif  // REJIT_UTILS_H
