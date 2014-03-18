@@ -174,123 +174,152 @@ void RegexpLister::VisitConcatenation(Concatenation* regexp) {
 
 void RegexpLister::VisitRepetition(Repetition* repetition) {
   // TODO: HIGH_PRIORITY Better handling of repetitions.
-  // TODO: HIGH_PRIORITY Don't leak the newly allocated regexps.
-  // TODO: Check we don't leak base.
-  // TODO: Fix tracing of repetitions.
-  // TODO: Clean.
   // Base may have been referenced by other mechanisms. It must be indexed.
   Regexp* base = repetition->sub_regexp();
   unsigned min_rep = repetition->min_rep();
   unsigned max_rep = repetition->max_rep();
-  Regexp* created = NULL;
-  Epsilon* epsilon = NULL;
+  bool is_limited = repetition->IsLimited();
 
-  if (!repetition->IsLimited()) {
-    if (min_rep == 0) {
-      rinfo()->set_last_state(rinfo()->last_state() + 1);
-      RegexpIndexer indexer(rinfo(),
-                               rinfo()->last_state(),
-                               rinfo()->last_state());
-      indexer.IndexSub(base, rinfo()->last_state());
-
-      Epsilon* eps_null =
+  if (min_rep == 0 && max_rep == 0) {
+    Epsilon* eps_bypass =
         new Epsilon(repetition->entry_state(), repetition->exit_state());
-      ListNew(eps_null);
+    ListNew(eps_bypass);
+    if (FLAG_trace_repetitions) {
+      cout << "Repetion ----------" << endl;
+      cout << *eps_bypass << endl;
+      cout << "---------- End of repetition" << endl;
+    }
+    return;
+  }
 
-      Epsilon* eps_in =
-        new Epsilon(repetition->entry_state(), base->entry_state());
-      ListNew(eps_in);
+  vector<Regexp*>* tracing = NULL;
+  if (FLAG_trace_repetitions) {
+    tracing = new vector<Regexp*>;
+  }
 
-      Visit(base);
+  // For an unlimited repetition we aim to produce:
+  //           /                    __eps__
+  // epsilons |                    |       |
+  //           \                   v       |
+  // inside:         O--x-->O--x-->O---x-->O--eps-->O
+  //
+  // This should be better when matching forward, but worse when matching
+  // backward.
+  //
+  // For the kleene operator we aim to produce:
+  //                  ___________eps___________
+  //           /     |         __eps__         |
+  // epsilons |      |        |       |        |
+  //           \     |        v       |        v
+  // inside:         O--eps-->O---x-->O--eps-->O
+  //
+  // For x{0,3} we aim to produce:
+  //           /      _______=eps==========
+  // epsilons |      |      |       |      |
+  //           \     |      |       |      v
+  // inside:         O--x-->O---x-->O--x-->O
 
-      Epsilon* eps_out =
-        new Epsilon(base->exit_state(), repetition->exit_state());
-      ListNew(eps_out);
+  // Prepare the 'inside' regexps.
+  // Note that the base regexp may have been selected for foast-forwarding, so
+  // *must* be in the inside regexp, and not in the optional part of the regexps
+  // generated.
+  Regexp* inside = NULL;
 
-      Epsilon* eps_rep =
-        new Epsilon(base->exit_state(), base->entry_state());
-      ListNew(eps_rep);
+  bool needs_concatenation = min_rep > 1 || (max_rep > 1 && is_limited);
+  if (!needs_concatenation) {
+    inside = base;
+  } else {
+    unsigned n_rep = is_limited ? max_rep : min_rep;
+    Concatenation *concat = new Concatenation();
+    concat->Append(base);
+    for (unsigned i = 1; i < n_rep; i++) {
+      Regexp *repeated = base->DeepCopy();
+      rinfo()->extra_allocated()->push_back(repeated);
+      concat->Append(repeated);
+    }
+    inside = concat;
+  }
+  if (tracing) tracing->push_back(inside);
 
-      if (FLAG_trace_repetitions) {
-        cout << "Repetion ----------" << endl;
-        cout << *eps_in << endl;
-        cout << *eps_out << endl;
-        cout << *eps_rep << endl;
-        cout << *eps_null << endl;
-        cout << *base << endl;
-        cout << "---------- End of repetition" << endl;
+  int inside_entry_state = repetition->entry_state();
+  int inside_exit_state = repetition->exit_state();
+  if (!is_limited) {
+    // We need an extra state at the end.
+    inside_exit_state = -1;
+    if (min_rep <= 1) {
+      // We need an extra state at the beginning.
+      rinfo()->set_last_state(rinfo()->last_state() + 1);
+      inside_entry_state = rinfo()->last_state();
+    }
+  }
+  RegexpIndexer indexer(rinfo(),
+                        inside_entry_state,
+                        rinfo()->last_state());
+  indexer.IndexSub(inside, inside_entry_state, inside_exit_state);
+
+  Visit(inside);
+
+
+  // Generate the appropriate epsilon transitions.
+
+  // Bypass epsilon.
+  if (min_rep == 0) {
+    Epsilon* eps_bypass =
+        new Epsilon(repetition->entry_state(), repetition->exit_state());
+    ListNew(eps_bypass);
+    if (tracing) tracing->push_back(eps_bypass);
+  }
+
+  if (is_limited && max_rep > 1) {
+    if (max_rep > 1) {
+      Concatenation* concat = inside->AsConcatenation();
+      vector<Regexp*>::const_iterator it;
+      int min = max(1u, min_rep);
+      for (it = concat->sub_regexps()->begin() + min - 1;
+           it < concat->sub_regexps()->end() - 1;
+           it++) {
+        Epsilon *eps_exit = new Epsilon((*it)->exit_state(),
+                                        repetition->exit_state());
+        ListNew(eps_exit);
+        if (tracing) tracing->push_back(eps_exit);
       }
-
     } else {
-      Concatenation* concat = new Concatenation();
-      concat->Append(base);
-      for (unsigned i = 1; i < min_rep; i++) {
-        concat->Append(base->DeepCopy());
-      }
-
-      created = concat;
-
-      // Index the created regexp.
-      RegexpIndexer indexer(rinfo(),
-                               repetition->entry_state(),
-                               rinfo()->last_state());
-      indexer.IndexSub(created, repetition->entry_state());
-
-      Visit(created);
-
-      Epsilon* eps_rep = new Epsilon(
-          concat->exit_state(), concat->sub_regexps()->back()->entry_state());
-      ListNew(eps_rep);
-
-      epsilon = new Epsilon(concat->exit_state(), repetition->exit_state());
-      ListNew(epsilon);
-
-      if (FLAG_trace_repetitions) {
-        cout << "Repetion ----------" << endl;
-        if (epsilon) cout << *epsilon << endl;
-        cout << *created << endl;
-        cout << "---------- End of repetition" << endl;
-      }
+      // Nothing to do.
     }
 
   } else {
-    if (min_rep == 0) {
-      epsilon =
-        new Epsilon(repetition->entry_state(), repetition->exit_state());
-      ListNew(epsilon);
-      min_rep = 1;
+    // Entry epsilon.
+    if (min_rep <= 1) {
+      Epsilon *eps_entry = new Epsilon(repetition->entry_state(), inside->entry_state());
+      ListNew(eps_entry);
+      if (tracing) tracing->push_back(eps_entry);
     }
 
-    Concatenation* concat = new Concatenation();
-      concat->Append(base);
-    for (unsigned i = 1; i < max_rep; i++) {
-      concat->Append(base->DeepCopy());
-    }
-    created = concat;
-    // Index and list the created regexp.
-    RegexpIndexer indexer(rinfo(),
-                             repetition->entry_state(),
-                             rinfo()->last_state());
-    indexer.IndexSub(created,
-                     repetition->entry_state(), repetition->exit_state());
+    // Exit epsilon.
+    Epsilon *eps_exit = new Epsilon(inside->exit_state(), repetition->exit_state());
+    ListNew(eps_exit);
+    if (tracing) tracing->push_back(eps_exit);
 
-    Visit(created);
-
-    // Now add epsilon transitions to the exit state.
-    vector<Regexp*>::const_iterator it;
-    for (it = concat->sub_regexps()->begin() + min_rep - 1;
-         it < concat->sub_regexps()->end() - 1;
-         it++) {
-      ListNew(
-          new Epsilon((*it)->exit_state(), concat->exit_state()));
+    // Repeat epsilon.
+    Regexp *last;
+    if (!needs_concatenation) {
+      last = inside;
+    } else {
+      last = inside->AsConcatenation()->sub_regexps()->back();
     }
+    Epsilon *eps_rep = new Epsilon(last->exit_state(), last->entry_state());
+    ListNew(eps_rep);
+    if (tracing) tracing->push_back(eps_rep);
+  }
 
-    if (FLAG_trace_repetitions) {
-      cout << "Repetion ----------" << endl;
-      if (epsilon) cout << *epsilon << endl;
-      cout << *created << endl;
-      cout << "---------- End of repetition" << endl;
+
+  if (FLAG_trace_repetitions) {
+    cout << "Repetion ----------" << endl;
+    for (Regexp *re : *tracing) {
+      cout << *re << endl;
     }
+    cout << "---------- End of repetition" << endl;
+    delete tracing;
   }
 }
 
