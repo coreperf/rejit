@@ -409,7 +409,8 @@ int Parser::ParseCurlyBrackets(const char *left_curly_bracket) {
     }
 
     if (min != max) {
-      concat->Append(new Repetition(mc, 0, max - min));
+      concat->Append(
+          new Repetition(mc, 0, max == kMaxUInt ? kMaxUInt : max - min));
     }
 
     regexp_info()->UpdateRegexpMaxLength(result);
