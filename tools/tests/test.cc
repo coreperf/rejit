@@ -272,24 +272,29 @@ int RunTest(struct arguments *arguments) {
   TEST_Full(0, "(ab.){3,5}", "ab.ab.ab.ab.ab.ab.");
   TEST_Full(0, "(ab.){3,5}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
 
+  TEST_Full(1, "x{,5}", "");
+  TEST_Full(1, "x{,5}", "xxx");
+  TEST_Full(1, "x{,5}", "xxxxx");
+  TEST_Full(0, "x{,5}", "xxxxxx");
+  TEST_Full(0, "x{,5}", "xxxxxxxxxxxx");
+
   TEST_Full(1, "(ab.){,5}", "");
   TEST_Full(1, "(ab.){,5}", "ab.ab.ab.");
   TEST_Full(1, "(ab.){,5}", "ab.ab.ab.ab.ab.");
   TEST_Full(0, "(ab.){,5}", "ab.ab.ab.ab.ab.ab.");
   TEST_Full(0, "(ab.){,5}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
 
+  TEST_Full(0, "x{3,}", "");
+  TEST_Full(0, "x{3,}", "xx");
+  TEST_Full(1, "x{3,}", "xxx");
+  TEST_Full(1, "x{3,}", "xxxxx");
+  TEST_Full(1, "x{3,}", "xxxxxxxxxxxx");
+
   TEST_Full(0, "(ab.){3,}", "");
   TEST_Full(0, "(ab.){3,}", "ab.ab.");
   TEST_Full(1, "(ab.){3,}", "ab.ab.ab.");
   TEST_Full(1, "(ab.){3,}", "ab.ab.ab.ab.ab.");
   TEST_Full(1, "(ab.){3,}", "ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.ab.");
-
-  TEST_Full(0, "x{3,5}", "x");
-  TEST_Full(0, "x{3,5}", "xx");
-  TEST_Full(1, "x{3,5}", "xxx");
-  TEST_Full(1, "x{3,5}", "xxxx");
-  TEST_Full(1, "x{3,5}", "xxxxx");
-  TEST_Full(0, "x{3,5}", "xxxxxx");
 
   TEST_Full(0, "(a.){2,3}{2,3}", "a.");
   TEST_Full(0, "(a.){2,3}{2,3}", "a.a.");
@@ -317,9 +322,20 @@ int RunTest(struct arguments *arguments) {
   TEST_First_unbound(1, "(a.)+", "012a.a_a-_", 3, 9);
   TEST_First_unbound(1, "(a.)+", "012a.a_a-_a-", 3, 9);
 
+  TEST_Full(1, ".**", "0123456789");
+  TEST_Full(1, ".{0,}", "0123456789");
+  TEST_Full(1, ".{1,}", "0123456789");
+  TEST_Full(1, ".{0,}{0,}", "0123456789");
+  TEST_Full(1, ".{0,}{1,}", "0123456789");
+  TEST_Full(1, ".{1,}{0,}", "0123456789");
+  TEST_Full(1, ".{1,}{1,}", "0123456789");
+  TEST_Full(1, ".{0,1}{0,}", "0123456789");
+  TEST_Full(1, ".{0,1}{1,}", "0123456789");
+  TEST_Full(1, ".x{0,0}.", "..");
+  TEST_Full(1, "(.*.*.*)*", "0123456789");
+  TEST_Full(1, "(\\d*\\d*\\d*)*", "0123456789");
 
   // Combinations of alternations and repetitions.
-  TEST_Full(1, ".**", "0123456789");
   TEST_Full(1, "(1|22)*", "111122221221221222222");
   TEST_Full(1, "ABCD_(1|22)*_XYZ", "ABCD_111122221221221222222_XYZ");
   TEST_Full(0, "ABCD_(1|22)*_XYZ", "111122221221221222222");
