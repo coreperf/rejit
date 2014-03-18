@@ -115,7 +115,7 @@ static const unsigned kMaxNodeLength = 64;
 class Regexp {
  public:
   explicit Regexp(RegexpType type) :
-    type_(type), entry_state_(-1), output_state_(-1) {}
+    type_(type), entry_state_(-1), exit_state_(-1) {}
   virtual ~Regexp() {}
   // TODO: This is necessary because of the way we handle repetitions. See the
   // Repetition class.
@@ -175,7 +175,7 @@ class Regexp {
   virtual int ff_score() const { UNREACHABLE(); return 0; }
 
   inline virtual void SetEntryState(int entry) { entry_state_ = entry; }
-  inline virtual void SetOutputState(int output) { output_state_ = output; }
+  inline virtual void SetExitState(int exit) { exit_state_ = exit; }
 
   // Debug helpers.
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
@@ -183,12 +183,12 @@ class Regexp {
   // Accessors.
   inline RegexpType type() const { return type_; }
   inline int entry_state() const { return entry_state_; }
-  inline int output_state() const { return output_state_; }
+  inline int exit_state() const { return exit_state_; }
 
  protected:
   const RegexpType type_;
   int entry_state_;
-  int output_state_;
+  int exit_state_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Regexp);
@@ -352,11 +352,11 @@ class Epsilon : public ControlRegexp {
  public:
   // Epsilon transitions are created when handling repetitions, and cannot
   // appear in the regexp tree. So they are never indexed, but instead always
-  // created with known entry and output states.
-  explicit Epsilon(int entry, int output)
+  // created with known entry and exit states.
+  explicit Epsilon(int entry, int exit)
     : ControlRegexp(kEpsilon) {
       entry_state_ = entry;
-      output_state_ = output;
+      exit_state_ = exit;
     }
 
  private:
@@ -400,7 +400,7 @@ class Concatenation : public RegexpWithSubs {
   }
 
   virtual void SetEntryState(int entry_state);
-  virtual void SetOutputState(int output_state);
+  virtual void SetExitState(int exit_state);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Concatenation);
@@ -415,7 +415,7 @@ class Alternation : public RegexpWithSubs {
   virtual ostream& OutputToIOStream(ostream& stream) const;  // NOLINT
 
   virtual void SetEntryState(int entry_state);
-  virtual void SetOutputState(int output_state);
+  virtual void SetExitState(int exit_state);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Alternation);
@@ -539,7 +539,7 @@ class RegexpInfo {
  public:
   RegexpInfo()
     : regexp_(NULL),
-      entry_state_(-1), output_state_(-1), last_state_(0),
+      entry_state_(-1), exit_state_(-1), last_state_(0),
       regexp_max_length_(0),
       ff_reduced_(false),
       match_full_(NULL),
@@ -569,11 +569,11 @@ class RegexpInfo {
 
   // Accessors.
   int entry_state() const { return entry_state_; }
-  int output_state() const { return output_state_; }
+  int exit_state() const { return exit_state_; }
   int last_state() const { return last_state_; }
   unsigned regexp_max_length() const { return regexp_max_length_; }
   void set_entry_state(int entry_state) { entry_state_ = entry_state; }
-  void set_output_state(int output_state) { output_state_ = output_state; }
+  void set_exit_state(int exit_state) { exit_state_ = exit_state; }
   void set_last_state(int last_state) { last_state_ = last_state; }
   void set_regexp_max_length(unsigned regexp_max_length) {
     regexp_max_length_ = regexp_max_length;
@@ -592,7 +592,7 @@ class RegexpInfo {
  private:
   Regexp* regexp_;
   int entry_state_;
-  int output_state_;
+  int exit_state_;
   int last_state_;
   unsigned regexp_max_length_;
   // The list of fast-forward regexps will be initialized by the FF_finder.
@@ -629,7 +629,7 @@ class RegexpInfo {
 // Regexp utils ----------------------------------------------------------------
 
 bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2);
-bool regexp_cmp_output_state(Regexp* r1, Regexp* r2);
+bool regexp_cmp_exit_state(Regexp* r1, Regexp* r2);
 
 bool all_regexps_start_at(int entry_state, vector<Regexp*> *regexps);
 

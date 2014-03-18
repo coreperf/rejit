@@ -28,7 +28,7 @@ case k##RegexpType: stream << #RegexpType; break;
     default:
       UNREACHABLE();
   }
-  stream << ") {" << entry_state_ << ", " << output_state_ << "}";
+  stream << ") {" << entry_state_ << ", " << exit_state_ << "}";
   return stream;
 }
 
@@ -71,7 +71,7 @@ ostream& MultipleChar::OutputToIOStream(ostream& stream) const {  // NOLINT
   for (unsigned i = 0; i < chars_length(); i++) {
     stream << chars_[i];
   }
-  stream << "] {" << entry_state_ << ", " << output_state_ << "}";
+  stream << "] {" << entry_state_ << ", " << exit_state_ << "}";
   return stream;
 }
 
@@ -80,7 +80,7 @@ ostream& Bracket::OutputToIOStream(ostream& stream) const {  // NOLINT
   stream << "Bracket ";
   if (flags() & non_matching)
     stream << "(non_matching) ";
-    stream << "[ {" << entry_state_ << ", " << output_state_ << "}\n";
+    stream << "[ {" << entry_state_ << ", " << exit_state_ << "}\n";
   { IndentScope is(2);
     // TODO(rames): overkill!
     vector<char>::const_iterator cit;
@@ -137,7 +137,7 @@ Regexp* Concatenation::DeepCopy() {
 
 ostream& Concatenation::OutputToIOStream(ostream& stream) const {  // NOLINT
   stream << "Concatenation [ {"
-    << entry_state_ << ", " << output_state_ << "}\n";
+    << entry_state_ << ", " << exit_state_ << "}\n";
   { IndentScope is(2);
     vector<Regexp*>::const_iterator it;
     for (it = sub_regexps_.begin(); it < sub_regexps_.end(); it++) {
@@ -155,9 +155,9 @@ void Concatenation::SetEntryState(int entry_state) {
 }
 
 
-void Concatenation::SetOutputState(int output_state) {
-  output_state_ = output_state;
-  sub_regexps_.back()->SetOutputState(output_state);
+void Concatenation::SetExitState(int exit_state) {
+  exit_state_ = exit_state;
+  sub_regexps_.back()->SetExitState(exit_state);
 }
 
 
@@ -170,7 +170,7 @@ Regexp* Alternation::DeepCopy() {
 
 ostream& Alternation::OutputToIOStream(ostream& stream) const {  // NOLINT
   stream << "Alternation [ {"
-                 << entry_state_ << ", " << output_state_ << "}\n";
+                 << entry_state_ << ", " << exit_state_ << "}\n";
   {
     vector<Regexp*>::const_iterator it;
     IndentScope is(2);
@@ -192,11 +192,11 @@ void Alternation::SetEntryState(int entry_state) {
 }
 
 
-void Alternation::SetOutputState(int output_state) {
-  output_state_ = output_state;
+void Alternation::SetExitState(int exit_state) {
+  exit_state_ = exit_state;
   vector<Regexp*>::iterator it;
   for (it = sub_regexps_.begin(); it < sub_regexps_.end(); it++) {
-    (*it)->SetOutputState(output_state);
+    (*it)->SetExitState(exit_state);
   }
 }
 
@@ -205,11 +205,11 @@ ostream& Repetition::OutputToIOStream(ostream& stream) const {  // NOLINT
   if (max_rep_ == kMaxUInt) {
     stream << "Repetition"
                    << "{" << min_rep_ << ", inf } [ {"
-                   << entry_state_ << ", " << output_state_ << "}\n";
+                   << entry_state_ << ", " << exit_state_ << "}\n";
   } else {
     stream << "Repetition"
                    << "{" << min_rep_ << "," << max_rep_ << "} [ {"
-                   << entry_state_ << ", " << output_state_ << "}\n";
+                   << entry_state_ << ", " << exit_state_ << "}\n";
   }
   {
     IndentScope is(2);
@@ -264,8 +264,8 @@ bool regexp_cmp_entry_state(Regexp* r1, Regexp* r2) {
 }
 
 
-bool regexp_cmp_output_state(Regexp* r1, Regexp* r2) {
-  return r1->output_state() < r2->output_state();
+bool regexp_cmp_exit_state(Regexp* r1, Regexp* r2) {
+  return r1->exit_state() < r2->exit_state();
 }
 
 

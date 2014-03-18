@@ -91,15 +91,15 @@ void MatchAllAppendFilter(vector<Match>* matches, Match new_match) {
 void RegexpIndexer::Index(Regexp* root) {
   IndexSub(root);
   rinfo_->set_entry_state(0);
-  rinfo_->set_output_state(this->entry_state());
+  rinfo_->set_exit_state(this->entry_state());
 }
 
 
-void RegexpIndexer::IndexSub(Regexp* root, int entry, int output) {
+void RegexpIndexer::IndexSub(Regexp* root, int entry, int exit) {
   Visit(root);
   root->SetEntryState(entry);
-  if (output != -1) {
-    root->SetOutputState(output);
+  if (exit != -1) {
+    root->SetExitState(exit);
   }
   rinfo_->set_last_state(last_state());
 }
@@ -109,8 +109,8 @@ void RegexpIndexer::IndexSub(Regexp* root, int entry, int output) {
 // changed to inline functions.
 void RegexpIndexer::VisitRegexp(Regexp* re) {
   re->SetEntryState(entry_state_);
-  re->SetOutputState(++last_state_);
-  entry_state_ = re->output_state();
+  re->SetExitState(++last_state_);
+  entry_state_ = re->exit_state();
 }
 
 
@@ -125,8 +125,8 @@ void RegexpIndexer::VisitAlternation(Alternation* alternation) {
   }
   last_state_++;
   alternation->SetEntryState(original_entry);
-  alternation->SetOutputState(last_state_);
-  entry_state_ = alternation->output_state();
+  alternation->SetExitState(last_state_);
+  entry_state_ = alternation->exit_state();
 }
 
 
@@ -139,8 +139,8 @@ void RegexpIndexer::VisitConcatenation(Concatenation* concatenation) {
     Visit(*it);
   }
   concatenation->SetEntryState(original_entry);
-  concatenation->SetOutputState(last_state_);
-  entry_state_ = concatenation->output_state();
+  concatenation->SetExitState(last_state_);
+  entry_state_ = concatenation->exit_state();
 }
 
 
@@ -194,7 +194,7 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
       indexer.IndexSub(base, rinfo()->last_state());
 
       Epsilon* eps_null =
-        new Epsilon(repetition->entry_state(), repetition->output_state());
+        new Epsilon(repetition->entry_state(), repetition->exit_state());
       ListNew(eps_null);
 
       Epsilon* eps_in =
@@ -204,11 +204,11 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
       Visit(base);
 
       Epsilon* eps_out =
-        new Epsilon(base->output_state(), repetition->output_state());
+        new Epsilon(base->exit_state(), repetition->exit_state());
       ListNew(eps_out);
 
       Epsilon* eps_rep =
-        new Epsilon(base->output_state(), base->entry_state());
+        new Epsilon(base->exit_state(), base->entry_state());
       ListNew(eps_rep);
 
       if (FLAG_trace_repetitions) {
@@ -239,10 +239,10 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
       Visit(created);
 
       Epsilon* eps_rep = new Epsilon(
-          concat->output_state(), concat->sub_regexps()->back()->entry_state());
+          concat->exit_state(), concat->sub_regexps()->back()->entry_state());
       ListNew(eps_rep);
 
-      epsilon = new Epsilon(concat->output_state(), repetition->output_state());
+      epsilon = new Epsilon(concat->exit_state(), repetition->exit_state());
       ListNew(epsilon);
 
       if (FLAG_trace_repetitions) {
@@ -256,7 +256,7 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
   } else {
     if (min_rep == 0) {
       epsilon =
-        new Epsilon(repetition->entry_state(), repetition->output_state());
+        new Epsilon(repetition->entry_state(), repetition->exit_state());
       ListNew(epsilon);
       min_rep = 1;
     }
@@ -272,17 +272,17 @@ void RegexpLister::VisitRepetition(Repetition* repetition) {
                              repetition->entry_state(),
                              rinfo()->last_state());
     indexer.IndexSub(created,
-                     repetition->entry_state(), repetition->output_state());
+                     repetition->entry_state(), repetition->exit_state());
 
     Visit(created);
 
-    // Now add epsilon transitions to the output state.
+    // Now add epsilon transitions to the exit state.
     vector<Regexp*>::const_iterator it;
     for (it = concat->sub_regexps()->begin() + min_rep - 1;
          it < concat->sub_regexps()->end() - 1;
          it++) {
       ListNew(
-          new Epsilon((*it)->output_state(), concat->output_state()));
+          new Epsilon((*it)->exit_state(), concat->exit_state()));
     }
 
     if (FLAG_trace_repetitions) {
@@ -408,9 +408,9 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
   MultipleChar *substring_mc = new MultipleChar(longest_substring);
   int last_state = rinfo_->last_state();
   int substring_entry_state = last_state + 1;
-  int substring_output_state = last_state + 2;
+  int substring_exit_state = last_state + 2;
   substring_mc->SetEntryState(substring_entry_state);
-  substring_mc->SetOutputState(substring_output_state);
+  substring_mc->SetExitState(substring_exit_state);
   rinfo_->set_last_state(last_state + 2);
   rinfo_->extra_allocated()->push_back(substring_mc);
   // Note that this new mc is *not* added to the gen_list. This would create
@@ -459,7 +459,7 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
       MultipleChar *linking_mc_in = new MultipleChar(mc->chars(),
                                                      substring_offset);
       linking_mc_in->SetEntryState(mc->entry_state());
-      linking_mc_in->SetOutputState(substring_entry_state);
+      linking_mc_in->SetExitState(substring_entry_state);
       rinfo_->extra_allocated()->push_back(linking_mc_in);
       rinfo_->re_matching_list()->push_back(linking_mc_in);
       re_in = linking_mc_in;
@@ -473,13 +473,13 @@ void FF_finder::ff_alternation_reduce(size_t *start, size_t *end) {
     if (substring_offset + longest_substring.length() != mc_string.length()) {
       MultipleChar *linking_mc_out =
         new MultipleChar(mc->chars() + substring_offset + longest_substring.length());
-      linking_mc_out->SetEntryState(substring_output_state);
-      linking_mc_out->SetOutputState(mc->output_state());
+      linking_mc_out->SetEntryState(substring_exit_state);
+      linking_mc_out->SetExitState(mc->exit_state());
       rinfo_->extra_allocated()->push_back(linking_mc_out);
       rinfo_->re_matching_list()->push_back(linking_mc_out);
       re_out = linking_mc_out;
     } else {
-      Epsilon *epsilon = new Epsilon(substring_output_state, mc->output_state());
+      Epsilon *epsilon = new Epsilon(substring_exit_state, mc->exit_state());
       rinfo_->extra_allocated()->push_back(epsilon);
       rinfo_->re_control_list()->push_back(epsilon);
       re_out = epsilon;

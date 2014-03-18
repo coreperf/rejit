@@ -374,7 +374,7 @@ void Codegen::CheckMatch(Direction direction,
     Label no_match;
 
     TestState(0, direction == kBackward ? rinfo_->entry_state()
-                                        : rinfo_->output_state());
+                                        : rinfo_->exit_state());
     __ j(zero, &no_match);
 
     if (direction == kBackward) {
@@ -402,7 +402,7 @@ void Codegen::CheckMatch(Direction direction,
           __ j(zero, &no_unregistered_match);
           // TODO: Add some debug code to verify that the thread for the
           // previous match is not running any more.
-          __ movq(scratch1, StateOperand(0, rinfo_->output_state()));
+          __ movq(scratch1, StateOperand(0, rinfo_->exit_state()));
           __ cmpq(scratch1, forward_match);
           __ j(equal, &no_unregistered_match);
           RegisterMatch();
@@ -412,7 +412,7 @@ void Codegen::CheckMatch(Direction direction,
         // A match is not an exit situation: a longer matches may occur.
         __ movq(forward_match, string_pointer);
         if (!fast_forward_ || direction == kForward) {
-          __ movq(scratch1, StateOperand(0, rinfo_->output_state()));
+          __ movq(scratch1, StateOperand(0, rinfo_->exit_state()));
           __ movq(backward_match, scratch1);
           // We must clear more recent threads that are still running to avoid the
           // older match to be overridden.
@@ -550,7 +550,7 @@ void Codegen::GenerateMatchDirection(Direction direction) {
   // stop (sos, eos, or limit or previously found match).
   if (match_type_ == kMatchFull) {
     __ Move(rax, 0);
-    TestState(0, rinfo_->output_state());
+    TestState(0, rinfo_->exit_state());
     __ setcc(not_equal, rax);
     // Control will fall through to unwind_and_return.
 
@@ -621,17 +621,17 @@ void Codegen::GenerateTransitions(Direction direction) {
   if (direction == kForward) {
     sort(gen_list->begin(), gen_list->end(), &regexp_cmp_entry_state);
   } else {
-    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_output_state);
+    sort(gen_list->begin(), gen_list->end(), &regexp_cmp_exit_state);
   }
   Label skip;
   int current_state = -1;
   for (MatchingRegexp *re : *gen_list) {
     if ((direction == kForward && re->entry_state() != current_state) ||
-        (direction == kBackward && re->output_state() != current_state)) {
+        (direction == kBackward && re->exit_state() != current_state)) {
       __ bind(&skip);
       skip.Unuse();
       current_state =
-        direction == kForward ? re->entry_state() : re->output_state();
+        direction == kForward ? re->entry_state() : re->exit_state();
       TestState(0, current_state);
       __ j(zero, &skip);
     }
@@ -997,9 +997,9 @@ void Codegen::RestoreFFFoundStates() {
 
 void Codegen::DirectionSetOutputFromEntry(int time, Regexp* regexp) {
   if (direction() == kForward) {
-    SetState(time, regexp->output_state(), regexp->entry_state());
+    SetState(time, regexp->exit_state(), regexp->entry_state());
   } else {
-    SetState(time, regexp->entry_state(), regexp->output_state());
+    SetState(time, regexp->entry_state(), regexp->exit_state());
   }
 }
 
