@@ -344,7 +344,6 @@ void Codegen::HandleControlRegexps() {
   // well constructed.
   Label loop;
   unsigned n_ctrl_re = rinfo_->re_control_list()->size();
-  cout << n_ctrl_re << endl;
 
   if (!rinfo()->re_control_list_topo_sorted()) {
     __ Move(rcx, n_ctrl_re);
