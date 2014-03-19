@@ -78,7 +78,7 @@ function main() {
     // Run each benchmark for at least 700ms while not more than 1024 the
     // specified number of iterations.
     for (run_iterations = iterations;
-         tdiff < 700 && run_iterations <= 1024 * iterations;
+         tdiff < 25 && run_iterations <= 1024 * iterations;
          run_iterations = run_iterations * 2) {
       s = text.substring(0, sizes[index]);
       t0 = new Date();
