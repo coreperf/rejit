@@ -83,7 +83,7 @@ function main() {
       s = text.substring(0, sizes[index]);
       t0 = new Date();
       for (var i = 0; i < run_iterations; i++) {
-        regexp.exec(s);
+        s.match(regexp);
       }
       tdiff = new Date() - t0;
     }
