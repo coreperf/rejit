@@ -162,7 +162,7 @@ void handle_arguments(struct arguments *arguments,
 
   argp_parse(argp, argc, argv, 0, 0, arguments);
 
-  if (arguments->args[0] == '\0') {
+  if (arguments->args[0][0] == '\0') {
     error("Cannot test an empty regular expression.");
   }
 
