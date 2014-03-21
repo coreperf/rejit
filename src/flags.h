@@ -18,13 +18,11 @@
 // This is a centralised definition of the flags used by rejit.
 // This allows to easily use macros to operate on all the flags at once.
 // Note that defined macros are required to take 3 arguments, but can ignore
-// some of them (oftent the debug and release mode default values).
+// some of them (often the debug and release mode default values).
 // See for example the DECLARE_FLAG macro.
-#define REJIT_FLAGS_LIST(M)                                                    \
+
+#define REJIT_PRINT_FLAGS_LIST(M)                                              \
 /* flag_name             , release , debug mode default value */               \
-/* Emit extra code for debugging purposes. */                                  \
-M( emit_debug_code       , false   , true  )                                   \
-/* Show the ff elements chosen by the fast forward mechanism. */               \
 M( print_ff_elements     , false   , false )                                   \
 /* Print the list of regexps that the codegen will generate code for. */       \
 M( print_re_list         , false   , false )                                   \
@@ -32,6 +30,14 @@ M( print_re_list         , false   , false )                                   \
 M( print_re_tree         , false   , false )                                   \
 /* Print info about the state ring. */                                         \
 M( print_state_ring_info , false   , false )                                   \
+/* Display information about reduction of fast-forward elements. */            \
+M( print_ff_reduce       , false   , false )                                   \
+
+#define REJIT_FLAGS_LIST(M)                                                    \
+/* flag_name             , release , debug mode default value */               \
+/* Emit extra code for debugging purposes. */                                  \
+M( emit_debug_code       , false   , true  )                                   \
+/* Show the ff elements chosen by the fast forward mechanism. */               \
 /* For kMatchAll, print every match when registered. */                        \
 M( trace_match_all       , false   , false )                                   \
 /* Trace repetitions handling at parse time. */                                \
@@ -40,11 +46,11 @@ M( trace_repetitions     , false   , false )                                   \
 M( use_fast_forward      , true    , true  )                                   \
 /* Use / trace reduction of fast-forward elements (substring extraction). */   \
 M( use_ff_reduce         , true    , true  )                                   \
-M( print_ff_reduce       , false   , false )                                   \
 /* Use parser level optimizations. */                                          \
 M( use_parser_opt        , true    , true  )                                   \
 /* Dump generated code. */                                                     \
-M( dump_code             , false   , false )
+M( dump_code             , false   , false )                                   \
+REJIT_PRINT_FLAGS_LIST(M)
 
 // Declare all the flags.
 #if defined(DEBUG) || defined(MOD_FLAGS)

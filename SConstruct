@@ -24,13 +24,12 @@ import utils
 #TODO(rames): Check scons AddOption()
 
 Help("""
-Build the rejit library with        `$ scons`.
-Build a sample with                 `$ scons sample/<name>`
-                                    (eg. `$ scons sample/basic`).
-Build the benchmark engines with    `$ scons <name>_engine`.
-                                    (eg. `$ scons re2_engine`).
-Note that they are built automatically when running
-                                    `$ tools/benchmarks/run.py`
+* Build the rejit library with `scons`.
+* Build a sample with `scons sample/<name>` (eg. `scons sample/basic`).
+* Build the benchmark engines with `scons <name>_engine`.
+  (eg. `scons re2_engine`). Note that they are built automatically when running
+  `tools/benchmarks/run.py`
+* Build the compilation info tool with `scons tools/analysis/compinfo`
 """)
 
 # Build options ----------------------------------------------------------------
@@ -245,6 +244,8 @@ env.Alias('test-rejit', test_rejit)
 SConscript('sample/SConscript', exports='env librejit')
 
 SConscript('tools/benchmarks/SConscript', exports='env librejit')
+
+SConscript('tools/analysis/SConscript', exports='env librejit')
 
 # Only build the library by default.
 Default(rejit)

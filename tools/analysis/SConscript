@@ -1,0 +1,38 @@
+import os
+import sys
+import subprocess
+
+from os.path import join
+from subprocess import PIPE
+
+# Import rejit utils.
+dir_root = os.path.realpath('.')
+while 'SConstruct' not in os.listdir(dir_root):
+  dir_root = os.path.realpath(join(dir_root, '..'))
+sys.path.insert(0, join(dir_root, 'tools'))
+import utils
+
+# These are exported from SConstruct and further passed down to SConscript
+# files.
+Import('env librejit')
+
+libs = [librejit]
+if 'os' in env and env['os'] == 'macos':
+  conf = Configure(env)
+  if not conf.CheckLib('argp'):
+    print help_messages['argp']
+    Exit(1)
+  env = conf.Finish()
+  libs += ['argp']
+
+env['CCFLAGS'] += ['-DMOD_FLAGS']
+analyze_CCFLAGS = env['CCFLAGS']
+analyze_CXXFLAGS = env['CXXFLAGS']
+analyze_CPPPATH = env['CPPPATH']
+
+compinfo = env.Program('compinfo', 'compinfo.cc',
+                       LIBS=libs,
+                       CCFLAGS=analyze_CCFLAGS,
+                       CXXFLAGS=analyze_CXXFLAGS,
+                       CPPPATH=analyze_CPPPATH)
+env.Alias('compinfo', compinfo)
