@@ -307,23 +307,44 @@ void MacroAssembler::movdqp(XMMRegister dst, const char* chars, unsigned n_chars
 }
 
 
-// rcx must have been preset with the correct count.
-void MacroAssembler::do_rcx_memzero(Register start, Register zero) {
+void MacroAssembler::MemZero(Register start, Register end, Register zero,
+                             MemZeroOutputStatus out_status,
+                             MemZeroSizeHint size_hint) {
   Label zero_loop;
   ASSERT(!start.is(rcx));
 
   if (!zero.is_valid()) {
-    zero = start.is(scratch1) ? scratch2 : scratch1;
+    if (!(start.is(scratch1) || end.is(scratch1))) zero = scratch1;
+    else if (!(start.is(scratch2) || end.is(scratch2))) zero = scratch2;
+    else if (!(start.is(scratch3) || end.is(scratch3))) zero = scratch3;
     Move(zero, 0);
   }
 
+  if (FLAG_emit_debug_code) {
+    if (zero.is_valid()) {
+      cmpq(zero, Immediate(0));
+      asm_assert(equal, "zero register is not null.");
+    }
+    cmpq(start, end);
+    asm_assert(below_equal, "start must be stricly under end.");
+  }
+
   bind(&zero_loop);
-  movq(Operand(start, rcx, times_8, -kPointerSize), zero);
-  loop(&zero_loop);
+  if (out_status == AtHighAddress) {
+    movq(Operand(start, 0), zero);
+    addq(start, Immediate(kPointerSize));
+  } else {
+    subq(end, Immediate(kPointerSize));
+    movq(Operand(end, 0), zero);
+  }
+  cmpq(start, end);
+  j(not_equal, &zero_loop);
 }
 
 
-void MacroAssembler::MemZero(Register start, size_t size, Register zero) {
+void MacroAssembler::MemZero(Register start, size_t size, Register zero,
+                             MemZeroOutputStatus out_status,
+                             MemZeroSizeHint size_hint) {
   ASSERT(size % kPointerSize == 0);
   ASSERT(size > 0);
 
@@ -339,22 +360,14 @@ void MacroAssembler::MemZero(Register start, size_t size, Register zero) {
     }
 
   } else {
-    Move(rcx, size / kPointerSize);
-    do_rcx_memzero(start, zero);
+    Register end;
+    if (!(start.is(scratch1) || zero.is(scratch1))) end = scratch1;
+    else if (!(start.is(scratch2) || zero.is(scratch2))) end = scratch2;
+    else if (!(start.is(scratch3) || zero.is(scratch3))) end = scratch3;
+    movq(end, start);
+    addq(end, Immediate(size));
+    MemZero(start, end, zero, out_status, size_hint);
   }
-}
-
-
-void MacroAssembler::MemZero(Register start, Register end, Register zero) {
-  // TODO: More efficient implementation?
-  Label zero_loop;
-  ASSERT(!start.is(rcx) && !zero.is(rcx));
-
-  Move(rcx, end);
-  subq(rcx, start);
-  shr(rcx, Immediate(kPointerSizeLog2));
-
-  do_rcx_memzero(start, zero);
 }
 
 

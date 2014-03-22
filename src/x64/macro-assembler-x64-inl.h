@@ -114,10 +114,12 @@ void MacroAssembler::LoadCurrentChar(Register r) {
 }
 
 
-void MacroAssembler::MemZero(const Operand& op, size_t size, Register zero) {
-  Register start = zero.is(scratch2) ? scratch3 : scratch2;
+void MacroAssembler::MemZero(const Operand& op, size_t size, Register zero,
+                             MemZeroOutputStatus out_status,
+                             MemZeroSizeHint size_hint) {
+  Register start = zero.is(scratch1) ? scratch2 : scratch1;
   lea(start, op);
-  MemZero(start, size, zero);
+  MemZero(start, size, zero, out_status, size_hint);
 }
 
 

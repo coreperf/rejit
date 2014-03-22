@@ -142,11 +142,26 @@ class MacroAssembler : public MacroAssemblerBase {
   void movdq(XMMRegister dst, uint64_t high, uint64_t low);
   void movdqp(XMMRegister dst, const char* chars, unsigned n_chars);
 
-  void do_rcx_memzero(Register start, Register zero);
+  // Clear a memory region.
   // The start and end (and size) must be 8-bytes aligned.
-  inline void MemZero(const Operand& start, size_t size, Register zero = no_reg);
-  void MemZero(Register start, size_t size, Register zero = no_reg);
-  void MemZero(Register start, Register end, Register zero = no_reg);
+  // start must point at a strictly lower address than the end register.
+  enum MemZeroOutputStatus {
+    // On output, the start and end register point to the higher address.
+    AtLowAddress,
+    // On output, the start and end register point to the lower address.
+    AtHighAddress,
+  };
+  // Hint about the size of the copy.
+  enum MemZeroSizeHint {
+    Small,
+    Big,
+  };
+  void MemZero(Register start, Register end, Register zero = no_reg,
+               MemZeroOutputStatus = AtHighAddress, MemZeroSizeHint = Small);
+  inline void MemZero(const Operand& start, size_t size, Register zero = no_reg,
+               MemZeroOutputStatus = AtHighAddress, MemZeroSizeHint = Small);
+  void MemZero(Register start, size_t size, Register zero = no_reg,
+               MemZeroOutputStatus = AtHighAddress, MemZeroSizeHint = Small);
 
   // Increment or decrement by the size of a character.
   inline void inc_c(Register dst);

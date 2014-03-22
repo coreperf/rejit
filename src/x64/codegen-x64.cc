@@ -122,6 +122,10 @@ void Codegen::Generate() {
     }
   }
 
+  // Set up the registers.
+  __ movq(string_pointer, rdi);
+  __ Move(ring_index, 0);
+
 
   //  0x8 and up     : callee saved registers
   //  0x0            : rbp caller's rbp.
@@ -131,12 +135,12 @@ void Codegen::Generate() {
 
   const size_t reserved_space =
     kStateInfoSize + state_ring_size() + time_summary_size();
+  __ movq(scratch1, rsp);
   __ subq(rsp, Immediate(reserved_space));
-  __ MemZero(rsp, reserved_space);
+  Register zero = ring_index;   // Was set to zero just above.
+  __ MemZero(rsp, scratch1, zero, MacroAssembler::AtLowAddress);
 
-  __ movq(string_pointer, rdi);
-  __ Move(ring_index, 0);
-
+  // Set up the rest of the information.
   __ movq(string_base, rdi);
   __ addq(rsi, rdi);
   __ movq(string_end, rsi);
