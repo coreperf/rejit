@@ -40,16 +40,14 @@ def fn_state(debugger, command, result, dict):
   def eval_expr(type, c_expr):
     return type(target.EvaluateExpression(c_expr, opts).GetValue())
   CalleeSavedRegsSize = eval_expr(int, 'CalleeSavedRegsSize()')
-  kStateInfoSize = 6 * kPointerSize
-
+  kStateInfoSize = 5 * kPointerSize
   state_fp_relative_fields = [
     ('time_summary_last', -CalleeSavedRegsSize - kStateInfoSize),
-    ('result_matches',    -CalleeSavedRegsSize - 1 * kPointerSize),
-    ('ff_position',       -CalleeSavedRegsSize - 2 * kPointerSize),
-    ('ff_found_state',    -CalleeSavedRegsSize - 3 * kPointerSize),
-    ('backward_match',    -CalleeSavedRegsSize - 4 * kPointerSize),
-    ('forward_match',     -CalleeSavedRegsSize - 5 * kPointerSize),
-    ('last_match_end',    -CalleeSavedRegsSize - 6 * kPointerSize),
+    ('ff_position',       -CalleeSavedRegsSize - 1 * kPointerSize),
+    ('ff_found_state',    -CalleeSavedRegsSize - 2 * kPointerSize),
+    ('backward_match',    -CalleeSavedRegsSize - 3 * kPointerSize),
+    ('forward_match',     -CalleeSavedRegsSize - 4 * kPointerSize),
+    ('last_match_end',    -CalleeSavedRegsSize - 5 * kPointerSize),
   ]
   print 'raw stack:'
   debugger.HandleCommand('register read fp')
@@ -63,6 +61,19 @@ def fn_state(debugger, command, result, dict):
   print 'string end:\t',
   debugger.HandleCommand('register read r15')
   print ''
+  print 'result matches:\t',
+  debugger.HandleCommand('register read rbx')
+  print 'ring index:\t',
+  debugger.HandleCommand('register read r12')
+
+  fp = eval_expr(int, '$rbp')
+  sp = eval_expr(int, '$rsp')
+  ring_size = (fp - sp - (kStateInfoSize + CalleeSavedRegsSize)) / kPointerSize
+  if ring_size <= 0:
+    # The stack has not been set up yet.
+    return
+
+  print ''
   print 'fields:'
   def read_pointer_at_fp_offset(fp_relative_field):
     print fp_relative_field[0] + '\t',
@@ -70,7 +81,7 @@ def fn_state(debugger, command, result, dict):
   for field in state_fp_relative_fields:
     read_pointer_at_fp_offset(field)
   print 'state ring:'
-  debugger.HandleCommand('memory read $sp -c `($fp - $sp - %d) / sizeof(void*)` -f pointer' % (kStateInfoSize + CalleeSavedRegsSize))
+  debugger.HandleCommand('memory read $sp -c `%d` -f pointer' % ring_size)
 
 help_state = '''\
 Use from a rejit frame. Parses the stack and displays detailed information about

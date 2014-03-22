@@ -44,6 +44,8 @@ M( trace_match_all       , false   , false )                                   \
 M( trace_repetitions     , false   , false )                                   \
 /* Use the fast-forwarding mechanisms. */                                      \
 M( use_fast_forward      , true    , true  )                                   \
+/* Fast-forward early to improve the scanning speed when no matches appear. */ \
+M( use_fast_forward_early, true    , true  )                                   \
 /* Use / trace reduction of fast-forward elements (substring extraction). */   \
 M( use_ff_reduce         , true    , true  )                                   \
 /* Use parser level optimizations. */                                          \

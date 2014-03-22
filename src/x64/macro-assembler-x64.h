@@ -22,6 +22,10 @@
 namespace rejit {
 namespace internal {
 
+
+const Register result_matches = rbx;
+const Register ring_index = r12;
+
 const Register string_base = r13;
 const Register string_pointer = r14;
 // Points past the last character of the string not including '\0'. Ie. points
@@ -33,8 +37,6 @@ const Operand next_char = Operand(string_pointer, kCharSize);
 const Operand previous_char = Operand(string_pointer, -kCharSize);
 const Operand current_chars = Operand(string_pointer, 0);
 
-const Register ring_index = r12;
-
 static inline int CalleeSavedRegsSize() {
   if (FLAG_emit_debug_code) {
     return kCalleeSavedRegsSize;
@@ -43,22 +45,20 @@ static inline int CalleeSavedRegsSize() {
   }
 }
 
-const int kStateInfoSize = 6 * kPointerSize;
-// Result match or vector of matches.
-const Operand result_matches (rbp, -CalleeSavedRegsSize() - 1 * kPointerSize);
+const int kStateInfoSize = 5 * kPointerSize;
 // Next starting position for fast forwarding.
-const Operand ff_position    (rbp, -CalleeSavedRegsSize() - 2 * kPointerSize);
+const Operand ff_position    (rbp, -CalleeSavedRegsSize() - 1 * kPointerSize);
 // State from which FF thinks there may be a potential match.
-const Operand ff_found_state (rbp, -CalleeSavedRegsSize() - 3 * kPointerSize);
+const Operand ff_found_state (rbp, -CalleeSavedRegsSize() - 2 * kPointerSize);
 // Position of the end of the match when matching the regexp backward from the
 // ff_element.
-const Operand backward_match (rbp, -CalleeSavedRegsSize() - 4 * kPointerSize);
+const Operand backward_match (rbp, -CalleeSavedRegsSize() - 3 * kPointerSize);
 // Position of the end of the match when matching the regexp forward from the
 // ff_element.
-const Operand forward_match  (rbp, -CalleeSavedRegsSize() - 5 * kPointerSize);
+const Operand forward_match  (rbp, -CalleeSavedRegsSize() - 4 * kPointerSize);
 // Used when looking for multiple matches (kMatchAll) to indicate the end of the
 // previous match.
-const Operand last_match_end (rbp, -CalleeSavedRegsSize() - 6 * kPointerSize);
+const Operand last_match_end (rbp, -CalleeSavedRegsSize() - 5 * kPointerSize);
 
 const Register mscratch = r8;
 const Register scratch = r9;

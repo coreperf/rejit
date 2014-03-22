@@ -101,7 +101,7 @@ void Codegen::Generate() {
     CpuFeatures::Probe();
   }
 
-  Label unwind_and_return;
+  Label matching, unwind_and_return;
   unwind_and_return_ = &unwind_and_return;
 
   __ push(rbp);
@@ -129,24 +129,33 @@ void Codegen::Generate() {
   __ addq(rsi, rdi);
   __ movq(string_end, rsi);
   __ Move(ring_index, 0);
+  __ movq(result_matches, rdx);
 
+  // Reserve space on the stack.
+  const size_t reserved_space =
+    kStateInfoSize + state_ring_size() + time_summary_size();
+  __ subq(rsp, Immediate(reserved_space));
 
+  if (FLAG_use_fast_forward && FLAG_use_fast_forward_early &&
+      (match_type_ != kMatchFull)) {
+    GenerateFastForwardEarly();
+    // We have a potential match. Fall through to the stack setup.
+  }
+
+  // Set up the stack.
   //  0x8 and up     : callee saved registers
   //  0x0            : rbp caller's rbp.
   // -kStateInfoSize : Saved state. See definition of kStateInfoSize for
   //                   comments.
   // -reserved_space : State ring.
 
-  const size_t reserved_space =
-    kStateInfoSize + state_ring_size() + time_summary_size();
   __ movq(scratch1, rsp);
-  __ subq(rsp, Immediate(reserved_space));
+  __ addq(scratch1, Immediate(reserved_space));
   Register zero = ring_index;   // Was set to zero just above.
   __ MemZero(rsp, scratch1, zero, MacroAssembler::AtLowAddress);
 
   // Set up the rest of the information.
-  __ movq(result_matches, rdx);
-  __ movq(ff_position, string_base);
+  __ movq(ff_position, string_pointer);
   // Adjust for the initial character offset in FF.
   __ subq(ff_position, Immediate(kCharSize));
 
@@ -164,6 +173,7 @@ void Codegen::Generate() {
       // On output, either a state has been set from which there is a potential
       // match, or string_pointer points to the end of the string.
 
+      __ bind(&matching);
       // We were scanning forward up to this point.
       // The cache is probably hotter for previous characters than the rest of the
       // string, so match backward first.
@@ -306,10 +316,10 @@ void Codegen::CheckTimeFlow(Direction direction,
 }
 
 
-bool Codegen::GenerateFastForward() {
+bool Codegen::GenerateFastForward_(bool early) {
   vector<Regexp*>* fflist = rinfo_->ff_list();
 
-  if (FLAG_print_ff_elements) {
+  if (FLAG_print_ff_elements && !early) {
     cout << "Fast forward elements ----------------------{{{" << endl;
     { IndentScope indent;
       if (fflist->empty()) {
@@ -329,17 +339,21 @@ bool Codegen::GenerateFastForward() {
   }
 
   FastForwardGen ffgen(this, rinfo_->ff_list(), unwind_and_return_);
-  // TODO: Do we need to increment here? It seems we are compensating
-  // everywhere by decrementing.
-  __ movq(string_pointer, ff_position);
-  __ inc_c(string_pointer);
-  // Clear the temporary matches.
-  __ Move(scratch, 0);
-  __ movq(backward_match, scratch);
-  __ movq(forward_match,  scratch);
-  __ movq(last_match_end, scratch);
+  if (!early) {
+    // TODO: Do we need to increment here? It seems we are compensating
+    // everywhere by decrementing.
+    __ movq(string_pointer, ff_position);
+    __ inc_c(string_pointer);
+    // Clear the temporary matches.
+    __ Move(scratch, 0);
+    __ movq(backward_match, scratch);
+    __ movq(forward_match,  scratch);
+    __ movq(last_match_end, scratch);
+  }
   ffgen.Generate();
-  __ movq(ff_position, string_pointer);
+  if (!early) {
+    __ movq(ff_position, string_pointer);
+  }
 
   return true;
 }

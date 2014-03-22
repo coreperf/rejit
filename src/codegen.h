@@ -178,7 +178,10 @@ class Codegen : public PhysicalRegexpVisitor<void> {
                      Label *exit,
                      Label *limit);
 
-  bool GenerateFastForward();
+  bool GenerateFastForward_(bool early = false);
+  inline bool GenerateFastForward() { return GenerateFastForward_(false); }
+  // Start looking for potential matches before setting up the stack.
+  inline bool GenerateFastForwardEarly() { return GenerateFastForward_(true); }
   void HandleControlRegexps();
 
   void CheckMatch(Direction direction, Label* limit);
