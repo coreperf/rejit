@@ -139,8 +139,8 @@ VirtualMemory* AssemblerBase::GetCode() {
 }
 
 
-void AssemblerBase::GrowBuffer() {
-  ASSERT(buffer_overflow());
+void AssemblerBase::GrowBuffer(bool force) {
+  ASSERT(force || buffer_overflow());
   if (!own_buffer_) {
     FATAL("external code buffer is too small");
   }
@@ -188,7 +188,7 @@ void AssemblerBase::EmitRelocData() {
     if (reloc_info.second == -1) {
       RelocatedData* reloc = reloc_info.first;
       if (available_space() < reloc->buffer_size_ + reloc->alignment_) {
-        GrowBuffer();
+        GrowBuffer(true);
       }
       ASSERT(IsPowerOf2(reloc->alignment_));
       int alignment_mask = reloc->alignment_ - 1;

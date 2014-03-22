@@ -180,7 +180,7 @@ class AssemblerBase {
   // Code buffer management --------------------------------
   VirtualMemory* GetCode();
 
-  void GrowBuffer();
+  void GrowBuffer(bool force = false);
 
   inline int pc_offset() const { return static_cast<int>(pc_ - buffer_); }
 
