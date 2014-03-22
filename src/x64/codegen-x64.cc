@@ -124,6 +124,10 @@ void Codegen::Generate() {
 
   // Set up the registers.
   __ movq(string_pointer, rdi);
+  __ movq(string_base, rdi);
+  __ movq(string_end, rdi);
+  __ addq(rsi, rdi);
+  __ movq(string_end, rsi);
   __ Move(ring_index, 0);
 
 
@@ -141,11 +145,8 @@ void Codegen::Generate() {
   __ MemZero(rsp, scratch1, zero, MacroAssembler::AtLowAddress);
 
   // Set up the rest of the information.
-  __ movq(string_base, rdi);
-  __ addq(rsi, rdi);
-  __ movq(string_end, rsi);
   __ movq(result_matches, rdx);
-  __ movq(ff_position, rdi);
+  __ movq(ff_position, string_base);
   // Adjust for the initial character offset in FF.
   __ subq(ff_position, Immediate(kCharSize));
 

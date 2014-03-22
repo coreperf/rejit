@@ -169,9 +169,8 @@ static const RegList kCalleeSavedRegList =
     rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit();
 static const int kCalleeSavedRegsSize = 5 * kPointerSize;
 
-static const RegList kUnusedCalleeSavedRegList =
-    rbx.bit() | r12.bit() | r13.bit();
-static const int kUnusedCalleeSavedRegsSize = 3 * kPointerSize;
+static const RegList kUnusedCalleeSavedRegList = rbx.bit();
+static const int kUnusedCalleeSavedRegsSize = 1 * kPointerSize;
 
 static const int kUsedCalleeSavedRegsSize =
     kCalleeSavedRegsSize - kUnusedCalleeSavedRegsSize;

@@ -2,7 +2,7 @@ import lldb
 import operator
 import re
 
-commands_prefix = 'rejit'
+commands_prefix = 'rejit_'
 commands = []
 
 
@@ -34,27 +34,34 @@ commands += [help]
 # ----- State ------------------------------------------------------------------
 kPointerSize = 8
 
-kCalleeSavedRegsSize = 5 * kPointerSize
-kStateInfoSize = 8 * kPointerSize
-state_fp_relative_fields = [
-  ('time_summary_last', -kCalleeSavedRegsSize - kStateInfoSize),
-  ('string_base', -kCalleeSavedRegsSize - 1 * kPointerSize),
-  ('string_end', -kCalleeSavedRegsSize - 2 * kPointerSize),
-  ('result_matches', -kCalleeSavedRegsSize - 3 * kPointerSize),
-  ('ff_position', -kCalleeSavedRegsSize - 4 * kPointerSize),
-  ('ff_found_state', -kCalleeSavedRegsSize - 5 * kPointerSize),
-  ('backward_match', -kCalleeSavedRegsSize - 6 * kPointerSize),
-  ('forward_match', -kCalleeSavedRegsSize - 7 * kPointerSize),
-  ('last_match_end', -kCalleeSavedRegsSize - 8 * kPointerSize),
-]
 def fn_state(debugger, command, result, dict):
+  target = debugger.GetSelectedTarget()
+  opts = lldb.SBExpressionOptions()
+  def eval_expr(type, c_expr):
+    return type(target.EvaluateExpression(c_expr, opts).GetValue())
+  CalleeSavedRegsSize = eval_expr(int, 'CalleeSavedRegsSize()')
+  kStateInfoSize = 6 * kPointerSize
+
+  state_fp_relative_fields = [
+    ('time_summary_last', -CalleeSavedRegsSize - kStateInfoSize),
+    ('result_matches',    -CalleeSavedRegsSize - 1 * kPointerSize),
+    ('ff_position',       -CalleeSavedRegsSize - 2 * kPointerSize),
+    ('ff_found_state',    -CalleeSavedRegsSize - 3 * kPointerSize),
+    ('backward_match',    -CalleeSavedRegsSize - 4 * kPointerSize),
+    ('forward_match',     -CalleeSavedRegsSize - 5 * kPointerSize),
+    ('last_match_end',    -CalleeSavedRegsSize - 6 * kPointerSize),
+  ]
   print 'raw stack:'
   debugger.HandleCommand('register read fp')
   debugger.HandleCommand('register read sp')
   debugger.HandleCommand('memory read $sp -c `($fp - $sp) / sizeof(void*) + 1` -f pointer')
   print ''
-  print 'string pointer:',
+  print 'string start:\t',
+  debugger.HandleCommand('register read r13')
+  print 'string pointer:\t',
   debugger.HandleCommand('register read r14')
+  print 'string end:\t',
+  debugger.HandleCommand('register read r15')
   print ''
   print 'fields:'
   def read_pointer_at_fp_offset(fp_relative_field):
@@ -63,7 +70,7 @@ def fn_state(debugger, command, result, dict):
   for field in state_fp_relative_fields:
     read_pointer_at_fp_offset(field)
   print 'state ring:'
-  debugger.HandleCommand('memory read $sp -c `($fp - $sp - %d) / sizeof(void*)` -f pointer' % (kStateInfoSize + kCalleeSavedRegsSize))
+  debugger.HandleCommand('memory read $sp -c `($fp - $sp - %d) / sizeof(void*)` -f pointer' % (kStateInfoSize + CalleeSavedRegsSize))
 
 help_state = '''\
 Use from a rejit frame. Parses the stack and displays detailed information about
