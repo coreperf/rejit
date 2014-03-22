@@ -30,37 +30,44 @@ const Operand current_chars = Operand(string_pointer, 0);
 
 const Register ring_index = r15;
 
+static inline int CalleeSavedRegsSize() {
+  if (FLAG_emit_debug_code) {
+    return kCalleeSavedRegsSize;
+  } else {
+    return kUsedCalleeSavedRegsSize;
+  }
+}
+
 const int kStateInfoSize = 8 * kPointerSize;
 // Keeps a pointer to the start of the string.
-const Operand string_base    (rbp, -kCalleeSavedRegsSize - 1 * kPointerSize);
+const Operand string_base    (rbp, -CalleeSavedRegsSize() - 1 * kPointerSize);
 // Points past the last character of the string not including '\0'. Ie. points
 // to '\0' for '\0' terminated strings or just after the last character.
 // Memory at and after string_end should not be accessed.
 // This allows to process not '\0' terminated character streams like mmap-ed
 // files.
-const Operand string_end     (rbp, -kCalleeSavedRegsSize - 2 * kPointerSize);
+const Operand string_end     (rbp, -CalleeSavedRegsSize() - 2 * kPointerSize);
 // Result match or vector of matches.
-const Operand result_matches (rbp, -kCalleeSavedRegsSize - 3 * kPointerSize);
+const Operand result_matches (rbp, -CalleeSavedRegsSize() - 3 * kPointerSize);
 // Next starting position for fast forwarding.
-const Operand ff_position    (rbp, -kCalleeSavedRegsSize - 4 * kPointerSize);
+const Operand ff_position    (rbp, -CalleeSavedRegsSize() - 4 * kPointerSize);
 // State from which FF thinks there may be a potential match.
-const Operand ff_found_state (rbp, -kCalleeSavedRegsSize - 5 * kPointerSize);
+const Operand ff_found_state (rbp, -CalleeSavedRegsSize() - 5 * kPointerSize);
 // Position of the end of the match when matching the regexp backward from the
 // ff_element.
-const Operand backward_match (rbp, -kCalleeSavedRegsSize - 6 * kPointerSize);
+const Operand backward_match (rbp, -CalleeSavedRegsSize() - 6 * kPointerSize);
 // Position of the end of the match when matching the regexp forward from the
 // ff_element.
-const Operand forward_match  (rbp, -kCalleeSavedRegsSize - 7 * kPointerSize);
+const Operand forward_match  (rbp, -CalleeSavedRegsSize() - 7 * kPointerSize);
 // Used when looking for multiple matches (kMatchAll) to indicate the end of the
 // previous match.
-const Operand last_match_end (rbp, -kCalleeSavedRegsSize - 8 * kPointerSize);
+const Operand last_match_end (rbp, -CalleeSavedRegsSize() - 8 * kPointerSize);
 
 const Register mscratch = r8;
 const Register scratch = r9;
 const Register scratch1 = r9;
 const Register scratch2 = r10;
 const Register scratch3 = r11;
-const Register scratch4 = r12;
 
 
 class MacroAssembler : public MacroAssemblerBase {
@@ -74,8 +81,8 @@ class MacroAssembler : public MacroAssemblerBase {
   // Currently following the System V ABI only.
   inline void PushCallerSavedRegisters();
   inline void PopCallerSavedRegisters();
-  inline void PushCalleeSavedRegisters();
-  inline void PopCalleeSavedRegisters();
+  void PushCalleeSavedRegisters();
+  void PopCalleeSavedRegisters();
 
   inline void PushAllRegisters();
   inline void PopAllRegisters();

@@ -22,6 +22,41 @@ MacroAssembler::MacroAssembler()
   : MacroAssemblerBase(NULL, 4 * KB) { }
 
 
+void MacroAssembler::PushCalleeSavedRegisters() {
+  RegList regs = kCalleeSavedRegList;
+  if (!FLAG_emit_debug_code) {
+    regs &= ~kUnusedCalleeSavedRegList;
+  }
+  PushRegisters(regs);
+}
+
+
+void MacroAssembler::PopCalleeSavedRegisters() {
+  RegList regs = kCalleeSavedRegList;
+  if (FLAG_emit_debug_code) {
+    // Check that the unused callee saved registers have not been modified.
+    // TODO: Use intrisincs CTZ.
+    Label fail, done;
+    for (int i = 0; i < 8 * sizeof(kUnusedCalleeSavedRegList); ++i) {
+      if ((1 << i) & kUnusedCalleeSavedRegList) {
+        int n_prev_regs =
+            NumberOfBitsSet(kCalleeSavedRegList & ((1 << i) - 1));
+        cmpq(Register::from_code(i),
+             Operand(rbp, - kCalleeSavedRegsSize + n_prev_regs * kPointerSize));
+        j(not_equal, &fail);
+      }
+    }
+    jmp(&done);
+    bind(&fail);
+    asm_assert(never, "Callee saved register was not preserved but clobbered.");
+    bind(&done);
+  } else {
+    regs &= ~kUnusedCalleeSavedRegList;
+  }
+  PopRegisters(regs);
+}
+
+
 // The structure of this function is copied from
 //  v8 x64 MacroAssembler::LoadSmiConstant().
 void MacroAssembler::Move(Register dst, uint64_t value) {

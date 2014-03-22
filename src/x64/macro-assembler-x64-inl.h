@@ -52,23 +52,6 @@ void MacroAssembler::PopCallerSavedRegisters() {
 }
 
 
-// TODO: The saved registers are above the the frame pointer on the stack, which
-// does not fit the ABI. This is because we mess up with lower the stack pointer
-// while setting up the state ring (and other stuff), but don't restore it
-// before returning.
-void MacroAssembler::PushCalleeSavedRegisters() {
-  push(rbp);
-  movq(rbp, rsp);
-  PushRegisters(kCalleeSavedRegList);
-}
-
-
-void MacroAssembler::PopCalleeSavedRegisters() {
-  PopRegisters(kCalleeSavedRegList);
-  pop(rbp);
-}
-
-
 void MacroAssembler::PushAllRegisters() {
   // All registers except rsp.
   PushRegisters(0xffff & ~rsp.bit());

@@ -162,12 +162,19 @@ const Register no_reg = { kRegister_no_reg_Code };
 typedef uint16_t RegList;
 
 static const RegList kCallerSavedRegList =
-rax.bit() | rcx.bit() | rdx.bit() | rsi.bit() | rdi.bit() |
-r8.bit() | r9.bit() | r10.bit() | r11.bit();
+    rax.bit() | rcx.bit() | rdx.bit() | rsi.bit() | rdi.bit() |
+    r8.bit() | r9.bit() | r10.bit() | r11.bit();
 
 static const RegList kCalleeSavedRegList =
-rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit();
+    rbx.bit() | r12.bit() | r13.bit() | r14.bit() | r15.bit();
 static const int kCalleeSavedRegsSize = 5 * kPointerSize;
+
+static const RegList kUnusedCalleeSavedRegList =
+    rbx.bit() | r12.bit() | r13.bit();
+static const int kUnusedCalleeSavedRegsSize = 3 * kPointerSize;
+
+static const int kUsedCalleeSavedRegsSize =
+    kCalleeSavedRegsSize - kUnusedCalleeSavedRegsSize;
 
 
 struct XMMRegister {

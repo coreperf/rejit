@@ -32,7 +32,7 @@ Codegen::Codegen()
 
 
 int Codegen::TimeSummaryBaseOffsetFromFrame() {
-  return -kCalleeSavedRegsSize - kStateInfoSize - time_summary_size();
+  return -CalleeSavedRegsSize() - kStateInfoSize - time_summary_size();
 }
 
 
@@ -104,6 +104,8 @@ void Codegen::Generate() {
   Label unwind_and_return;
   unwind_and_return_ = &unwind_and_return;
 
+  __ push(rbp);
+  __ movq(rbp, rsp);
   __ PushCalleeSavedRegisters();
 
   if (FLAG_emit_debug_code) {
@@ -179,6 +181,7 @@ void Codegen::Generate() {
   __ cld();
   __ addq(rsp, Immediate(reserved_space));
   __ PopCalleeSavedRegisters();
+  __ pop(rbp);
   __ ret(0);
   if (FLAG_emit_debug_code) {
     __ int3();
@@ -875,10 +878,10 @@ static void MatchBracket(MacroAssembler *masm_,
        rit < bracket->char_ranges()->end();
        rit++) {
     __ cmpb_al(Immediate((*rit).low));
-    __ setcc(greater_equal, rbx);
+    __ setcc(greater_equal, rdx);
     __ cmpb_al(Immediate((*rit).high));
     __ setcc(less_equal, rcx);
-    __ andb(rbx, rcx);
+    __ andb(rdx, rcx);
     __ j(not_zero, on_matching_char);
   }
 }
@@ -944,7 +947,7 @@ void Codegen::SetState(int target_time,
 
   } else {
     Label skip;
-    Register target_offset = scratch4;
+    Register target_offset = scratch3;
     ComputeStateOperandOffset(target_offset, target_time, target_index);
 
     __ movq(scratch1, StateOperand(0, source_index));
