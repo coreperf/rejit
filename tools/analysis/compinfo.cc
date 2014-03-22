@@ -167,10 +167,10 @@ int main(int argc, char *argv[]) {
   // Ensure that compilation will dump the generated code.
   SET_FLAG(dump_code, 1);
   rejit::Regej re(arguments.regexp);
-  bool res = re.Compile(arguments.match_type);
+  bool success = re.Compile(arguments.match_type);
 
-  if (res != 0)
+  if (!success)
     printf("%s\n", rejit_status_string);
 
-  return res;
+  return !success;
 }
