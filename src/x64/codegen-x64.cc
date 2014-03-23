@@ -1216,8 +1216,7 @@ void FastForwardGen::Generate() {
         Label no_match;
         MultipleChar *mc = ff_list_->at(i)->AsMultipleChar();
         MatchMultipleChar(masm_, kForward, mc, true, &no_match);
-        FoundState(0, mc->entry_state());
-        __ jmp(&exit);
+        __ jmp(&potential_match);
         __ bind(&no_match);
       }
       __ jmp(&align_or_finish);

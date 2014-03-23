@@ -251,6 +251,9 @@ int RunTest(struct arguments *arguments) {
   TEST_First_unbound(1, "0000|1111|2222|3333|4444|5555|6666|7777|8888|9999", "_8888_", 1, 5);
   TEST_First_unbound(0, "0000|1111|2222|3333|4444|5555|6666|7777|8888|9999", "_8__8_", 0, 0);
 
+  TEST_Full(1, "..(abcX|abcd)..", "..abcd..");
+  TEST_Full(1, "..(abcd|abcX)..", "..abcd..");
+
   // Alternations and ERE.
   TEST_Full(1, ")", ")");
   TEST_First_unbound(1, ")", "012)___", 3, 4);
