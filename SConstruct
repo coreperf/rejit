@@ -232,7 +232,7 @@ test_libs = [librejit]
 if 'os' in env and env['os'] == 'macos':
   conf = Configure(env)
   if not conf.CheckLib('argp'):
-    print help_messages['argp']
+    print utils.help_messages['argp']
     Exit(1)
   env = conf.Finish()
   test_libs += ['argp']
