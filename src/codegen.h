@@ -277,9 +277,29 @@ class FastForwardGen : public PhysicalRegexpVisitor<void> {
     potential_match_(NULL),
     unwind_and_return_(unwind_and_return) {}
 
-  void Generate();
+  enum Behaviour {
+    // Set the entry states of potential matches and fall through.
+    SetStateFallThrough,
+    // Simply fall through if any potential match is found.
+    FallThrough,
+  };
+  void Generate(Behaviour on_match_behaviour = SetStateFallThrough);
 
   void FoundState(int time, int state);
+  void PotentialMatches(vector<Regexp*> *regexps) {
+    if (behaviour_ == SetStateFallThrough) {
+      codegen_->SetEntryStates(regexps);
+    } else {
+      ASSERT(behaviour_ == FallThrough);
+    }
+  }
+  void PotentialMatch(Regexp *re) {
+    if (behaviour_ == SetStateFallThrough) {
+      FoundState(0, re->entry_state());
+    } else {
+      ASSERT(behaviour_ == FallThrough);
+    }
+  }
 
 #define DECLARE_REGEXP_VISITORS(RegexpType) \
   void Visit##RegexpType(RegexpType* r);
@@ -312,6 +332,7 @@ class FastForwardGen : public PhysicalRegexpVisitor<void> {
   vector<Regexp*>* ff_list_;
   Label* potential_match_;
   Label* unwind_and_return_;
+  Behaviour behaviour_;
 
   DISALLOW_COPY_AND_ASSIGN(FastForwardGen);
 };

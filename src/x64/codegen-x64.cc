@@ -128,7 +128,6 @@ void Codegen::Generate() {
   __ movq(string_end, rdi);
   __ addq(rsi, rdi);
   __ movq(string_end, rsi);
-  __ Move(ring_index, 0);
   __ movq(result_matches, rdx);
 
   // Reserve space on the stack.
@@ -149,9 +148,10 @@ void Codegen::Generate() {
   //                   comments.
   // -reserved_space : State ring.
 
+  __ Move(ring_index, 0);
   __ movq(scratch1, rsp);
   __ addq(scratch1, Immediate(reserved_space));
-  Register zero = ring_index;   // Was set to zero just above.
+  Register zero = ring_index;
   __ MemZero(rsp, scratch1, zero, MacroAssembler::AtLowAddress);
 
   // Set up the rest of the information.
@@ -350,7 +350,8 @@ bool Codegen::GenerateFastForward_(bool early) {
     __ movq(forward_match,  scratch);
     __ movq(last_match_end, scratch);
   }
-  ffgen.Generate();
+  ffgen.Generate(early ? FastForwardGen::FallThrough
+                       : FastForwardGen::SetStateFallThrough);
   if (!early) {
     __ movq(ff_position, string_pointer);
   }
@@ -1096,10 +1097,12 @@ void Codegen::ClearStates(Register begin, Register end) {
 
 // FastForwardGen --------------------------------------------------------------
 
-void FastForwardGen::Generate() {
+void FastForwardGen::Generate(Behaviour behaviour) {
   if (ff_list_->size() == 0) {
     return;
   }
+
+  behaviour_ = behaviour;
 
   if (ff_list_->size() == 1) {
     VisitSingle(ff_list_->at(0));
@@ -1266,9 +1269,7 @@ void FastForwardGen::Generate() {
     __ jmp(unwind_and_return_);
 
     __ bind(&potential_match);
-    if (codegen_->rinfo()->ff_requires_full_forward_matching()) {
-      codegen_->SetEntryStates(ff_list_);
-    }
+    PotentialMatches(ff_list_);
     __ bind(&exit);
   }
 }
@@ -1390,7 +1391,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
   __ j(not_equal, &loop);
 
   __ bind(&found);
-  FoundState(0, mc->entry_state());
+  PotentialMatch(mc);
   __ bind(&exit);
 }
 
@@ -1416,7 +1417,7 @@ void FastForwardGen::VisitSinglePeriod(Period* period) {
   __ j(equal, &loop);
 
   __ bind(&done);
-  FoundState(0, period->entry_state());
+  PotentialMatch(period);
 }
 
 
@@ -1552,7 +1553,7 @@ void FastForwardGen::VisitSingleBracket(Bracket* bracket) {
   __ jmp(&loop);
 
   __ bind(&match);
-  FoundState(0, bracket->entry_state());
+  PotentialMatch(bracket);
   __ bind(&exit);
 }
 
@@ -1664,7 +1665,7 @@ void FastForwardGen::VisitSingleStartOrEndOfLine(ControlRegexp* seol) {
     __ inc_c(string_pointer);
   }
   __ bind(&match);
-  FoundState(0, seol->entry_state());
+  PotentialMatch(seol);
   __ bind(&exit);
 }
 
@@ -1692,9 +1693,9 @@ void FastForwardGen::VisitMultipleChar(MultipleChar* mc) {
   Label no_match;
   MatchMultipleChar(masm_, kForward, mc, false, &no_match);
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
-    FoundState(0, mc->entry_state());
+    PotentialMatch(mc);
   } else {
-    codegen_->SetEntryStates(ff_list_);
+    PotentialMatches(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1710,9 +1711,9 @@ void FastForwardGen::VisitPeriod(Period* period) {
   __ cmpb(current_char, Immediate('\r'));
   __ j(equal, &no_match);
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
-    FoundState(0, period->entry_state());
+    PotentialMatch(period);
   } else {
-    codegen_->SetEntryStates(ff_list_);
+    PotentialMatches(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1732,9 +1733,9 @@ void FastForwardGen::VisitBracket(Bracket* bracket) {
 
   __ bind(&maybe_match);
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
-    FoundState(0, bracket->entry_state());
+    PotentialMatch(bracket);
   } else {
-    codegen_->SetEntryStates(ff_list_);
+    PotentialMatches(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1751,9 +1752,9 @@ void FastForwardGen::VisitStartOfLine(StartOfLine* sol) {
 
   __ bind(&maybe_match);
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
-    FoundState(0, sol->entry_state());
+    PotentialMatch(sol);
   } else {
-    codegen_->SetEntryStates(ff_list_);
+    PotentialMatches(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
@@ -1769,9 +1770,9 @@ void FastForwardGen::VisitEndOfLine(EndOfLine* eol) {
   __ j(above, &no_match);
   __ bind(&maybe_match);
   if (!codegen_->rinfo()->ff_requires_full_forward_matching()) {
-    FoundState(0, eol->entry_state());
+    PotentialMatch(eol);
   } else {
-    codegen_->SetEntryStates(ff_list_);
+    PotentialMatches(ff_list_);
   }
   __ jmp(potential_match_);
   __ bind(&no_match);
