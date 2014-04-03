@@ -1109,7 +1109,7 @@ void FastForwardGen::Generate(Behaviour behaviour) {
 
   } else {
 
-    Label align_or_finish;
+    Label inc_align_or_finish;
     Label simd_code, standard_code;
     Label maybe_match;
     Label potential_match;
@@ -1157,7 +1157,9 @@ void FastForwardGen::Generate(Behaviour behaviour) {
       __ movq(simd_max_index, string_end);
       __ subq(simd_max_index, Immediate(margin_before_eos));
 
-      __ bind(&align_or_finish);
+      __ dec_c(string_pointer);
+      __ bind(&inc_align_or_finish);
+      __ inc_c(string_pointer);
       __ cmpq(string_pointer, simd_max_index);
       __ j(above, &standard_code);
 
@@ -1244,7 +1246,7 @@ void FastForwardGen::Generate(Behaviour behaviour) {
         __ jmp(&potential_match);
         __ bind(&no_match);
       }
-      __ jmp(&align_or_finish);
+      __ jmp(&inc_align_or_finish);
     }
 
     __ bind(&standard_code);
@@ -1303,7 +1305,7 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
 
 
   if (CpuFeatures::IsAvailable(SSE4_2)) {
-    Label align_or_finish;
+    Label inc_align_or_finish;
     Label simd_code, simd_loop;
     Label potential_match;
 
@@ -1321,7 +1323,9 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     __ movq(simd_max_index, string_end);
     __ subq(simd_max_index, Immediate(margin_before_eos));
 
-    __ bind(&align_or_finish);
+    __ dec_c(string_pointer);
+    __ bind(&inc_align_or_finish);
+    __ inc_c(string_pointer);
     __ cmpq(string_pointer, simd_max_index);
     __ j(above, &standard_code);
 
@@ -1364,7 +1368,8 @@ void FastForwardGen::VisitSingleMultipleChar(MultipleChar* mc) {
     __ bind(&potential_match);
     // After pcmpistri rcx contains the offset to the first potential match.
     __ addq(string_pointer, rcx);
-    MatchMultipleChar(masm_, kForward, mc, true, &align_or_finish, fixed_chars);
+    MatchMultipleChar(masm_, kForward, mc, true,
+                      &inc_align_or_finish, fixed_chars);
 
     __ jmp(&found);
   }
