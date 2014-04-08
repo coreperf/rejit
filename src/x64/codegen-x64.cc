@@ -338,12 +338,15 @@ bool Codegen::GenerateFastForward_(bool early) {
     return false;
   }
 
+  Label done;
   FastForwardGen ffgen(this, rinfo_->ff_list(), unwind_and_return_);
   if (!early) {
     // TODO: Do we need to increment here? It seems we are compensating
     // everywhere by decrementing.
     __ movq(string_pointer, ff_position);
     __ inc_c(string_pointer);
+    __ cmpq(string_pointer, string_end);
+    __ j(above, &done);
     // Clear the temporary matches.
     __ Move(scratch, 0);
     __ movq(backward_match, scratch);
@@ -356,6 +359,7 @@ bool Codegen::GenerateFastForward_(bool early) {
     __ movq(ff_position, string_pointer);
   }
 
+  __ bind(&done);
   return true;
 }
 
@@ -488,15 +492,14 @@ void Codegen::RegisterMatch() {
         if (!fast_forward_) {
           __ CallCpp(FUNCTION_ADDR(MatchAllAppendFilter));
         } else {
-          __ movq(ff_position, rdx);
+          // Avoid infinite loop if the end of the match is the same as the ff
+          // position that yielded it.
           __ Move(scratch, 0);
-          // Correct the ff_position for matches of null lengths to avoid matching
-          // them again. This is fine because if there was any match of length
-          // greater than zero from there, it should have matched instead.
-          __ cmpq(rdx, rsi);
+          __ cmpq(rdx, ff_position);
           __ setcc(not_equal, scratch);
-          // TODO: Correct for kCharSize.
+          __ movq(ff_position, rdx);
           __ subq(ff_position, scratch);
+
           __ CallCpp(FUNCTION_ADDR(MatchAllAppendFilter));
         }
       }
