@@ -65,5 +65,7 @@ def v8_build(target, source, env):
 
 v8_repo = local_env.Command(v8_git_dir, '', v8_clone)
 v8_engine = local_env.Command(v8_engine_path, v8_repo, v8_build)
+v8_sources = Glob(os.path.join(v8_dir, 'src', '*')) + Glob(os.path.join(v8_dir, 'src', 'x64', '*')) + Glob(os.path.join(v8_dir, 'src', 'ia32', '*'))
+Depends(v8_engine, v8_sources)
 
 local_env.Alias('v8_engine', v8_engine)

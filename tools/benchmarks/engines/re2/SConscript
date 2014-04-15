@@ -62,6 +62,8 @@ def re2_build(target, source, env):
 
 re2_repo = local_env.Command(re2_hg_dir, '', re2_checkout)
 re2_lib = local_env.Command(re2_lib_path, re2_repo, re2_build)
+re2_sources = Glob(os.path.join(re2_dir, 're2', '*'))
+Depends(re2_lib, re2_sources)
 
 
 

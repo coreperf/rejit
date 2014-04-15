@@ -51,7 +51,6 @@ def pcre_checkout(target, source, env):
     print "not found."
 
     utils.command_assert(['rm', '-rf', pcre_dir])
-
     print "Cloning pcre."
     utils.command_assert(['svn', 'checkout', pcre_remote, pcre_dir],
                          "Failed to clone pcre. Aborting build.")
@@ -66,10 +65,15 @@ def pcre_build_lib_fn(target, source, env):
   print "Building pcre. This may take some time."
   utils.command_assert(cwd_=pcre_dir, command=['make', '-j4', 'install'])
 
+def FilteredGlob(pattern, omit=[]):
+  return filter(lambda f: os.path.basename(f.path) not in omit, Glob(pattern))
+
 pcre_repo = local_env.Command(pcre_svn_dir, '', pcre_checkout)
-pcre_build_configure = local_env.Command(join(pcre_dir, 'configure'), pcre_repo, pcre_build_configure_fn)
-pcre_build_makefile = local_env.Command(join(pcre_dir, 'Makefile'), pcre_build_configure, pcre_build_makefile_fn)
-pcre_build_lib = local_env.Command(pcre_lib_path, pcre_build_makefile, pcre_build_lib_fn)
+pcre_build_autogen = local_env.Command(join(pcre_dir, 'configure'), pcre_repo, pcre_build_configure_fn)
+pcre_build_configure = local_env.Command(join(pcre_dir, 'Makefile'), pcre_build_autogen, pcre_build_makefile_fn)
+pcre_build_make = local_env.Command(pcre_lib_path, pcre_build_configure, pcre_build_lib_fn)
+pcre_sources = FilteredGlob(os.path.join(pcre_dir, '*'), omit=['build'])
+Depends(pcre_build_make, pcre_sources)
 
 
 
@@ -102,7 +106,7 @@ bench_engine_obj_pcre = Object(source='../bench_engine.cc',
                                CXXFLAGS=bench_engine_CXXFLAGS,
                                CPPPATH=bench_engine_CPPPATH)
 pcre_engine_obj = local_env.Object('engine.cc', CPPPATH='svn.pcre/')
-Depends(pcre_engine_obj, pcre_build_lib)
+Depends(pcre_engine_obj, pcre_build_make)
 pcre_engine = local_env.Program('engine',
                                [pcre_engine_obj, bench_engine_obj_pcre],
                                LIBS=libs, CPPPATH='svn.pcre/')
