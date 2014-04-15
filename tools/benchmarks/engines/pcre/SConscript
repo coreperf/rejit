@@ -35,21 +35,20 @@ Import('env')
 local_env = Environment()
 
 pcre_dir = join(utils.dir_benchmarks_engines, 'pcre/svn.pcre')
-pcre_svn_dir = join(pcre_dir, '.svn')
-pcre_build_dir = join(pcre_dir, 'build')
-pcre_lib_location_path = join(pcre_build_dir, 'lib')
-pcre_lib_path = join(pcre_lib_location_path, 'libpcre.a')
+pcre_dir_svn = join(pcre_dir, '.svn')
+pcre_dir_build = join(pcre_dir, 'build')
+pcre_dir_lib = join(pcre_dir_build, 'lib')
+pcre_path_lib = join(pcre_dir_lib, 'libpcre.a')
+pcre_path_libcpp = join(pcre_dir_lib, 'libpcrecpp.a')
 
 def pcre_checkout(target, source, env):
   utils.assert_available('svn')
   pcre_remote = "svn://vcs.exim.org/pcre/code/trunk"
-
   print "Checking for pcre... ",
-  if os.path.exists(pcre_svn_dir) and os.path.isdir(pcre_svn_dir):
+  if os.path.exists(pcre_dir_svn) and os.path.isdir(pcre_dir_svn):
     print "ok."
   else:
     print "not found."
-
     utils.command_assert(['rm', '-rf', pcre_dir])
     print "Cloning pcre."
     utils.command_assert(['svn', 'checkout', pcre_remote, pcre_dir],
@@ -59,19 +58,21 @@ def pcre_build_configure_fn(target, source, env):
   utils.command_assert(cwd_=pcre_dir, command=['./autogen.sh'])
 
 def pcre_build_makefile_fn(target, source, env):
-  utils.command_assert(cwd_=pcre_dir, command=['./configure', '--enable-jit', '--disable-shared', '--prefix=' + pcre_build_dir])
+  pcre_command_configure = ['./configure', '--enable-jit', '--disable-shared', '--prefix=' + pcre_dir_build]
+  utils.command_assert(cwd_=pcre_dir, command=pcre_command_configure)
 
 def pcre_build_lib_fn(target, source, env):
   print "Building pcre. This may take some time."
   utils.command_assert(cwd_=pcre_dir, command=['make', '-j4', 'install'])
 
+
 def FilteredGlob(pattern, omit=[]):
   return filter(lambda f: os.path.basename(f.path) not in omit, Glob(pattern))
 
-pcre_repo = local_env.Command(pcre_svn_dir, '', pcre_checkout)
+pcre_repo = local_env.Command(pcre_dir_svn, '', pcre_checkout)
 pcre_build_autogen = local_env.Command(join(pcre_dir, 'configure'), pcre_repo, pcre_build_configure_fn)
 pcre_build_configure = local_env.Command(join(pcre_dir, 'Makefile'), pcre_build_autogen, pcre_build_makefile_fn)
-pcre_build_make = local_env.Command(pcre_lib_path, pcre_build_configure, pcre_build_lib_fn)
+pcre_build_make = local_env.Command([pcre_path_lib, pcre_path_libcpp], pcre_build_configure, pcre_build_lib_fn)
 pcre_sources = FilteredGlob(os.path.join(pcre_dir, '*'), omit=['build'])
 Depends(pcre_build_make, pcre_sources)
 
@@ -83,7 +84,7 @@ local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
 local_env['CCFLAGS'] = ['-Wall', '-pedantic', '-DBENCHTEST', '-O3']
 local_env['CXXFLAGS'] = ['-std=c++11']
 
-local_env['LIBPATH'] = env['LIBPATH'] + ':' + pcre_dir + ':' + pcre_lib_location_path + ':'
+local_env['LIBPATH'] = env['LIBPATH'] + ':' + pcre_dir + ':' + pcre_dir_lib + ':'
 
 
 dir_sconscript = Dir('.').srcnode().path

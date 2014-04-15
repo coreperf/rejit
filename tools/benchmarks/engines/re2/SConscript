@@ -35,33 +35,29 @@ Import('env')
 local_env = Environment()
 
 re2_dir = join(utils.dir_benchmarks_engines, 're2/hg.re2')
-re2_hg_dir = join(re2_dir, '.hg')
-re2_lib_path = join(re2_dir, 'obj/libre2.a')
+re2_dir_hg = join(re2_dir, '.hg')
+re2_path_lib = join(re2_dir, 'obj/libre2.a')
 
 def re2_checkout(target, source, env):
   utils.assert_available('hg')
   re2_remote = "https://re2.googlecode.com/hg"
-
   print "Checking for re2... ",
-  if os.path.exists(re2_hg_dir) and os.path.isdir(re2_hg_dir):
+  if os.path.exists(re2_dir_hg) and os.path.isdir(re2_dir_hg):
     print "ok."
   else:
     print "not found."
-
     utils.command_assert(['rm', '-rf', re2_dir])
-
     print "Cloning re2."
     utils.command_assert(['hg', 'clone', re2_remote, re2_dir],
                          "Failed to clone re2. Aborting build.")
 
 def re2_build(target, source, env):
   print "Building re2. This may take some time."
-  print ' '.join(['make', '-C', re2_dir, '-j5'])
   utils.command_assert(['make', '-C', re2_dir, '-j5'],
                        "Failed to build re2. Aborting build.")
 
-re2_repo = local_env.Command(re2_hg_dir, '', re2_checkout)
-re2_lib = local_env.Command(re2_lib_path, re2_repo, re2_build)
+re2_repo = local_env.Command(re2_dir_hg, '', re2_checkout)
+re2_lib = local_env.Command(re2_path_lib, re2_repo, re2_build)
 re2_sources = Glob(os.path.join(re2_dir, 're2', '*'))
 Depends(re2_lib, re2_sources)
 

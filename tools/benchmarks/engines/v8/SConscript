@@ -41,15 +41,12 @@ v8_engine_path = join(v8_dir, 'out/native/d8')
 def v8_clone(target, source, env):
   utils.assert_available('git')
   v8_remote = "git://github.com/v8/v8.git"
-
   print "Checking for v8... ",
   if os.path.exists(v8_git_dir) and os.path.isdir(v8_git_dir):
     print "ok."
   else:
     print "not found."
-
     utils.command_assert(['rm', '-rf', v8_dir])
-
     print "Cloning v8."
     utils.command_assert(['git', 'clone', v8_remote, v8_dir],
                          "Failed to clone v8. Aborting build.")
