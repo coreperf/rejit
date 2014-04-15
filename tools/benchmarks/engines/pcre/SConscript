@@ -79,13 +79,13 @@ local_env['CXX'] = os.getenv('CXX') or local_env['CXX']
 local_env['CCFLAGS'] = ['-Wall', '-pedantic', '-DBENCHTEST', '-O3']
 local_env['CXXFLAGS'] = ['-std=c++11']
 
-local_env['LIBPATH'] = env['LIBPATH'] + ':' + os.path.join(pcre_dir, 'obj') + ':' + pcre_lib_location_path + ':'
+local_env['LIBPATH'] = env['LIBPATH'] + ':' + pcre_dir + ':' + pcre_lib_location_path + ':'
 
 
 dir_sconscript = Dir('.').srcnode().path
 path_engine = os.path.join(dir_sconscript, 'engine')
 
-libs = ['pcre', 'pthread']
+libs = ['pcre', 'pcrecpp', 'pthread']
 if 'os' in env and env['os'] == 'macos':
   conf = Configure(local_env)
   if not conf.CheckLib('argp'):
