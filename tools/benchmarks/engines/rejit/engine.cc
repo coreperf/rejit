@@ -33,7 +33,7 @@ using namespace std;
 // TODO(rames): Merge the code for rejit and re2 engines.
 
 // Argp configuration ----------------------------------------------------------
-const char *argp_program_version = "rejit benchmark engine 0.1.2";
+const char *argp_program_version = "rejit benchmark engine";
 
 
 // Benchmark function ----------------------------------------------------------

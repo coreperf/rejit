@@ -27,7 +27,7 @@
 using namespace std;
 
 // Argp configuration ----------------------------------------------------------
-const char *argp_program_version = "pcre benchmark engine 0.1.2";
+const char *argp_program_version = "pcre benchmark engine";
 
 
 // Benchmark function ----------------------------------------------------------
