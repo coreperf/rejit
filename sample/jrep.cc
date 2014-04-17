@@ -399,8 +399,8 @@ void list_file(const char *filename) {
   }
   index = fn_written++;
   filenames[index % n_filenames].assign(filename);
-  fn_refilled.notify_one();
   fn_lock.unlock();
+  fn_refilled.notify_one();
 }
 
 
@@ -443,8 +443,12 @@ void job_process_files() {
   string filename;
   unique_lock<mutex> fn_lock(fn_mutex, defer_lock);
 
-  while (!fn_done_listing || fn_read < fn_written) {
+  while (true) {
     fn_lock.lock();
+    if (fn_done_listing && fn_read == fn_written) {
+      fn_lock.unlock();
+      break;
+    }
     if (fn_read >= fn_written) {
       fn_refilled.wait(fn_lock);
     }
@@ -527,8 +531,10 @@ int main(int argc, char *argv[]) {
       return rc;
   }
 
+  unique_lock<mutex> fn_lock(fn_mutex);
   fn_done_listing = true;
   atomic_thread_fence(memory_order_seq_cst);
+  fn_lock.unlock();
   fn_refilled.notify_all();
   for (unsigned i = 0; i < arguments.jobs; i++) {
     threads[i]->join();
