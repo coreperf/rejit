@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import os
 import sys
@@ -44,26 +45,19 @@ args = parser.parse_args()
 
 
 regexps_easy = [
-  "NOTfound",
   "foobar",
-  "rare",
-  "typedef",
+  "éphémère",
   "unsigned",
   "A_quite_long_string_of_36_characters"
 ]
 regexps_alt = [
   "alternation|words",
-  "NOTfound|foobar|rare|typedef",
+  "NOTfound|foobar|typedef|éphémère",
   "typedef|definition|definitively"
-]
-regexps_medium = [
-  "gnu.*linux",
-  "^\s*(void|unsigned|int)\s+func\s+\(",
-  "[a-zA-Z0-9_]*(->|\.)member"
 ]
 regexps_hard = [
   "[a-z]{3,10}.*gnu.*[a-z]{3,10}",
-  "[a-z]*linux[a-z]*"
+  "^\s*(void|unsigned|int)\s+func\s+\(",
 ]
 # Use underscores '_' to limit the number of matches for small digits.
 regexps_alt_linear = [
@@ -79,7 +73,7 @@ regexps_alt_linear = [
   "1__|22_|333|4444|55555|666666|7777777|88888888|999999999",
 ]
 
-regexps = regexps_easy + regexps_alt + regexps_medium + regexps_hard + regexps_alt_linear
+regexps = regexps_easy + regexps_alt + regexps_hard + regexps_alt_linear
 
 
 
