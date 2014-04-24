@@ -569,5 +569,5 @@ clean:
   delete[] filenames;
   free(threads);
 
-  return 0;
+  return rc;
 }
