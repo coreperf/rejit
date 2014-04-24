@@ -28,6 +28,10 @@ def validate_directory(path):
 parser = argparse.ArgumentParser(description=description,
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+engines_available = ['grep', 'jrep']
+parser.add_argument('--engines', action='store', nargs='+',
+                    choices=engines_available, default=engines_available,
+                    help='Space-separated list of grep utilities to benchmark.')
 parser.add_argument('-i', '--iterations', type=int, default=5,
                     help="Number of iterations to run for each benchmarks")
 parser.add_argument('directory',
@@ -79,7 +83,7 @@ regexps = regexps_easy + regexps_alt + regexps_medium + regexps_hard + regexps_a
 
 
 
-engines = ['grep', 'jrep']
+engines = [e for e in engines_available if e in args.engines]
 engines_options_base = {
   'grep': ['--recursive', '--with-filename', '--line-number', '--extended-regexp'],
   'jrep': ['--recursive', '--with-filename', '--line-number']}
