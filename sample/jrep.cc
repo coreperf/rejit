@@ -510,13 +510,15 @@ int main(int argc, char *argv[]) {
     threads = reinterpret_cast<thread**>(malloc(arguments.jobs * sizeof(thread*)));
     if (!threads) {
       fprintf(stderr, "jrep: %s\n", strerror(errno));
-      exit(errno);
+      rc = errno;
+      goto clean;
     }
     n_filenames = max(arguments.nopenfd, N_FILENAMES(arguments.jobs));
     filenames = new string[n_filenames];
     if (!filenames) {
       fprintf(stderr, "jrep: %s\n", strerror(errno));
-      exit(errno);
+      rc = errno;
+      goto clean;
     }
 
     for (unsigned i = 0; i < arguments.jobs; i++) {
@@ -557,6 +559,10 @@ int main(int argc, char *argv[]) {
   for (unsigned i = 0; i < arguments.jobs; i++) {
     threads[i]->join();
   }
+
+clean:
+  delete[] filenames;
+  free(threads);
 
   return 0;
 }
