@@ -49,19 +49,28 @@ using namespace std;
 // If <n> regular expression processing threads are allowed, one thread
 // walks the file tree (and processes files if <n> is zero) while <n> others
 // process the files.
+thread **threads;
 
 // The names of files to process are stored in this array.
 // We use C++ string to automate the memory management.
-string *filenames;
 unsigned n_filenames;
-atomic_uint fn_written = ATOMIC_VAR_INIT(0), fn_read = ATOMIC_VAR_INIT(0);
-mutex fn_mutex;
-condition_variable fn_need_refill;
-condition_variable fn_refilled;
-volatile bool fn_done_listing = false;
-thread **threads;
+string *filenames;
+#define N_FILENAMES(n_jobs) (1024 * n_jobs)
 
-// We want to display the results 'file by file'.
+unsigned fn_written = 0, fn_read = 0;
+#define REFILL_LEVEL(n_jobs) N_FILENAMES(n_jobs) / 16
+#define WAKE_THREAD_LEVEL(n_jobs) REFILL_LEVEL(n_jobs)
+volatile bool fn_done_listing = false;
+unsigned threads_running = 0;
+
+// Protects access to the variables above.
+mutex fn_mutex;
+// Wake up this condition when more work (filenames to process) is required.
+condition_variable fn_need_refill;
+// Wake up this condition when new work is availble.
+condition_variable fn_refilled;
+
+// The results for different files should not be mixed.
 mutex output_mutex;
 
 
@@ -392,15 +401,20 @@ exit:
 
 
 void list_file(const char *filename) {
-  unique_lock<mutex> fn_lock(fn_mutex);
+  unique_lock<mutex> fn_lock(fn_mutex, defer_lock);
   unsigned index;
+
+  fn_lock.lock();
   if (fn_written >= fn_read + n_filenames) {
     fn_need_refill.wait(fn_lock);
   }
   index = fn_written++;
   filenames[index % n_filenames].assign(filename);
+  bool awake_thread = fn_written - fn_read > WAKE_THREAD_LEVEL(arguments.jobs);
   fn_lock.unlock();
-  fn_refilled.notify_one();
+  if (awake_thread) {
+    fn_refilled.notify_one();
+  }
 }
 
 
@@ -443,6 +457,8 @@ void job_process_files() {
   string filename;
   unique_lock<mutex> fn_lock(fn_mutex, defer_lock);
 
+  ++threads_running;
+
   while (true) {
     fn_lock.lock();
     if (fn_done_listing && fn_read == fn_written) {
@@ -450,7 +466,9 @@ void job_process_files() {
       break;
     }
     if (fn_read >= fn_written) {
+      --threads_running;
       fn_refilled.wait(fn_lock);
+      ++threads_running;
     }
     if (fn_read < fn_written) {
       // We need to locally copy the filename, which could be overwritten in the
@@ -459,7 +477,7 @@ void job_process_files() {
       fn_lock.unlock();
       // Avoid waking up the listing thread if there are still enough files to
       // process.
-      if (fn_written - fn_read < n_filenames / 2) {
+      if (fn_written - fn_read < REFILL_LEVEL(arguments.jobs)) {
         fn_need_refill.notify_one();
       }
       process_file(filename.c_str());
@@ -494,7 +512,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "jrep: %s\n", strerror(errno));
       exit(errno);
     }
-    n_filenames = max(arguments.nopenfd, 16 * arguments.jobs);
+    n_filenames = max(arguments.nopenfd, N_FILENAMES(arguments.jobs));
     filenames = new string[n_filenames];
     if (!filenames) {
       fprintf(stderr, "jrep: %s\n", strerror(errno));
@@ -531,10 +549,10 @@ int main(int argc, char *argv[]) {
       return rc;
   }
 
-  unique_lock<mutex> fn_lock(fn_mutex);
+  fn_mutex.lock();
   fn_done_listing = true;
   atomic_thread_fence(memory_order_seq_cst);
-  fn_lock.unlock();
+  fn_mutex.unlock();
   fn_refilled.notify_all();
   for (unsigned i = 0; i < arguments.jobs; i++) {
     threads[i]->join();
