@@ -123,7 +123,9 @@ static struct argp_option options[] = {
   {"jobs", 'j', "0", OPTION_ARG_OPTIONAL,
     "Specify the number <n> of regular expression processing threads to use.\n"
     "One thread walks the file tree (and process files if <n> is zero), while"
-    "<n> others process the files."
+    "<n> others process the files.\n"
+    "If a number is not specified, the program automatically determines the"
+    "number of threads to use."
   },
   {"nopenfd", 'k', "1024", OPTION_ARG_OPTIONAL,
     "The maximum number of directories that ftw() can hold open simultaneously."
@@ -178,6 +180,9 @@ parse_opt(int key, char *arg, struct argp_state *state) {
     case 'j':
       if (arg) {
         arguments->jobs = argtoi(arg);
+      } else {
+        // One thread to list files, and the others to process.
+        arguments->jobs = thread::hardware_concurrency() - 1;
       }
       break;
     case 'k':
