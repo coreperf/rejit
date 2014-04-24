@@ -157,7 +157,8 @@ def print_results(reduce_function = lambda x: x):
 
 
 def run_benchmarks():
-  FNULL = open(os.devnull, 'w')
+  # TODO: On OSX redirecting to /dev/null raises an error.
+  out_file = open('/tmp/gjrep.py.out', 'w')
   for regexp in regexps:
     for engine in engines:
       options = ['']
@@ -166,11 +167,11 @@ def run_benchmarks():
       for opt in options:
         results = []
 
-        run_cmd = ['time', '-p', engine, opt] + engines_options_base[engine] + [quotify(regexp), args.directory, '>', '/dev/null']
+        run_cmd = ['time', '-p', engine, opt] + engines_options_base[engine] + [quotify(regexp), args.directory, '>', '/tmp/gjrep.py.out']
         print ' '.join(run_cmd)
 
         for i in range(1, args.iterations + 1):
-          p_cmd = subprocess.Popen(' '.join(run_cmd), stdout=FNULL, stderr=subprocess.PIPE, shell=True)
+          p_cmd = subprocess.Popen(' '.join(run_cmd), stdout=out_file, stderr=subprocess.PIPE, shell=True)
           p_g = subprocess.Popen(['grep', 'real\\|user\\|sys'], stdin=p_cmd.stderr,
                                  stdout=subprocess.PIPE)
           p_cmd.wait()
@@ -183,7 +184,7 @@ def run_benchmarks():
         if (len(opt) > 0):
           engine_name = engine_name + ' ' + opt
         add_result(regexp, ' '.join([engine, opt]), results)
-  FNULL.close()
+  out_file.close()
 
 
 
