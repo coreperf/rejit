@@ -30,8 +30,6 @@ parser = argparse.ArgumentParser(description=description,
 
 parser.add_argument('-i', '--iterations', type=int, default=5,
                     help="Number of iterations to run for each benchmarks")
-parser.add_argument('-j', '--jobs', type=int, default=2,
-                    help="Benchmark jrep with 0 to <n> processing jobs")
 parser.add_argument('directory',
                     type=validate_directory,
                     help="Directory to recursively grep through"),
@@ -86,7 +84,7 @@ engines_options_base = {
   'grep': ['--recursive', '--with-filename', '--line-number', '--extended-regexp'],
   'jrep': ['--recursive', '--with-filename', '--line-number']}
 engines_options_extra = {
-  'jrep': map(lambda n: '-j' + str(n), range(1, args.jobs + 1))
+  'jrep': ['-j']
 }
 
 results = {}
