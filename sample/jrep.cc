@@ -494,7 +494,7 @@ void job_process_files() {
 
 
 int main(int argc, char *argv[]) {
-  int rc;
+  int rc = 0;
 
   // Set default values for arguments.
   memset(&arguments, 0, sizeof(arguments));

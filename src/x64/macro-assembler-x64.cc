@@ -37,7 +37,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
     // Check that the unused callee saved registers have not been modified.
     // TODO: Use intrisincs CTZ.
     Label fail, done;
-    for (int i = 0; i < 8 * sizeof(kUnusedCalleeSavedRegList); ++i) {
+    for (unsigned i = 0; i < 8 * sizeof(kUnusedCalleeSavedRegList); ++i) {
       if ((1 << i) & kUnusedCalleeSavedRegList) {
         int n_prev_regs =
             NumberOfBitsSet(kCalleeSavedRegList & ((1 << i) - 1));
