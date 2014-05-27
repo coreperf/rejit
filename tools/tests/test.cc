@@ -530,6 +530,9 @@ int RunTest(struct arguments *arguments) {
   TEST_Multiple(2, "x$", "x\nx", 0, 1);
   TEST_Multiple_unbound(2, "x$", "x\nx\n", 0, 1);
 
+  TEST_Multiple(1, "(abcd|....efgh)", "abcdefgh", 0, 8);
+  TEST_Multiple(1, "(abcd|_....efgh)", "_abcdefgh", 0, 9);
+
   if (count_fail) {
     printf("FAIL: %d\tpass: %d\t(total: %d)\n", count_fail, count_pass, count_fail + count_pass);
   } else {
