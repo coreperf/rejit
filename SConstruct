@@ -21,6 +21,17 @@ dir_root = os.path.dirname(File('SConstruct').rfile().abspath)
 sys.path.insert(0, join(dir_root, 'tools'))
 import utils
 
+
+warning_message = '''\
+WARNING: Rejit top-of-tree is not maintained any more, and contains some bugs.
+In particular, some regular expressions are incorrectly evaluated. I have
+started working on another implementation, where the approach is to have full
+support via C++, and locally JIT code as necessary for performance. See
+https://github.com/arames/regit.
+'''
+print warning_message
+
+
 #TODO(rames): Check scons AddOption()
 
 Help("""
